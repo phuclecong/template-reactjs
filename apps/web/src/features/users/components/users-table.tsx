@@ -1,5 +1,3 @@
-"use client"
-
 import { useCallback, useMemo } from "react"
 import { useTranslation } from "react-i18next"
 import {
@@ -215,7 +213,9 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
         open={deleteDialog.isOpen}
         onClose={deleteDialog.close}
         title={t("users.deleteTitle")}
-        description={t("users.deleteBody", { name: deleteDialog.data?.name ?? "" })}
+        description={t("users.deleteBody", {
+          name: deleteDialog.data?.name ?? "",
+        })}
         confirmLabel={t("common.delete")}
         cancelLabel={t("common.cancel")}
         loading={deleteMutation.mutation.isPending}

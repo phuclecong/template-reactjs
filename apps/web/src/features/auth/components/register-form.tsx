@@ -1,5 +1,3 @@
-"use client"
-
 import { Link } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { useRegister } from "@refinedev/core"
@@ -86,7 +84,9 @@ export function RegisterForm() {
           name="email"
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor={field.name}>{t("register.email")}</FieldLabel>
+              <FieldLabel htmlFor={field.name}>
+                {t("register.email")}
+              </FieldLabel>
               <Input
                 {...field}
                 id={field.name}

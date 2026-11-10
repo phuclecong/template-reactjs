@@ -1,4 +1,5 @@
 import { Collection } from "@msw/data"
+import { persist } from "@msw/data/extensions/persist"
 import { z } from "zod"
 
 export const roleSchema = z.enum(["admin", "member"])
@@ -38,8 +39,17 @@ export const taskRecordSchema = z.object({
 export type UserRecord = z.infer<typeof userRecordSchema>
 export type TaskRecord = z.infer<typeof taskRecordSchema>
 
-export const users = new Collection({ schema: userRecordSchema })
-export const tasks = new Collection({ schema: taskRecordSchema })
+// `persist()` is browser-only (a no-op in Node) and hydrates these collections
+// from localStorage on construction, so records survive a page reload. The
+// smoke tests run in Node and are unaffected.
+export const users = new Collection({
+  schema: userRecordSchema,
+  extensions: [persist()],
+})
+export const tasks = new Collection({
+  schema: taskRecordSchema,
+  extensions: [persist()],
+})
 
 // A record as stored by @msw/data: the schema shape plus internal symbol keys.
 export type UserEntity = Awaited<ReturnType<typeof users.create>>

@@ -1,5 +1,3 @@
-"use client"
-
 import { useTranslation } from "react-i18next"
 import { useGetIdentity } from "@refinedev/core"
 import { TasksTable } from "./components/tasks-table"

@@ -1,5 +1,3 @@
-"use client"
-
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Button } from "@workspace/ui/components/button"
@@ -155,7 +153,7 @@ export function TaskBulkActions({
           className="w-36"
         />
 
-        <Button type="button" onClick={onCreate} size="sm">
+        <Button type="button" onClick={() => onCreate()} size="sm">
           {t("tasks.new")}
         </Button>
       </div>

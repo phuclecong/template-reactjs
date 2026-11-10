@@ -3,6 +3,9 @@
   "version": "0.0.1",
   "type": "module",
   "private": true,
+  "msw": {
+    "workerDirectory": ["public"]
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

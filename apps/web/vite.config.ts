@@ -14,6 +14,10 @@ export default defineConfig(({ mode }) => {
       alias: {
         "@": path.resolve(__dirname, "./src"),
       },
+      // pnpm monorepo: `@workspace/ui` and `@workspace/shared-lib` are linked via
+      // symlink and each declares its own `react`/`react-dom`. Force a single
+      // instance so hooks dispatch against one React (avoids "invalid hook call").
+      dedupe: ["react", "react-dom"],
     },
     // When a real backend is configured, proxy the browser's `/api/*` requests
     // to it in dev (no CORS). In mock mode this is undefined and the in-browser

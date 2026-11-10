@@ -5,9 +5,10 @@ import type { PublicUser } from "@workspace/api/service"
 /**
  * Refine authProvider (ADR-0002, ADR-0003). Login/register/logout call the auth
  * transport (real backend when `VITE_API_URL` is set, otherwise the in-process
- * mock) and hold the returned access token in memory only — never localStorage.
- * There is no server, so there is no signed httpOnly cookie: `check`/
- * `getIdentity` read the in-memory token, and reloading the app drops it.
+ * mock) and hold the returned access token in memory, mirrored to sessionStorage
+ * so the session survives a reload. There is no server, so there is no signed
+ * httpOnly cookie: sessionStorage (not localStorage) keeps the token scoped to
+ * the current tab and is cleared when the tab closes.
  */
 
 export interface SessionUser {
@@ -20,8 +21,53 @@ export interface SessionUser {
 /** The identity subset the dashboard shell and sidebar render in the footer. */
 export type DashboardUser = Pick<SessionUser, "name" | "email" | "role">
 
-let inMemoryToken: string | null = null
-let inMemoryUser: SessionUser | null = null
+const SESSION_KEY = "auth.session"
+
+interface PersistedSession {
+  token: string
+  user: SessionUser
+}
+
+function readPersistedSession(): PersistedSession | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<PersistedSession>
+    if (
+      typeof parsed.token === "string" &&
+      typeof parsed.user?.id === "string" &&
+      typeof parsed.user?.name === "string" &&
+      typeof parsed.user?.email === "string" &&
+      (parsed.user?.role === "admin" || parsed.user?.role === "member")
+    ) {
+      return parsed as PersistedSession
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+function writePersistedSession(token: string, user: SessionUser): void {
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ token, user }))
+  } catch {
+    // Storage unavailable (private mode / quota) — keep the in-memory fallback.
+  }
+}
+
+function clearPersistedSession(): void {
+  try {
+    sessionStorage.removeItem(SESSION_KEY)
+  } catch {
+    // Ignore — the in-memory state is already cleared by the callers.
+  }
+}
+
+const persisted = readPersistedSession()
+
+let inMemoryToken: string | null = persisted?.token ?? null
+let inMemoryUser: SessionUser | null = persisted?.user ?? null
 
 export function getAuthToken(): string | null {
   return inMemoryToken
@@ -34,6 +80,7 @@ export function getAuthUser(): SessionUser | null {
 export function resetAuthState(): void {
   inMemoryToken = null
   inMemoryUser = null
+  clearPersistedSession()
 }
 
 export async function ensureAuthUser(): Promise<SessionUser | null> {
@@ -71,6 +118,7 @@ function toAuthResult(
   }
   inMemoryToken = result.body.accessToken
   inMemoryUser = toSessionUser(result.body.user)
+  writePersistedSession(inMemoryToken, inMemoryUser)
   return { success: true, redirectTo: "/dashboard" }
 }
 
@@ -96,8 +144,7 @@ export const authProvider: AuthProvider = {
   },
 
   async logout() {
-    inMemoryToken = null
-    inMemoryUser = null
+    resetAuthState()
     return { success: true, redirectTo: "/login" }
   },
 
@@ -106,8 +153,15 @@ export const authProvider: AuthProvider = {
     return { authenticated: false, redirectTo: "/login" }
   },
 
-  async onError() {
-    return { logout: true, redirectTo: "/login" }
+  async onError(error: unknown) {
+    // Only force a logout when the request was rejected as *unauthenticated*.
+    // Domain 401s — e.g. a wrong current-password on the password form — carry a
+    // different `code` and must not end the session.
+    const code = (error as {
+      response?: { data?: { code?: unknown } }
+    })?.response?.data?.code
+    if (code === "unauthorized") return { logout: true, redirectTo: "/login" }
+    return { logout: false }
   },
 
   async getIdentity() {

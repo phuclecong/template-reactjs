@@ -1,5 +1,3 @@
-"use client"
-
 import { useMemo } from "react"
 import { useTranslation } from "react-i18next"
 import { useList, type CrudFilter, type CrudSort } from "@refinedev/core"

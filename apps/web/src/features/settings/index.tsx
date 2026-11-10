@@ -1,5 +1,3 @@
-"use client"
-
 import { useMemo } from "react"
 import { useTheme } from "next-themes"
 import { useTranslation } from "react-i18next"

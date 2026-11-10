@@ -1,5 +1,3 @@
-"use client"
-
 import { useCallback, useState } from "react"
 
 /** The value returned by {@link useDialog}. */

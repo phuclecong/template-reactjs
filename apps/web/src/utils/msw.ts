@@ -1,6 +1,6 @@
 import { setupWorker } from "msw/browser"
 import { dataHandlers } from "@workspace/api/data-handlers"
-import { resetDb } from "@workspace/api/collections"
+import { seedDb, tasks, users } from "@workspace/api/collections"
 
 /**
  * Boots the in-browser MSW worker that serves the mock API for client-side
@@ -9,11 +9,23 @@ import { resetDb } from "@workspace/api/collections"
  */
 let workerPromise: Promise<void> | null = null
 
+/**
+ * Seeds the mock store on first visit. The collections hydrate from
+ * localStorage via the `persist()` extension on construction, so we only seed
+ * when the store is still empty — never clobbering persisted records (e.g. a
+ * user registered before a reload).
+ */
+async function seedOnce(): Promise<void> {
+  if (users.all().length === 0 && tasks.all().length === 0) {
+    await seedDb()
+  }
+}
+
 export function startMockWorker(): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve()
   if (!workerPromise) {
     workerPromise = (async () => {
-      await resetDb()
+      await seedOnce()
       const worker = setupWorker(...dataHandlers)
       await worker.start({ onUnhandledFrame: "bypass" })
     })()

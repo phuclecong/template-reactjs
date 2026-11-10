@@ -1,5 +1,3 @@
-"use client"
-
 import type { ComponentProps } from "react"
 import { Toaster as SonnerToaster, toast as sonnerToast } from "sonner"
 
