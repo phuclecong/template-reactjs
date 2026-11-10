@@ -1,0 +1,3 @@
+# Two-layer authorization: JWT bearer for the API, route guards for navigation
+
+The API contract uses JWT bearer (access + refresh) because it hands off to FastAPI, and the access token lives in memory under Refine's `authProvider`. A Vite SPA has no server runtime, so there is no signed httpOnly session cookie: login/register call the auth transport (the real backend through the dev proxy / production rewrite, or the in-process mock) and hold the returned access token in memory only. Route gating is a client-side `<ProtectedRoute>` / `<RedirectIfAuthed>` guard reading Refine's `useIsAuthenticated`. It gates navigation only — it is not a second auth system; authorization for data lives in the API (and, later, FastAPI).

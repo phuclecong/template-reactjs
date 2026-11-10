@@ -1,0 +1,17 @@
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub (`github.com/<your-org>/template-reactjs`), driven by the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five canonical roles: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Commit message:
+
+Do not add `Co-Authored-By: Claude Code <noreply@anthropic.com>`
