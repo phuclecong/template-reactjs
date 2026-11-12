@@ -165,6 +165,9 @@ importers:
       '@msw/source':
         specifier: ^0.7.0
         version: 0.7.0(msw@3.0.4(@types/node@24.12.4)(typescript@6.0.3)(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.7.0)(yaml@2.9.1)))
+      '@workspace/date-utils':
+        specifier: workspace:*
+        version: link:../date-utils
       msw:
         specifier: ^3.0.3
         version: 3.0.4(@types/node@24.12.4)(typescript@6.0.3)(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.7.0)(yaml@2.9.1))
@@ -193,6 +196,27 @@ importers:
       swagger-ui-dist:
         specifier: ^5.34.1
         version: 5.34.1
+      typescript:
+        specifier: ~6
+        version: 6.0.3
+      vitest:
+        specifier: ^5.1.0
+        version: 5.1.0(@types/node@24.12.4)(jsdom@31.0.0)(msw@3.0.4(@types/node@24.12.4)(typescript@6.0.3)(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.7.0)(yaml@2.9.1)))(vite@8.0.16(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/date-utils:
+    devDependencies:
+      '@types/node':
+        specifier: ^24
+        version: 24.12.4
+      '@workspace/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@workspace/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      eslint:
+        specifier: ^9
+        version: 9.39.5(jiti@2.7.0)
       typescript:
         specifier: ~6
         version: 6.0.3
@@ -295,6 +319,9 @@ importers:
       '@base-ui/react':
         specifier: ^1.9.0
         version: 1.9.0(@date-fns/tz@1.5.0)(@types/react@19.2.15)(date-fns@4.4.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@workspace/date-utils':
+        specifier: workspace:*
+        version: link:../date-utils
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

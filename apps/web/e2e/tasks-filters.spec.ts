@@ -76,13 +76,13 @@ test("applies a Due datetime through the bulk action", async ({ page }) => {
 
   const trigger = page.getByLabel("Set due date")
   await trigger.click()
-  // The bulk picker defers the write until Done, so date and time are chosen
-  // as one action.
+  // The bulk picker applies each valid change immediately and stays open so
+  // the time can be adjusted; Done closes it and resets the control.
   await page.getByRole("button", { name: /^Today,/ }).click()
   await page.getByLabel("Time", { exact: true }).fill("14:30")
   await page.getByRole("button", { name: "Done" }).click()
 
-  await expect(page.getByText("Updated 1 tasks")).toBeVisible()
+  await expect(page.getByText("Updated 1 tasks").first()).toBeVisible()
   await expect(row.getByText(/2:30 PM/)).toBeVisible()
   // The control resets after applying so the next update is deliberate.
   await expect(trigger).toContainText("Set due date")

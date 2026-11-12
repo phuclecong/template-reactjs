@@ -226,6 +226,47 @@ describe("DateRangePicker interactions", () => {
     ).toBeInTheDocument()
   })
 
+  it("selects a range with the keyboard and returns focus to the trigger", async () => {
+    const user = userEvent.setup()
+    freezeClock(new Date(2026, 0, 10, 12, 0, 0))
+    const onChange = vi.fn()
+    render(<Harness onChange={onChange} />)
+
+    const trigger = screen.getByRole("button", { name: "Due date" })
+    trigger.focus()
+    await user.keyboard("{Enter}")
+    await user.keyboard("{Enter}")
+    await user.keyboard("{ArrowRight}")
+    await user.keyboard("{Enter}")
+
+    expect(onChange).toHaveBeenLastCalledWith({
+      from: "2026-01-10",
+      to: "2026-01-11",
+    })
+    expect(trigger).toHaveFocus()
+  })
+
+  it("closes on Escape and returns focus to the trigger", async () => {
+    const user = userEvent.setup()
+    freezeClock(new Date(2026, 0, 10, 12, 0, 0))
+    const onChange = vi.fn()
+    render(<Harness onChange={onChange} />)
+
+    const trigger = screen.getByRole("button", { name: "Due date" })
+    await user.click(trigger)
+    expect(
+      await screen.findByRole("button", { name: "Between" })
+    ).toBeInTheDocument()
+
+    await user.keyboard("{Escape}")
+
+    expect(
+      screen.queryByRole("button", { name: "Between" })
+    ).not.toBeInTheDocument()
+    expect(onChange).not.toHaveBeenCalled()
+    expect(trigger).toHaveFocus()
+  })
+
   it("does not open when disabled", async () => {
     const user = userEvent.setup()
     render(<Harness disabled />)

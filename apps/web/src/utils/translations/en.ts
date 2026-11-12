@@ -13,7 +13,7 @@ export const en = {
   datePicker: {
     time: "Time",
     typedLabel: "Date and time",
-    typedHint: "Format: yyyy-MM-dd HH:mm",
+    typedHint: "Format: {format}",
     typedError: "Enter a valid date and time.",
   },
   shell: {
@@ -75,8 +75,6 @@ export const en = {
       status: "Status",
       priority: "Priority",
       assignee: "Assignee",
-      dueFrom: "Due from",
-      dueTo: "Due to",
       dueDate: "Due date",
       dueDatePlaceholder: "Any due date",
       dueDateClear: "Clear",

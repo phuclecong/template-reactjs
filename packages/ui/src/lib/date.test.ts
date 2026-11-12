@@ -1,19 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import {
+  calendarLocale,
+  dateFnsLocale,
   dateOnlyToLocalDate,
   formatDate,
   formatDateRange,
   formatDateTime,
   formatTime,
+  formatTimeInputValue,
+  formatTypedDateTime,
   isDateOnly,
   localDateToDateOnly,
+  localDateTimeToUtcInstant,
   localEndOfDayUtcInstant,
   localStartOfDayUtcInstant,
   normalizeLegacyDateValue,
+  parseTypedDateTime,
   parseUtcInstant,
+  resolveLocale,
   serializeUtcInstant,
   toUtcInstant,
+  typedDateTimeFormatHint,
 } from "./date"
 
 const originalTimeZone = process.env.TZ
@@ -158,6 +166,65 @@ describe("write instant serialization", () => {
     expect(toUtcInstant(undefined)).toBeNull()
     expect(toUtcInstant("")).toBeNull()
     expect(toUtcInstant("nope")).toBeNull()
+  })
+})
+
+describe("locale resolution", () => {
+  it("resolves supported Locales and regional variants, defaulting to English", () => {
+    expect(resolveLocale("vi")).toBe("vi")
+    expect(resolveLocale("vi-VN")).toBe("vi")
+    expect(resolveLocale("en-US")).toBe("en")
+    expect(resolveLocale(undefined)).toBe("en")
+    expect(resolveLocale("fr")).toBe("en")
+  })
+
+  it("maps to date-fns and calendar locales", () => {
+    expect(dateFnsLocale("vi").code).toBe("vi")
+    expect(dateFnsLocale("en-US").code).toBe("en-US")
+    expect(calendarLocale("vi").code).toBe("vi")
+    expect(calendarLocale("en-US").code).toBe("en-US")
+  })
+})
+
+describe("local datetime helpers", () => {
+  it("builds a UTC instant from a local calendar day and wall-clock time", () => {
+    process.env.TZ = "Asia/Ho_Chi_Minh"
+    expect(
+      localDateTimeToUtcInstant(new Date(2026, 0, 20, 0, 0), 14, 30)
+    ).toBe("2026-01-20T07:30:00.000Z")
+  })
+
+  it("formats the HH:mm value a time input expects", () => {
+    expect(formatTimeInputValue(new Date(2026, 0, 20, 9, 5))).toBe("09:05")
+    expect(formatTimeInputValue(null)).toBe("")
+  })
+})
+
+describe("localized typed entry", () => {
+  it("formats and parses English typed values", () => {
+    const date = new Date(2026, 0, 20, 14, 30)
+    expect(formatTypedDateTime(date, "en")).toBe("01/20/2026 2:30 PM")
+    expect(parseTypedDateTime("01/20/2026 2:30 PM", "en")?.getTime()).toBe(
+      date.getTime()
+    )
+  })
+
+  it("formats and parses Vietnamese typed values", () => {
+    const date = new Date(2026, 0, 20, 14, 30)
+    expect(formatTypedDateTime(date, "vi")).toBe("20/01/2026 14:30")
+    expect(parseTypedDateTime("20/01/2026 14:30", "vi")?.getTime()).toBe(
+      date.getTime()
+    )
+  })
+
+  it("rejects invalid and empty typed values", () => {
+    expect(parseTypedDateTime("tomorrow at noon", "en")).toBeNull()
+    expect(parseTypedDateTime("", "en")).toBeNull()
+  })
+
+  it("provides a localized format example for the hint", () => {
+    expect(typedDateTimeFormatHint("en")).toBe("01/01/2000 12:00 AM")
+    expect(typedDateTimeFormatHint("vi")).toBe("01/01/2000 00:00")
   })
 })
 

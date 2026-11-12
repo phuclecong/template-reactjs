@@ -1,35 +1,14 @@
 /**
  * Due-date normalization and comparison for the mock API.
  *
- * The API package stays self-contained (it must not depend on the design
- * system), so these helpers duplicate the small amount of date logic the
- * handlers need. Due dates are UTC instants. Writes only accept date-time
- * instants; the stored-record read path still interprets legacy date-only
- * values as local midnight so persisted data survives the migration.
+ * The API package must not depend on the design system; the small
+ * dependency-free date-only parsing primitive both packages need lives in
+ * `@workspace/date-utils`. Due dates are UTC instants. Writes only accept
+ * date-time instants; the stored-record read path still interprets legacy
+ * date-only values as local midnight so persisted data survives the migration.
  */
 
-const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
-
-function parseLocalDateOnly(value: string): Date | null {
-  const match = DATE_ONLY_PATTERN.exec(value)
-  if (!match) return null
-  const year = Number(match[1])
-  const month = Number(match[2])
-  const day = Number(match[3])
-  const date = new Date(year, month - 1, day, 0, 0, 0, 0)
-  if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day
-  ) {
-    return null
-  }
-  return date
-}
-
-function isDateOnly(value: string): boolean {
-  return DATE_ONLY_PATTERN.test(value)
-}
+import { isDateOnly, parseLocalDateOnly } from "@workspace/date-utils"
 
 /**
  * Normalizes a stored Due date to a UTC instant for reads. Legacy date-only

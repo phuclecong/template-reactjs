@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Button } from "@workspace/ui/components/button"
 import { DatePicker } from "@workspace/ui/components/date-picker"
+import { resolveLocale } from "@workspace/ui/lib/date"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,7 +37,7 @@ export function TaskBulkActions({
   onCreate: () => void
 }) {
   const { t, i18n } = useTranslation()
-  const locale = i18n.language.startsWith("vi") ? "vi" : "en"
+  const locale = resolveLocale(i18n.language)
   const [dueDate, setDueDate] = useState("")
 
   return (
@@ -144,14 +145,12 @@ export function TaskBulkActions({
         <DatePicker
           aria-label={t("tasks.bulk.setDueDate")}
           value={dueDate}
-          onChange={setDueDate}
-          // Hold the draft until the user has picked both the date and time,
-          // then apply it to the selection and reset the control. Closing
-          // without Done (Esc or an outside click) discards the draft.
-          onDone={(value) => {
+          // Bulk updates apply immediately; the control stays open so the
+          // time can still be adjusted, then resets when it closes.
+          onChange={(value) => {
             if (!value) return
+            setDueDate(value)
             applyBulk({ dueDate: formValueToDueDate(value) })
-            setDueDate("")
           }}
           onOpenChange={(open) => {
             if (!open) setDueDate("")
@@ -159,12 +158,14 @@ export function TaskBulkActions({
           disabled={!hasSelection}
           locale={locale}
           placeholder={t("tasks.bulk.setDueDate")}
-          clearLabel={t("common.clear")}
-          doneLabel={t("common.done")}
-          timeLabel={t("datePicker.time")}
-          typedEntryLabel={t("datePicker.typedLabel")}
-          typedEntryHint={t("datePicker.typedHint")}
-          typedEntryError={t("datePicker.typedError")}
+          labels={{
+            clear: t("common.clear"),
+            done: t("common.done"),
+            time: t("datePicker.time"),
+            typedEntryLabel: t("datePicker.typedLabel"),
+            typedEntryHint: t("datePicker.typedHint"),
+            typedEntryError: t("datePicker.typedError"),
+          }}
           className="w-44"
         />
 

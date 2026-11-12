@@ -41,10 +41,6 @@ const meta = {
     onChange: { action: "change" },
     disabled: { control: "boolean" },
     locale: { control: "select", options: ["en", "vi"] },
-    defaultMode: {
-      control: "select",
-      options: ["between", "from", "until"],
-    },
     "aria-label": { control: "text" },
     placeholder: { control: "text" },
     clearLabel: { control: "text" },
@@ -64,15 +60,45 @@ export const FullRange: Story = {
 
 export const FromOnly: Story = {
   args: {
-    defaultMode: "from",
     value: { from: "2026-01-05", to: "" },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole("button", { name: "Due date" }))
+    await userEvent.click(
+      within(document.body).getByRole("button", { name: "From" })
+    )
+    await userEvent.click(
+      within(document.body).getByRole("button", {
+        name: /January 8th, 2026/,
+      })
+    )
+
+    await expect(
+      canvas.getByRole("button", { name: "Due date" })
+    ).toHaveTextContent("Jan 8, 2026")
   },
 }
 
 export const UntilOnly: Story = {
   args: {
-    defaultMode: "until",
     value: { from: "", to: "2026-01-10" },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole("button", { name: "Due date" }))
+    await userEvent.click(
+      within(document.body).getByRole("button", { name: "Until" })
+    )
+    await userEvent.click(
+      within(document.body).getByRole("button", {
+        name: /January 8th, 2026/,
+      })
+    )
+
+    await expect(
+      canvas.getByRole("button", { name: "Due date" })
+    ).toHaveTextContent("Jan 8, 2026")
   },
 }
 
