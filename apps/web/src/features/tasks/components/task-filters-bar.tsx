@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next"
 import { Button } from "@workspace/ui/components/button"
 import { DateRangePicker } from "@workspace/ui/components/date-range-picker"
 import { Input } from "@workspace/ui/components/input"
+import { resolveLocale } from "@workspace/ui/lib/date"
 import {
   Select,
   SelectContent,
@@ -102,7 +103,7 @@ export function TaskFiltersBar({
       <DateRangePicker
         id="tasks-due-date-filter"
         aria-label={t("tasks.filters.dueDate")}
-        locale={i18n.language}
+        locale={resolveLocale(i18n.language)}
         placeholder={t("tasks.filters.dueDatePlaceholder")}
         clearLabel={t("tasks.filters.dueDateClear")}
         labels={{

@@ -4,14 +4,23 @@ import { cleanup } from "@testing-library/react"
 import { afterEach } from "vitest"
 
 // jsdom does not implement matchMedia. The responsive pickers subscribe to it
-// through `useIsMobile`; a no-match stub keeps desktop rendering in tests, and
-// individual tests can override `window.innerWidth` for the narrow layout.
-if (typeof window !== "undefined" && !window.matchMedia) {
+// through `useIsMobile`; this stub answers the viewport-width query from
+// `window.innerWidth` (tests can override it for the narrow layout) and treats
+// a coarse pointer as opt-in via `window.__coarsePointer`.
+if (typeof window !== "undefined") {
   Object.defineProperty(window, "matchMedia", {
     writable: true,
-    value: (query: string): MediaQueryList =>
-      ({
-        matches: false,
+    value: (query: string): MediaQueryList => {
+      const widthMatch = /\(max-width:\s*(\d+)px\)/.exec(query)
+      const matches =
+        query === "(pointer: coarse)"
+          ? Boolean((window as unknown as { __coarsePointer?: boolean }).__coarsePointer)
+          : widthMatch
+            ? window.innerWidth <= Number(widthMatch[1])
+            : false
+
+      return {
+        matches,
         media: query,
         onchange: null,
         addListener: () => {},
@@ -19,7 +28,8 @@ if (typeof window !== "undefined" && !window.matchMedia) {
         addEventListener: () => {},
         removeEventListener: () => {},
         dispatchEvent: () => false,
-      }) as MediaQueryList,
+      } as MediaQueryList
+    },
   })
 }
 

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "@workspace/ui/components/button"
 import { Checkbox } from "@workspace/ui/components/checkbox"
-import { formatDateTime } from "@workspace/ui/lib/date"
+import { formatDateTime, resolveLocale } from "@workspace/ui/lib/date"
 import { DataTable } from "@workspace/shared-lib/components"
 import { useDialog, useTableState } from "@workspace/shared-lib/hooks"
 import { TaskBulkActions } from "@/features/tasks/components/task-bulk-actions"
@@ -70,7 +70,7 @@ const TaskActionsCell = memo(function TaskActionsCell({
 
 export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
   const { t, i18n } = useTranslation()
-  const locale = i18n.language === "vi" ? "vi" : "en"
+  const locale = resolveLocale(i18n.language)
 
   const {
     q,
@@ -117,7 +117,11 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
 
   const { applyBulk } = useTaskBulkActions({
     selectedIds,
-    onDone: () => setRowSelection({}),
+    onDone: (patch) => {
+      // An immediate Due-date set keeps the row selection and the picker open
+      // so the time can still be adjusted; completion actions clear it.
+      if (typeof patch.dueDate !== "string") setRowSelection({})
+    },
   })
 
   const columns = useMemo<ColumnDef<TaskRow>[]>(

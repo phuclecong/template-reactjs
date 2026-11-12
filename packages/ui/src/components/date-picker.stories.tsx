@@ -38,18 +38,20 @@ const meta = {
     onChange: () => {},
     locale: "en",
     placeholder: "Pick a date",
-    clearLabel: "Clear",
-    doneLabel: "Done",
-    timeLabel: "Time",
-    typedEntryLabel: "Date and time",
-    typedEntryHint: "Format: yyyy-MM-dd HH:mm",
-    typedEntryError: "Enter a valid date and time.",
+    labels: {
+      clear: "Clear",
+      done: "Done",
+      time: "Time",
+      typedEntryLabel: "Date and time",
+      typedEntryHint: "Format: {format}",
+      typedEntryError: "Enter a valid date and time.",
+    },
     "aria-label": "Due date",
   },
   argTypes: {
     onChange: { control: false },
-    onDone: { control: false },
     onOpenChange: { control: false },
+    labels: { control: "object" },
     min: { control: "text" },
     max: { control: "text" },
   },
@@ -117,7 +119,7 @@ export const TypedEntry: Story = {
     await userEvent.click(trigger)
     const typed = await screen.findByLabelText("Date and time")
     await userEvent.clear(typed)
-    await userEvent.type(typed, "2026-01-20 14:30")
+    await userEvent.type(typed, "01/20/2026 2:30 PM")
     await userEvent.keyboard("{Enter}")
 
     await expect(trigger).toHaveTextContent("Jan 20, 2026, 2:30 PM")
@@ -230,6 +232,22 @@ export const Disabled: Story = {
   ),
 }
 
+export const WithLabel: Story = {
+  render: () => (
+    <div className="flex flex-col gap-1">
+      <label htmlFor="labeled-date-picker">Due date</label>
+      <DatePicker id="labeled-date-picker" placeholder="Pick a date" />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+
+    await expect(
+      canvas.getByRole("button", { name: "Due date" })
+    ).toHaveTextContent("Pick a date")
+  },
+}
+
 export const WithError: Story = {
   render: () => (
     <Field data-invalid>
@@ -261,12 +279,14 @@ export const VietnameseLocale: Story = {
       initialValue={january2026}
       locale="vi"
       placeholder="Chọn ngày"
-      clearLabel="Xóa"
-      doneLabel="Xong"
-      timeLabel="Thời gian"
-      typedEntryLabel="Ngày và giờ"
-      typedEntryHint="Định dạng: yyyy-MM-dd HH:mm"
-      typedEntryError="Vui lòng nhập ngày và giờ hợp lệ."
+      labels={{
+        clear: "Xóa",
+        done: "Xong",
+        time: "Thời gian",
+        typedEntryLabel: "Ngày và giờ",
+        typedEntryHint: "Định dạng: {format}",
+        typedEntryError: "Vui lòng nhập ngày và giờ hợp lệ.",
+      }}
       aria-label="Hạn chót"
     />
   ),

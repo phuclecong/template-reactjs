@@ -12,7 +12,7 @@ export const vi: Translation = {
   datePicker: {
     time: "Thời gian",
     typedLabel: "Ngày và giờ",
-    typedHint: "Định dạng: yyyy-MM-dd HH:mm",
+    typedHint: "Định dạng: {format}",
     typedError: "Vui lòng nhập ngày và giờ hợp lệ.",
   },
   shell: {
@@ -74,8 +74,6 @@ export const vi: Translation = {
       status: "Trạng thái",
       priority: "Mức ưu tiên",
       assignee: "Người được giao",
-      dueFrom: "Hạn từ",
-      dueTo: "Hạn đến",
       dueDate: "Hạn chót",
       dueDatePlaceholder: "Mọi hạn chót",
       dueDateClear: "Xóa",

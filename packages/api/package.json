@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@msw/data": "^1.1.8",
+    "@workspace/date-utils": "workspace:*",
     "@msw/source": "^0.7.0",
     "msw": "^3.0.3",
     "zod": "^4.4.3"

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react"
+import { fireEvent, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -136,7 +136,7 @@ describe("DatePicker", () => {
     expect(onChange).toHaveBeenLastCalledWith("2026-01-15T14:45:00.000Z")
   })
 
-  it("accepts a typed date and time and emits the UTC instant", async () => {
+  it("accepts a typed date and time in the Locale and emits the UTC instant", async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()
 
@@ -144,12 +144,79 @@ describe("DatePicker", () => {
 
     await user.click(screen.getByRole("button", { name: "Due date" }))
     const typed = await screen.findByLabelText("Date and time")
-    await user.type(typed, "2026-01-20 14:30")
+    await user.type(typed, "01/20/2026 2:30 PM")
     await user.keyboard("{Enter}")
 
     expect(onChange).toHaveBeenCalledWith("2026-01-20T14:30:00.000Z")
     expect(screen.queryByRole("alert")).not.toBeInTheDocument()
-    expect(typed).toHaveValue("2026-01-20 14:30")
+    expect(typed).toHaveValue("01/20/2026 2:30 PM")
+  })
+
+  it("shows the localized typed-entry hint", async () => {
+    const user = userEvent.setup()
+
+    render(<DatePicker aria-label="Due date" />)
+
+    await user.click(screen.getByRole("button", { name: "Due date" }))
+
+    expect(
+      await screen.findByText("Format: 01/01/2000 12:00 AM")
+    ).toBeInTheDocument()
+  })
+
+  it("accepts typed entry in Vietnamese", async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+
+    render(
+      <DatePicker
+        locale="vi"
+        labels={{
+          clear: "Xóa",
+          done: "Xong",
+          time: "Thời gian",
+          typedEntryLabel: "Ngày và giờ",
+          typedEntryHint: "Định dạng: {format}",
+          typedEntryError: "Vui lòng nhập ngày và giờ hợp lệ.",
+        }}
+        onChange={onChange}
+        aria-label="Hạn chót"
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "Hạn chót" }))
+    const typed = await screen.findByLabelText("Ngày và giờ")
+    expect(await screen.findByText("Định dạng: 01/01/2000 00:00")).toBeInTheDocument()
+    await user.type(typed, "20/01/2026 14:30")
+    await user.keyboard("{Enter}")
+
+    expect(onChange).toHaveBeenCalledWith("2026-01-20T14:30:00.000Z")
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  })
+
+  it("rejects typed values outside min/max without emitting", async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+
+    render(
+      <DatePicker
+        min="2026-01-10T00:00:00.000Z"
+        max="2026-01-20T00:00:00.000Z"
+        onChange={onChange}
+        aria-label="Due date"
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "Due date" }))
+    const typed = await screen.findByLabelText("Date and time")
+    await user.type(typed, "01/25/2026 12:00 PM")
+    await user.keyboard("{Enter}")
+
+    expect(onChange).not.toHaveBeenCalled()
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Enter a valid date and time."
+    )
+    expect(typed).toHaveAttribute("aria-invalid", "true")
   })
 
   it("shows an inline error for invalid typed input without emitting", async () => {
@@ -200,7 +267,7 @@ describe("DatePicker", () => {
       <DatePicker
         value="2026-01-15T00:00:00.000Z"
         onChange={onChange}
-        clearLabel="Clear"
+        labels={{ clear: "Clear" }}
         aria-label="Due date"
       />
     )
@@ -380,6 +447,85 @@ describe("DatePicker", () => {
     )
     expect(hidden).toHaveAttribute("name", "dueDate")
     expect(hidden).toHaveValue("2026-01-15T00:00:00.000Z")
+  })
+
+  it("does nothing when the selected day is clicked", async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+
+    render(
+      <DatePicker
+        value="2026-01-15T00:00:00.000Z"
+        onChange={onChange}
+        aria-label="Due date"
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "Due date" }))
+    await user.click(
+      await screen.findByRole("button", { name: /January 15/ })
+    )
+
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it("uses month and year dropdown captions bounded by min/max", async () => {
+    const user = userEvent.setup()
+
+    render(
+      <DatePicker
+        value="2026-01-15T00:00:00.000Z"
+        min="2024-01-01T00:00:00.000Z"
+        max="2026-12-31T00:00:00.000Z"
+        aria-label="Due date"
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "Due date" }))
+
+    expect(await screen.findByLabelText("Choose the Month")).toBeInTheDocument()
+    const year = screen.getByLabelText("Choose the Year")
+    expect(
+      within(year)
+        .getAllByRole("option")
+        .map((option) => option.textContent)
+    ).toEqual(["2024", "2025", "2026"])
+  })
+
+  it("clamps the default month into the min/max bounds", async () => {
+    const user = userEvent.setup()
+
+    render(
+      <DatePicker
+        min="2026-02-01T00:00:00.000Z"
+        max="2026-04-30T00:00:00.000Z"
+        aria-label="Due date"
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "Due date" }))
+
+    // Today is outside the allowed range, so the calendar opens on the
+    // nearest allowed month instead of an empty/out-of-range month.
+    expect(await screen.findByLabelText("Choose the Month")).toHaveValue("3")
+  })
+
+  it("uses the sheet on a wide viewport with a coarse pointer", async () => {
+    const coarse = window as unknown as { __coarsePointer?: boolean }
+    coarse.__coarsePointer = true
+    const user = userEvent.setup()
+
+    try {
+      render(
+        <DatePicker value="2026-01-15T00:00:00.000Z" aria-label="Due date" />
+      )
+
+      await user.click(screen.getByRole("button", { name: "Due date" }))
+
+      expect(await screen.findByRole("dialog")).toBeInTheDocument()
+    } finally {
+      coarse.__coarsePointer = false
+    }
   })
 
   it("opens in a sheet with one calendar month on narrow viewports", async () => {

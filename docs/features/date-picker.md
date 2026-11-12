@@ -23,23 +23,25 @@ All Due date fields currently rely on the browser's built-in date input (`<Input
 
 1. Replace every single-date `<Input type="date" />` usage with the picker: the Due date field in the create/edit Task dialog and the bulk set-due-date control.
 2. The trigger displays the selected Due date and time in a human-readable, locale-aware format, and a placeholder when no value is set.
-3. The popover contains a calendar, a time control, and a free-text date/time entry field.
+3. The popover contains a calendar with month/year dropdown captions, a time control, and a free-text date/time entry field.
 4. Picking a date preserves the currently selected time. A value created from empty defaults to 00:00 in the user's local timezone.
-5. Free-text entry accepts a typed date and time, parsed with the project's date library. Invalid text shows an inline error and does not emit a value.
-6. Changes apply immediately. The popover stays open after a date pick so the user can adjust the time, and closes on `Done`, `Esc`, or an outside click.
+5. Free-text entry accepts a typed date and time, parsed with the project's date library in the selected Locale (date-fns `P p`). Values outside `min`/`max` are rejected. Invalid text shows an inline error and does not emit a value.
+6. Changes apply immediately. The popover stays open after a date pick so the user can adjust the time, and closes on `Done`, `Esc`, or an outside click. Clicking the selected day does nothing; clearing is explicit.
 7. The component emits a UTC instant (ISO 8601 with `Z`) through `onChange`; empty is `""`/`undefined` at call-site boundaries.
-8. `min` and `max` are UTC instants, inclusive.
-9. The picker preserves `value`, `onChange`, `name`, `min`, `max`, `disabled`, `required`, `id`, `onBlur`, locale, and validation state. `name` renders a hidden input carrying the UTC instant.
+8. `min` and `max` are UTC instants, inclusive. The calendar's year dropdown bounds derive from `min`/`max` when provided; the default month is the selected value (else today), clamped into those bounds.
+9. The picker preserves `value`, `onChange`, `onOpenChange`, `name`, `min`, `max`, `disabled`, `required`, `id`, `onBlur`, locale, a `labels` object (Clear, Done, Time, typed-entry label/hint/error), and validation state. `name` renders a hidden input carrying the UTC instant. `onOpenChange` lets a call site that keeps a local draft, such as the bulk action, reset it when the picker closes.
 10. The component exposes an accessible name via `label`/`aria-label`, announces the selected value, and supports keyboard-only operation: focusable trigger, arrow-key calendar navigation, `Enter`/`Space` to select, `Esc` to close, and keyboard access to the time and typed-entry controls.
 11. Existing form validation messages and error states continue to render alongside the picker.
 12. The component renders correctly in light and dark themes and respects the project's design tokens.
 
+The bulk set-due-date control applies every valid change immediately, keeps the popover open so the time can be adjusted, and resets when the popover closes. The separate Clear due date action is unchanged.
+
 ### Date range picker
 
 13. Replace the separate Due from and Due to fields with one date range picker.
-14. The range picker supports three modes: `Between` (default), `From` (lower bound only), and `Until` (upper bound only), so To-only filtering is available from the UI.
+14. The range picker supports three modes: `Between` (default), `From` (lower bound only), and `Until` (upper bound only), so To-only filtering is available from the UI. Mode is user-selected; there is no `defaultMode` prop.
 15. `Between` mode offers presets: Today, Last 7 days, and This month, plus a custom range.
-16. The range popover shows two consecutive months on wide viewports and one month on narrow viewports.
+16. The range popover shows two consecutive months on wide viewports and one month on narrow or touch viewports.
 17. Range filtering is date-granular: the pickers select calendar dates only, with no time component.
 18. The trigger displays the selected range, the single bound, or the placeholder in a locale-aware format.
 19. A translated `Clear` action resets both bounds. `Esc` closes without clearing.

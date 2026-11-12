@@ -1,73 +1,59 @@
 import * as React from "react"
 import { CalendarIcon } from "lucide-react"
-import { isValid, parse } from "date-fns"
 import { cn } from "cn"
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
-import { enUS } from "react-day-picker/locale/en-US"
-import { vi as viLocale } from "react-day-picker/locale/vi"
 
 import { Button } from "@workspace/ui/components/button"
 import { Calendar } from "@workspace/ui/components/calendar"
 import { Popover, PopoverContent } from "@workspace/ui/components/popover"
 import { Sheet, SheetContent, SheetTitle } from "@workspace/ui/components/sheet"
 import { useIsMobile } from "@workspace/ui/hooks/use-mobile"
-import { formatDateTime, parseUtcInstant } from "@workspace/ui/lib/date"
+import {
+  calendarLocale,
+  formatDateTime,
+  formatTimeInputValue,
+  formatTypedDateTime,
+  localDateTimeToUtcInstant,
+  parseTypedDateTime,
+  parseUtcInstant,
+  typedDateTimeFormatHint,
+} from "@workspace/ui/lib/date"
 
-/**
- * The fixed format accepted by the free-text entry. Display and the calendar
- * stay locale-aware; the typed field is deliberately explicit so the same
- * characters mean the same thing in every Locale.
- */
-export const DATE_PICKER_TYPED_FORMAT = "yyyy-MM-dd HH:mm"
-
-const TYPED_PATTERN = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/
-
-function pad(value: number): string {
-  return String(value).padStart(2, "0")
+/** Strings the design system cannot translate itself. */
+export type DatePickerLabels = {
+  clear: string
+  done: string
+  time: string
+  typedEntryLabel: string
+  /** May contain a `{format}` placeholder for the localized example. */
+  typedEntryHint: string
+  typedEntryError: string
 }
 
-/** Formats a local Date as the `HH:mm` value a time input expects. */
-function toLocalTimeValue(date: Date | null): string {
-  if (!date) return ""
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
+const DEFAULT_LABELS: DatePickerLabels = {
+  clear: "Clear",
+  done: "Done",
+  time: "Time",
+  typedEntryLabel: "Date and time",
+  typedEntryHint: "Format: {format}",
+  typedEntryError: "Enter a valid date and time.",
 }
 
-/** Formats a local Date as the fixed typed-entry format. */
-function toTypedValue(date: Date | null): string {
-  if (!date) return ""
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-    date.getDate()
-  )} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1)
 }
 
-/** Builds the instant for a local calendar day and wall-clock time. */
-function localDateTimeToInstant(
-  date: Date,
-  hours: number,
-  minutes: number
-): string {
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    hours,
-    minutes,
-    0,
-    0
-  ).toISOString()
+function endOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0)
 }
 
-/**
- * Parses the fixed typed-entry format in the viewer's local timezone. The
- * regex keeps date-fns's lenient parser from accepting variants such as
- * `2026-1-2 3:4`; an invalid calendar date or time is rejected.
- */
-function parseTypedValue(value: string): Date | null {
-  const text = value.trim()
-  if (!TYPED_PATTERN.test(text)) return null
-  const date = parse(text, DATE_PICKER_TYPED_FORMAT, new Date())
-  return isValid(date) ? date : null
+function sameCalendarDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  )
 }
 
 export type DatePickerProps = {
@@ -76,12 +62,9 @@ export type DatePickerProps = {
   /** Receives the selected UTC instant, or `""` when cleared. */
   onChange?: (value: string) => void
   /**
-   * Called after the user presses Done, with the value at that moment. Changes
-   * still apply through `onChange` as they happen; this is the completion
-   * signal call sites that defer a write (such as the bulk action) need.
+   * Called whenever the picker opens or closes. Call sites that keep a local
+   * draft (such as the bulk action) use the close signal to reset it.
    */
-  onDone?: (value: string) => void
-  /** Called whenever the picker opens or closes. */
   onOpenChange?: (open: boolean) => void
   /** Inclusive lower bound as a UTC instant. */
   min?: string | null
@@ -96,20 +79,11 @@ export type DatePickerProps = {
   /** The app Locale (`"en"` or `"vi"`). */
   locale?: string
   placeholder?: string
-  clearLabel?: string
-  doneLabel?: string
-  timeLabel?: string
-  typedEntryLabel?: string
-  typedEntryHint?: string
-  typedEntryError?: string
+  labels?: Partial<DatePickerLabels>
   className?: string
   "aria-label"?: string
   "aria-invalid"?: boolean
   "aria-describedby"?: string
-}
-
-function calendarLocale(locale: string) {
-  return locale === "vi" ? viLocale : enUS
 }
 
 function mergeRefs<T>(
@@ -131,12 +105,11 @@ function mergeRefs<T>(
  * calendar day and format through the requested Locale. Picking a date keeps
  * the selected time (defaulting to 00:00), and the popover stays open until
  * Done, Esc, or an outside click so a full datetime can be set in one action.
- * On narrow viewports the picker opens in a sheet instead of a popover.
+ * On narrow or touch viewports the picker opens in a sheet instead.
  */
 export function DatePicker({
   value,
   onChange,
-  onDone,
   onOpenChange,
   min,
   max,
@@ -147,12 +120,7 @@ export function DatePicker({
   onBlur,
   locale = "en",
   placeholder = "",
-  clearLabel = "Clear",
-  doneLabel = "Done",
-  timeLabel = "Time",
-  typedEntryLabel = "Date and time",
-  typedEntryHint = "Format: yyyy-MM-dd HH:mm",
-  typedEntryError = "Enter a valid date and time.",
+  labels,
   className,
   "aria-label": ariaLabel,
   "aria-invalid": ariaInvalid,
@@ -160,7 +128,7 @@ export function DatePicker({
   ref,
 }: DatePickerProps & { ref?: React.Ref<HTMLButtonElement> }) {
   const [open, setOpen] = React.useState(false)
-  const [typedValue, setTypedValue] = React.useState("")
+  const [typedDraft, setTypedDraft] = React.useState<string | null>(null)
   const [typedInvalid, setTypedInvalid] = React.useState(false)
   const isMobile = useIsMobile()
   const triggerRef = React.useRef<HTMLButtonElement>(null)
@@ -169,28 +137,36 @@ export function DatePicker({
   const typedHintId = React.useId()
   const typedErrorId = React.useId()
 
+  const mergedLabels: DatePickerLabels = { ...DEFAULT_LABELS, ...labels }
+
   const selectedDate = React.useMemo(
     () => parseUtcInstant(value) ?? undefined,
     [value]
   )
-  const displayValue = value ? formatDateTime(value, locale) : ""
-  const timeValue = toLocalTimeValue(selectedDate ?? null)
+  const minDate = React.useMemo(() => parseUtcInstant(min), [min])
+  const maxDate = React.useMemo(() => parseUtcInstant(max), [max])
+  const now = React.useMemo(() => new Date(), [])
 
-  // Keep the typed field in step with the calendar and time controls, and
-  // reset any error when the popover reopens.
-  React.useEffect(() => {
-    if (!open) return
-    setTypedValue(toTypedValue(selectedDate ?? null))
-    setTypedInvalid(false)
-  }, [open, selectedDate])
+  // The typed field is derived while the user has not typed anything, so a
+  // calendar or time change is reflected without an effect copying state.
+  const typedValue =
+    typedDraft ?? formatTypedDateTime(selectedDate ?? null, locale)
+  const typedFormatHint = React.useMemo(
+    () => typedDateTimeFormatHint(locale),
+    [locale]
+  )
+  const typedHint = mergedLabels.typedEntryHint.replace(
+    "{format}",
+    typedFormatHint
+  )
+  const displayValue = value ? formatDateTime(value, locale) : ""
+  const timeValue = formatTimeInputValue(selectedDate ?? null)
 
   // min/max are UTC instants, but the picker selects calendar days. Treat the
   // bound's local calendar day as the inclusive edge so a bound that carries a
   // time still keeps its whole day selectable.
   const disabledMatchers = React.useMemo(() => {
     const matchers: Array<{ before: Date } | { after: Date }> = []
-    const minDate = parseUtcInstant(min)
-    const maxDate = parseUtcInstant(max)
     if (minDate) {
       matchers.push({
         before: new Date(
@@ -210,7 +186,38 @@ export function DatePicker({
       })
     }
     return matchers
-  }, [min, max])
+  }, [minDate, maxDate])
+
+  // Derive the dropdown year bounds from the allowed instants and clamp the
+  // opening month into them. Without bounds, offer five years either side of
+  // the selected day (or today) so the dropdown stays usable.
+  const monthBounds = React.useMemo(() => {
+    const anchor = selectedDate ?? minDate ?? maxDate ?? now
+    const startMonth = minDate
+      ? startOfMonth(minDate)
+      : startOfMonth(new Date(anchor.getFullYear() - 5, 0, 1))
+    let endMonth = maxDate
+      ? endOfMonth(maxDate)
+      : endOfMonth(new Date(anchor.getFullYear() + 5, 11, 31))
+    if (endMonth < startMonth) endMonth = endOfMonth(startMonth)
+
+    const target = selectedDate ?? now
+    const defaultMonth =
+      target < startMonth ? startMonth : target > endMonth ? endMonth : target
+
+    return { startMonth, endMonth, defaultMonth }
+  }, [selectedDate, minDate, maxDate, now])
+
+  function isWithinBounds(date: Date): boolean {
+    if (minDate && date.getTime() < minDate.getTime()) return false
+    if (maxDate && date.getTime() > maxDate.getTime()) return false
+    return true
+  }
+
+  function resetTypedEntry() {
+    setTypedDraft(null)
+    setTypedInvalid(false)
+  }
 
   // Base UI otherwise focuses the first tabbable element (the month
   // navigation), so point it at the calendar's current day button instead.
@@ -233,21 +240,22 @@ export function DatePicker({
   }
 
   function handleOpenChange(next: boolean) {
+    resetTypedEntry()
     setOpen(next)
     if (next) onOpenChange?.(true)
     else finishClose()
   }
 
   function handleSelect(date: Date | undefined) {
-    if (!date) {
-      onChange?.("")
-      return
-    }
+    // The calendar is `required`, and clicking the already-selected day must
+    // do nothing; clearing stays an explicit action.
+    if (!date || (selectedDate && sameCalendarDay(date, selectedDate))) return
+    resetTypedEntry()
     // Preserve the selected wall-clock time; a value created from empty
     // starts at 00:00 local.
     const hours = selectedDate?.getHours() ?? 0
     const minutes = selectedDate?.getMinutes() ?? 0
-    onChange?.(localDateTimeToInstant(date, hours, minutes))
+    onChange?.(localDateTimeToUtcInstant(date, hours, minutes))
   }
 
   function handleTimeChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -257,43 +265,44 @@ export function DatePicker({
     const hours = Number(hoursPart)
     const minutes = Number(minutesPart)
     if (Number.isNaN(hours) || Number.isNaN(minutes)) return
-    onChange?.(localDateTimeToInstant(selectedDate, hours, minutes))
+    resetTypedEntry()
+    onChange?.(localDateTimeToUtcInstant(selectedDate, hours, minutes))
   }
 
   /**
-   * Resolves the typed field into an instant. It returns the current `value`
-   * unchanged when the field is empty or invalid, so Done never emits a
-   * corrupt value.
+   * Resolves the typed field into an instant. Empty or invalid text keeps the
+   * current value, so committing never emits a corrupt or out-of-range value.
    */
   function resolveTypedValue(): { value: string | null; invalid: boolean } {
     const text = typedValue.trim()
     if (!text) return { value: value || null, invalid: false }
-    const parsed = parseTypedValue(text)
-    if (!parsed) return { value: value || null, invalid: true }
+    const parsed = parseTypedDateTime(text, locale)
+    if (!parsed || !isWithinBounds(parsed)) {
+      return { value: value || null, invalid: true }
+    }
     return { value: parsed.toISOString(), invalid: false }
   }
 
-  function commitTypedValue() {
+  /** Resolves the typed field, reports any error, and emits a changed value. */
+  function commitTypedValue(): string | null {
     const resolved = resolveTypedValue()
     setTypedInvalid(resolved.invalid)
-    if (!resolved.invalid && resolved.value && resolved.value !== value) {
+    if (resolved.invalid) return null
+    if (resolved.value && resolved.value !== value) {
       onChange?.(resolved.value)
     }
+    return resolved.value
   }
 
   function handleDone() {
-    const resolved = resolveTypedValue()
-    setTypedInvalid(resolved.invalid)
-    if (!resolved.invalid && resolved.value && resolved.value !== value) {
-      onChange?.(resolved.value)
-    }
-    onDone?.(resolved.value ?? "")
+    commitTypedValue()
     setOpen(false)
     finishClose()
   }
 
   function handleClear() {
     onChange?.("")
+    resetTypedEntry()
     setOpen(false)
     finishClose()
   }
@@ -337,17 +346,21 @@ export function DatePicker({
     <>
       <Calendar
         mode="single"
+        required
         selected={selectedDate}
         onSelect={handleSelect}
-        defaultMonth={selectedDate}
+        defaultMonth={monthBounds.defaultMonth}
         locale={calendarLocale(locale)}
         disabled={disabledMatchers.length > 0 ? disabledMatchers : undefined}
+        captionLayout="dropdown"
+        startMonth={monthBounds.startMonth}
+        endMonth={monthBounds.endMonth}
         autoFocus
       />
       <div className="flex flex-col gap-2 border-t p-2">
         <div className="flex flex-col gap-1">
           <label htmlFor={timeId} className="text-muted-foreground">
-            {timeLabel}
+            {mergedLabels.time}
           </label>
           <input
             id={timeId}
@@ -361,20 +374,20 @@ export function DatePicker({
 
         <div className="flex flex-col gap-1">
           <label htmlFor={typedId} className="text-muted-foreground">
-            {typedEntryLabel}
+            {mergedLabels.typedEntryLabel}
           </label>
           <input
             id={typedId}
             type="text"
             value={typedValue}
-            placeholder={DATE_PICKER_TYPED_FORMAT}
+            placeholder={typedFormatHint}
             aria-invalid={typedInvalid || undefined}
             aria-describedby={typedInvalid ? typedErrorId : typedHintId}
             onChange={(event) => {
-              setTypedValue(event.target.value)
+              setTypedDraft(event.target.value)
               if (typedInvalid) setTypedInvalid(false)
             }}
-            onBlur={commitTypedValue}
+            onBlur={() => commitTypedValue()}
             onKeyDown={(event) => {
               if (event.key !== "Enter") return
               event.preventDefault()
@@ -384,11 +397,11 @@ export function DatePicker({
           />
           {typedInvalid ? (
             <p id={typedErrorId} role="alert" className="text-destructive">
-              {typedEntryError}
+              {mergedLabels.typedEntryError}
             </p>
           ) : (
             <p id={typedHintId} className="text-muted-foreground">
-              {typedEntryHint}
+              {typedHint}
             </p>
           )}
         </div>
@@ -401,13 +414,13 @@ export function DatePicker({
               size="sm"
               onClick={handleClear}
             >
-              {clearLabel}
+              {mergedLabels.clear}
             </Button>
           ) : (
             <span />
           )}
           <Button type="button" size="sm" onClick={handleDone}>
-            {doneLabel}
+            {mergedLabels.done}
           </Button>
         </div>
       </div>

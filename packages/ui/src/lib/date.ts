@@ -11,36 +11,42 @@
  * boundaries automatically account for the current offset and DST.
  */
 
-const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
+import { format as formatDateFns, isValid, parse as parseDateFns } from "date-fns"
+import { enUS as enDateFns, vi as viDateFns } from "date-fns/locale"
+import { enUS as enCalendar } from "react-day-picker/locale/en-US"
+import { vi as viCalendar } from "react-day-picker/locale/vi"
+
+import { isDateOnly, parseLocalDateOnly } from "@workspace/date-utils"
+
+export { isDateOnly }
 
 /** A value accepted by the formatting and boundary helpers. */
 export type DateValue = string | Date | null | undefined
 
-/** True for a `YYYY-MM-DD` calendar date with no time component. */
-export function isDateOnly(value: unknown): value is string {
-  return typeof value === "string" && DATE_ONLY_PATTERN.test(value)
-}
+/** The Locales the app and its design-system call sites support. */
+export type AppLocale = "en" | "vi"
 
 function pad(value: number): string {
   return String(value).padStart(2, "0")
 }
 
-/** Parses `YYYY-MM-DD` as local midnight, rejecting overflowed dates. */
-function parseLocalDateOnly(value: string): Date | null {
-  const match = DATE_ONLY_PATTERN.exec(value)
-  if (!match) return null
-  const year = Number(match[1])
-  const month = Number(match[2])
-  const day = Number(match[3])
-  const date = new Date(year, month - 1, day, 0, 0, 0, 0)
-  if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day
-  ) {
-    return null
-  }
-  return date
+/**
+ * Resolves an app/i18n language tag to a supported Locale. Unknown tags and
+ * regional variants fall back to English; `vi`, `vi-VN`, and similar resolve
+ * to Vietnamese.
+ */
+export function resolveLocale(locale?: string): AppLocale {
+  return locale?.toLowerCase().startsWith("vi") ? "vi" : "en"
+}
+
+/** The date-fns locale used for parsing and formatting in the given Locale. */
+export function dateFnsLocale(locale?: string) {
+  return resolveLocale(locale) === "vi" ? viDateFns : enDateFns
+}
+
+/** The react-day-picker locale used for calendar labels and week start. */
+export function calendarLocale(locale?: string) {
+  return resolveLocale(locale) === "vi" ? viCalendar : enCalendar
 }
 
 /**
@@ -131,6 +137,35 @@ export function localEndOfDayUtcInstant(value: Date | string): string {
 }
 
 /**
+ * Builds the UTC instant for a local calendar day and wall-clock time.
+ * Picking a date preserves the selected time, and changing the time preserves
+ * the selected day; both paths cross the same local-to-instant boundary here.
+ */
+export function localDateTimeToUtcInstant(
+  value: Date | string,
+  hours: number,
+  minutes: number
+): string {
+  const date = toDate(value)
+  if (!date) throw new RangeError("Invalid date value")
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    hours,
+    minutes,
+    0,
+    0
+  ).toISOString()
+}
+
+/** Formats a local Date as the `HH:mm` value a time input expects. */
+export function formatTimeInputValue(value: Date | null): string {
+  if (!value) return ""
+  return `${pad(value.getHours())}:${pad(value.getMinutes())}`
+}
+
+/**
  * Serializes a value for a write payload as a UTC instant. Only date-time
  * values are accepted; legacy date-only values return null so new writes
  * cannot silently create date-only records. Read-side compatibility lives in
@@ -143,10 +178,8 @@ export function toUtcInstant(
   return parseUtcInstant(value)?.toISOString() ?? null
 }
 
-function intlLocale(locale: string): string {
-  if (locale === "en") return "en-US"
-  if (locale === "vi") return "vi-VN"
-  return locale
+function intlLocale(locale?: string): string {
+  return resolveLocale(locale) === "vi" ? "vi-VN" : "en-US"
 }
 
 function formatWith(
@@ -191,4 +224,40 @@ export function formatDateRange(
   return new Intl.DateTimeFormat(intlLocale(locale), {
     dateStyle: "medium",
   }).formatRange(fromDate, toDateValue)
+}
+
+/**
+ * The localized date-fns pattern used by the picker's free-text entry. `P` is
+ * the locale's numeric date and `p` its time, so English accepts
+ * `MM/dd/yyyy h:mm a` while Vietnamese accepts `dd/MM/yyyy HH:mm`.
+ */
+export const TYPED_DATE_TIME_PATTERN = "P p"
+
+/** Formats a Date as the picker's localized typed-entry text. */
+export function formatTypedDateTime(
+  value: Date | null,
+  locale?: string
+): string {
+  if (!value) return ""
+  return formatDateFns(value, TYPED_DATE_TIME_PATTERN, {
+    locale: dateFnsLocale(locale),
+  })
+}
+
+/** Parses the picker's localized typed-entry text, or null when invalid. */
+export function parseTypedDateTime(
+  value: string,
+  locale?: string
+): Date | null {
+  const text = value.trim()
+  if (!text) return null
+  const date = parseDateFns(text, TYPED_DATE_TIME_PATTERN, new Date(), {
+    locale: dateFnsLocale(locale),
+  })
+  return isValid(date) ? date : null
+}
+
+/** A concrete example of the localized typed-entry format, for the hint. */
+export function typedDateTimeFormatHint(locale?: string): string {
+  return formatTypedDateTime(new Date(2000, 0, 1, 0, 0, 0, 0), locale)
 }

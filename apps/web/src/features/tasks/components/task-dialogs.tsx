@@ -20,6 +20,7 @@ import { Dialog } from "@workspace/ui/components/dialog"
 import { Field, FieldError, FieldLabel } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
 import { Textarea } from "@workspace/ui/components/textarea"
+import { resolveLocale } from "@workspace/ui/lib/date"
 import {
   Select,
   SelectContent,
@@ -96,7 +97,7 @@ export function TaskFormDialog({
   const { t, i18n } = useTranslation()
   const isEdit = task !== null
   const id = useId()
-  const locale = i18n.language === "vi" ? "vi" : "en"
+  const locale = resolveLocale(i18n.language)
 
   const schema = useMemo(
     () =>
@@ -337,12 +338,14 @@ export function TaskFormDialog({
                     disabled={isPending}
                     locale={locale}
                     placeholder={t("taskDialog.dueDatePlaceholder")}
-                    clearLabel={t("common.clear")}
-                    doneLabel={t("common.done")}
-                    timeLabel={t("datePicker.time")}
-                    typedEntryLabel={t("datePicker.typedLabel")}
-                    typedEntryHint={t("datePicker.typedHint")}
-                    typedEntryError={t("datePicker.typedError")}
+                    labels={{
+                      clear: t("common.clear"),
+                      done: t("common.done"),
+                      time: t("datePicker.time"),
+                      typedEntryLabel: t("datePicker.typedLabel"),
+                      typedEntryHint: t("datePicker.typedHint"),
+                      typedEntryError: t("datePicker.typedError"),
+                    }}
                     aria-invalid={fieldState.invalid}
                     aria-describedby={fieldState.error ? errorId : undefined}
                   />

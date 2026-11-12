@@ -1,8 +1,6 @@
 import * as React from "react"
 import { CalendarIcon } from "lucide-react"
 import type { DateRange } from "react-day-picker"
-import { enUS } from "react-day-picker/locale/en-US"
-import { vi as viLocale } from "react-day-picker/locale/vi"
 import { cn } from "cn"
 
 import { Button } from "@workspace/ui/components/button"
@@ -20,6 +18,7 @@ import {
 } from "@workspace/ui/components/sheet"
 import { useIsMobile } from "@workspace/ui/hooks/use-mobile"
 import {
+  calendarLocale,
   dateOnlyToLocalDate,
   formatDateRange,
   localDateToDateOnly,
@@ -60,8 +59,6 @@ export type DateRangePickerProps = {
   placeholder?: string
   clearLabel?: string
   className?: string
-  /** Initial mode when the picker is uncontrolled. Defaults to `between`. */
-  defaultMode?: DateRangePickerMode
   labels?: Partial<DateRangePickerLabels>
   "aria-label"?: string
   "aria-invalid"?: boolean
@@ -79,10 +76,6 @@ const DEFAULT_LABELS: DateRangePickerLabels = {
   last7Days: "Last 7 days",
   thisMonth: "This month",
   mode: "Filter mode",
-}
-
-function calendarLocale(locale: string) {
-  return locale.toLowerCase().startsWith("vi") ? viLocale : enUS
 }
 
 /**
@@ -120,20 +113,21 @@ export function getPresetDateRange(
 
 function toCalendarSelection(
   mode: DateRangePickerMode,
-  value: DateRangeValue
+  fromValue: string,
+  toValue: string
 ): DateRange | undefined {
   if (mode === "from") {
-    const from = dateOnlyToLocalDate(value.from)
+    const from = dateOnlyToLocalDate(fromValue)
     return from ? { from, to: undefined } : undefined
   }
 
   if (mode === "until") {
-    const to = dateOnlyToLocalDate(value.to)
+    const to = dateOnlyToLocalDate(toValue)
     return to ? { from: undefined, to } : undefined
   }
 
-  const from = dateOnlyToLocalDate(value.from) ?? undefined
-  const to = dateOnlyToLocalDate(value.to) ?? undefined
+  const from = dateOnlyToLocalDate(fromValue) ?? undefined
+  const to = dateOnlyToLocalDate(toValue) ?? undefined
   return from || to ? { from, to } : undefined
 }
 
@@ -156,7 +150,6 @@ export const DateRangePicker = React.forwardRef<
     placeholder = "",
     clearLabel = "Clear",
     className,
-    defaultMode = "between",
     labels,
     "aria-label": ariaLabel,
     "aria-invalid": ariaInvalid,
@@ -166,7 +159,7 @@ export const DateRangePicker = React.forwardRef<
 ) {
   const isMobile = useIsMobile()
   const [open, setOpen] = React.useState(false)
-  const [mode, setMode] = React.useState<DateRangePickerMode>(defaultMode)
+  const [mode, setMode] = React.useState<DateRangePickerMode>("between")
 
   const text = React.useMemo(
     () => formatDateRange(value.from, value.to, locale),
@@ -178,14 +171,27 @@ export const DateRangePicker = React.forwardRef<
     ...labels,
   }
 
-  const selected = toCalendarSelection(mode, value)
-  const displayMonth =
-    dateOnlyToLocalDate(value.from) ??
-    dateOnlyToLocalDate(value.to) ??
-    undefined
-  const now = new Date()
-  const startMonth = new Date(now.getFullYear() - 5, 0, 1)
-  const endMonth = new Date(now.getFullYear() + 5, 11, 31)
+  const selected = React.useMemo(
+    () => toCalendarSelection(mode, value.from, value.to),
+    [mode, value.from, value.to]
+  )
+  const displayMonth = React.useMemo(
+    () =>
+      dateOnlyToLocalDate(value.from) ??
+      dateOnlyToLocalDate(value.to) ??
+      undefined,
+    [value.from, value.to]
+  )
+
+  // Dropdown bounds only need to be stable across renders; recomputing them
+  // every render churned the calendar's navigation model.
+  const { startMonth, endMonth } = React.useMemo(() => {
+    const now = new Date()
+    return {
+      startMonth: new Date(now.getFullYear() - 5, 0, 1),
+      endMonth: new Date(now.getFullYear() + 5, 11, 31),
+    }
+  }, [])
 
   function changeMode(next: DateRangePickerMode) {
     setMode(next)
@@ -305,6 +311,7 @@ export const DateRangePicker = React.forwardRef<
         captionLayout="dropdown"
         startMonth={startMonth}
         endMonth={endMonth}
+        autoFocus
       />
 
       <div className="flex justify-end border-t pt-2">
