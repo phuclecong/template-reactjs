@@ -6,6 +6,7 @@ export const vi: Translation = {
     loading: "Đang tải…",
     cancel: "Hủy",
     delete: "Xóa",
+    clear: "Xóa",
   },
   shell: {
     title: "Bảng điều khiển",
@@ -116,6 +117,7 @@ export const vi: Translation = {
     priority: "Mức ưu tiên",
     assignee: "Người được giao",
     dueDate: "Hạn chót",
+    dueDatePlaceholder: "Chọn ngày",
     none: "Không",
     unassigned: "Chưa giao",
     create: "Tạo công việc",
