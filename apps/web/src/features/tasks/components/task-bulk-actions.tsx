@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Button } from "@workspace/ui/components/button"
-import { Input } from "@workspace/ui/components/input"
+import { DatePicker } from "@workspace/ui/components/date-picker"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,7 +35,8 @@ export function TaskBulkActions({
   }) => void
   onCreate: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language.startsWith("vi") ? "vi" : "en"
   const [dueDate, setDueDate] = useState("")
 
   return (
@@ -140,18 +141,31 @@ export function TaskBulkActions({
           {t("tasks.bulk.clearDueDate")}
         </Button>
 
-        <Input
+        <DatePicker
           aria-label={t("tasks.bulk.setDueDate")}
-          type="date"
           value={dueDate}
-          disabled={!hasSelection}
-          onChange={(event) => {
-            const value = event.target.value
+          onChange={setDueDate}
+          // Hold the draft until the user has picked both the date and time,
+          // then apply it to the selection and reset the control. Closing
+          // without Done (Esc or an outside click) discards the draft.
+          onDone={(value) => {
             if (!value) return
             applyBulk({ dueDate: formValueToDueDate(value) })
             setDueDate("")
           }}
-          className="w-36"
+          onOpenChange={(open) => {
+            if (!open) setDueDate("")
+          }}
+          disabled={!hasSelection}
+          locale={locale}
+          placeholder={t("tasks.bulk.setDueDate")}
+          clearLabel={t("common.clear")}
+          doneLabel={t("common.done")}
+          timeLabel={t("datePicker.time")}
+          typedEntryLabel={t("datePicker.typedLabel")}
+          typedEntryHint={t("datePicker.typedHint")}
+          typedEntryError={t("datePicker.typedError")}
+          className="w-44"
         />
 
         <Button type="button" onClick={() => onCreate()} size="sm">

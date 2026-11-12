@@ -8,6 +8,13 @@ export const en = {
     cancel: "Cancel",
     delete: "Delete",
     clear: "Clear",
+    done: "Done",
+  },
+  datePicker: {
+    time: "Time",
+    typedLabel: "Date and time",
+    typedHint: "Format: yyyy-MM-dd HH:mm",
+    typedError: "Enter a valid date and time.",
   },
   shell: {
     title: "Dashboard",

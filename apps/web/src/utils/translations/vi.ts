@@ -7,6 +7,13 @@ export const vi: Translation = {
     cancel: "Hủy",
     delete: "Xóa",
     clear: "Xóa",
+    done: "Xong",
+  },
+  datePicker: {
+    time: "Thời gian",
+    typedLabel: "Ngày và giờ",
+    typedHint: "Định dạng: yyyy-MM-dd HH:mm",
+    typedError: "Vui lòng nhập ngày và giờ hợp lệ.",
   },
   shell: {
     title: "Bảng điều khiển",

@@ -1,6 +1,6 @@
 import * as React from "react"
 import type { Meta, StoryObj } from "@storybook/react"
-import { expect, screen, userEvent, within } from "@storybook/test"
+import { expect, fireEvent, screen, userEvent, within } from "@storybook/test"
 
 import { Field, FieldError, FieldLabel } from "./field"
 import { DatePicker } from "./date-picker"
@@ -39,10 +39,17 @@ const meta = {
     locale: "en",
     placeholder: "Pick a date",
     clearLabel: "Clear",
+    doneLabel: "Done",
+    timeLabel: "Time",
+    typedEntryLabel: "Date and time",
+    typedEntryHint: "Format: yyyy-MM-dd HH:mm",
+    typedEntryError: "Enter a valid date and time.",
     "aria-label": "Due date",
   },
   argTypes: {
     onChange: { control: false },
+    onDone: { control: false },
+    onOpenChange: { control: false },
     min: { control: "text" },
     max: { control: "text" },
   },
@@ -70,10 +77,11 @@ export const WithValue: Story = {
     await expect(
       canvas.getByRole("button", { name: "Due date" })
     ).toHaveTextContent("Jan 20, 2026")
+    await expect(screen.getByLabelText("Time")).toBeInTheDocument()
   },
 }
 
-export const Clearable: Story = {
+export const WithTime: Story = {
   render: () => (
     <ControlledDatePicker initialValue={january2026} aria-label="Due date" />
   ),
@@ -82,9 +90,83 @@ export const Clearable: Story = {
     const trigger = canvas.getByRole("button", { name: "Due date" })
 
     await userEvent.click(trigger)
+    await userEvent.click(
+      await screen.findByRole("button", { name: /January 20/ })
+    )
+
+    // The popped-over time control is portalled, so query it on `screen`.
+    const time = await screen.findByLabelText("Time")
+    fireEvent.change(time, { target: { value: "14:30" } })
+
+    await expect(trigger).toHaveTextContent("Jan 20, 2026, 2:30 PM")
+    await userEvent.click(screen.getByRole("button", { name: "Done" }))
+
+    await expect(screen.queryByLabelText("Time")).not.toBeInTheDocument()
+    await expect(trigger).toHaveFocus()
+  },
+}
+
+export const TypedEntry: Story = {
+  render: () => (
+    <ControlledDatePicker initialValue={january2026} aria-label="Due date" />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const trigger = canvas.getByRole("button", { name: "Due date" })
+
+    await userEvent.click(trigger)
+    const typed = await screen.findByLabelText("Date and time")
+    await userEvent.clear(typed)
+    await userEvent.type(typed, "2026-01-20 14:30")
+    await userEvent.keyboard("{Enter}")
+
+    await expect(trigger).toHaveTextContent("Jan 20, 2026, 2:30 PM")
+    await expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  },
+}
+
+export const TypedEntryInvalid: Story = {
+  render: () => (
+    <ControlledDatePicker initialValue={january2026} aria-label="Due date" />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const trigger = canvas.getByRole("button", { name: "Due date" })
+
+    await userEvent.click(trigger)
+    const typed = await screen.findByLabelText("Date and time")
+    await userEvent.clear(typed)
+    await userEvent.type(typed, "tomorrow at noon")
+    await userEvent.keyboard("{Enter}")
+
+    await expect(screen.getByRole("alert")).toHaveTextContent(
+      "Enter a valid date and time."
+    )
+    // The invalid text does not change the selected value.
+    await expect(trigger).toHaveTextContent("Jan 15, 2026")
+  },
+}
+
+export const DoneAndClear: Story = {
+  render: () => (
+    <ControlledDatePicker initialValue={january2026} aria-label="Due date" />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const trigger = canvas.getByRole("button", { name: "Due date" })
+
+    await userEvent.click(trigger)
+    await userEvent.click(
+      await screen.findByRole("button", { name: /January 20/ })
+    )
+    await userEvent.click(screen.getByRole("button", { name: "Done" }))
+    await expect(screen.queryByLabelText("Time")).not.toBeInTheDocument()
+
+    await userEvent.click(trigger)
     await userEvent.click(await screen.findByRole("button", { name: "Clear" }))
 
     await expect(trigger).toHaveTextContent("Pick a date")
+    await expect(trigger).toHaveFocus()
   },
 }
 
@@ -102,6 +184,9 @@ export const Keyboard: Story = {
     await userEvent.keyboard("{Enter}")
 
     await expect(trigger).toHaveTextContent("Jan 16, 2026")
+
+    // The popover stays open after selecting; Esc closes and restores focus.
+    await userEvent.keyboard("{Escape}")
     await expect(trigger).toHaveFocus()
   },
 }
@@ -115,6 +200,24 @@ export const WithMinMax: Story = {
       aria-label="Due date"
     />
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+
+    await userEvent.click(canvas.getByRole("button", { name: "Due date" }))
+
+    await expect(
+      await screen.findByRole("button", { name: /January 9/ })
+    ).toBeDisabled()
+    await expect(
+      screen.getByRole("button", { name: /January 10/ })
+    ).toBeEnabled()
+    await expect(
+      screen.getByRole("button", { name: /January 20/ })
+    ).toBeEnabled()
+    await expect(
+      screen.getByRole("button", { name: /January 21/ })
+    ).toBeDisabled()
+  },
 }
 
 export const Disabled: Story = {
@@ -159,6 +262,11 @@ export const VietnameseLocale: Story = {
       locale="vi"
       placeholder="Chọn ngày"
       clearLabel="Xóa"
+      doneLabel="Xong"
+      timeLabel="Thời gian"
+      typedEntryLabel="Ngày và giờ"
+      typedEntryHint="Định dạng: yyyy-MM-dd HH:mm"
+      typedEntryError="Vui lòng nhập ngày và giờ hợp lệ."
       aria-label="Hạn chót"
     />
   ),
@@ -167,6 +275,6 @@ export const VietnameseLocale: Story = {
 
     await expect(
       canvas.getByRole("button", { name: "Hạn chót" })
-    ).toHaveTextContent("15 thg 1, 2026")
+    ).toHaveTextContent("00:00 15 thg 1, 2026")
   },
 }
