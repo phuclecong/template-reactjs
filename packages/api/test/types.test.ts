@@ -17,6 +17,7 @@ describe("generated client types", () => {
     expectTypeOf<Task>().toHaveProperty("title")
     expectTypeOf<Task>().toHaveProperty("status")
     expectTypeOf<Task>().toHaveProperty("assigneeId")
+    expectTypeOf<Task["dueDate"]>().toEqualTypeOf<string | null | undefined>()
   })
 
   it("matches the contract for bulk task updates", () => {

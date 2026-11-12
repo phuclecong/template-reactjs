@@ -11,6 +11,7 @@ import {
 import {
   PRIORITY_OPTIONS,
   STATUS_OPTIONS,
+  formValueToDueDate,
   type TaskPriority,
   type TaskStatus,
   type UserOption,
@@ -147,7 +148,7 @@ export function TaskBulkActions({
           onChange={(event) => {
             const value = event.target.value
             if (!value) return
-            applyBulk({ dueDate: value })
+            applyBulk({ dueDate: formValueToDueDate(value) })
             setDueDate("")
           }}
           className="w-36"

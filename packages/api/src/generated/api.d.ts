@@ -292,7 +292,10 @@ export interface components {
             /** @enum {string|null} */
             priority?: "low" | "medium" | "high" | null;
             assigneeId?: string | null;
-            /** Format: date */
+            /**
+             * Format: date-time
+             * @description ISO 8601 UTC instant. Legacy date-only values are interpreted as local midnight and normalized to an instant on read and write.
+             */
             dueDate?: string | null;
             /** Format: date-time */
             createdAt: string;
@@ -306,7 +309,10 @@ export interface components {
             /** @enum {string|null} */
             priority?: "low" | "medium" | "high" | null;
             assigneeId?: string | null;
-            /** Format: date */
+            /**
+             * Format: date-time
+             * @description ISO 8601 UTC instant. Legacy date-only values are interpreted as local midnight and normalized to an instant on read and write.
+             */
             dueDate?: string | null;
         };
         TaskUpdateRequest: {
@@ -316,7 +322,10 @@ export interface components {
             /** @enum {string|null} */
             priority?: "low" | "medium" | "high" | null;
             assigneeId?: string | null;
-            /** Format: date */
+            /**
+             * Format: date-time
+             * @description ISO 8601 UTC instant. Legacy date-only values are interpreted as local midnight and normalized to an instant on read and write.
+             */
             dueDate?: string | null;
         };
         /** @description At least one of status, priority, assigneeId, or dueDate must be present. */
@@ -326,7 +335,10 @@ export interface components {
             /** @enum {string|null} */
             priority?: "low" | "medium" | "high" | null;
             assigneeId?: string | null;
-            /** Format: date */
+            /**
+             * Format: date-time
+             * @description ISO 8601 UTC instant. Legacy date-only values are interpreted as local midnight and normalized to an instant on read and write.
+             */
             dueDate?: string | null;
         };
         TaskBulkUpdateResponse: {
@@ -625,9 +637,9 @@ export interface operations {
                 priority?: "low" | "medium" | "high";
                 /** @description A user id, or the literal "unassigned" to match tasks with no assignee. */
                 assigneeId?: string;
-                /** @description Inclusive lower bound on the due date. */
+                /** @description Inclusive lower bound on the due date. Accepts an ISO 8601 date-time; a legacy date-only value is normalized to the local start of that day. */
                 dueDate_gte?: string;
-                /** @description Inclusive upper bound on the due date. */
+                /** @description Inclusive upper bound on the due date. Accepts an ISO 8601 date-time; a legacy date-only value is normalized to the local end of that day. */
                 dueDate_lte?: string;
                 /** @description Number of matching tasks to skip before returning results. Defaults to 0. */
                 _start?: number;
