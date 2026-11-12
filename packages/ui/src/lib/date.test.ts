@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 import {
+  dateOnlyToLocalDate,
   formatDate,
   formatDateRange,
   formatDateTime,
   formatTime,
   isDateOnly,
   localDateInputToUtcInstant,
+  localDateToDateOnly,
   localEndOfDayUtcInstant,
   localStartOfDayUtcInstant,
   normalizeLegacyDateValue,
@@ -52,6 +54,30 @@ describe("UTC instant parsing and serialization", () => {
     expect(isDateOnly("2026-01-05")).toBe(true)
     expect(isDateOnly("2026-01-05T00:00:00.000Z")).toBe(false)
     expect(isDateOnly("05/01/2026")).toBe(false)
+  })
+})
+
+describe("calendar date helpers", () => {
+  it("parses a date-only value as local midnight", () => {
+    process.env.TZ = "Asia/Ho_Chi_Minh"
+    const date = dateOnlyToLocalDate("2026-01-05")
+    expect(date?.getFullYear()).toBe(2026)
+    expect(date?.getMonth()).toBe(0)
+    expect(date?.getDate()).toBe(5)
+    expect(date?.getHours()).toBe(0)
+  })
+
+  it("rejects invalid date-only values", () => {
+    expect(dateOnlyToLocalDate("2026-02-31")).toBeNull()
+    expect(dateOnlyToLocalDate("2026-01-05T00:00:00.000Z")).toBeNull()
+    expect(dateOnlyToLocalDate("")).toBeNull()
+    expect(dateOnlyToLocalDate(null)).toBeNull()
+  })
+
+  it("serializes a local calendar date without a time component", () => {
+    process.env.TZ = "America/New_York"
+    expect(localDateToDateOnly(new Date(2026, 0, 5, 23, 30))).toBe("2026-01-05")
+    expect(localDateToDateOnly(new Date(2026, 11, 31, 0, 0))).toBe("2026-12-31")
   })
 })
 

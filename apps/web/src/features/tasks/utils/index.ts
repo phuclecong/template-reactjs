@@ -9,7 +9,10 @@ import {
   type UserRecord,
 } from "@workspace/api/collections"
 import {
+  dateOnlyToLocalDate,
   localDateInputToUtcInstant,
+  localEndOfDayUtcInstant,
+  localStartOfDayUtcInstant,
   utcInstantToLocalDateInput,
 } from "@workspace/ui/lib/date"
 
@@ -79,6 +82,10 @@ export type TaskFilters = Record<TaskFilterKey, string>
 /**
  * Convert the search query and URL filter values into the `CrudFilter[]` that
  * `@refinedev/core`'s `useList` understands. Empty values are skipped.
+ *
+ * The Due date URL keys stay date-only, but the API compares UTC instants:
+ * a From bound becomes the start of the selected local day and a To bound
+ * becomes the end of the selected local day.
  */
 export function toCrudFilters(q: string, filters: TaskFilters): CrudFilter[] {
   const result: CrudFilter[] = []
@@ -93,9 +100,17 @@ export function toCrudFilters(q: string, filters: TaskFilters): CrudFilter[] {
       operator: "eq",
       value: filters.assignee,
     })
-  if (filters.dueFrom)
-    result.push({ field: "dueDate", operator: "gte", value: filters.dueFrom })
-  if (filters.dueTo)
-    result.push({ field: "dueDate", operator: "lte", value: filters.dueTo })
+  if (dateOnlyToLocalDate(filters.dueFrom))
+    result.push({
+      field: "dueDate",
+      operator: "gte",
+      value: localStartOfDayUtcInstant(filters.dueFrom),
+    })
+  if (dateOnlyToLocalDate(filters.dueTo))
+    result.push({
+      field: "dueDate",
+      operator: "lte",
+      value: localEndOfDayUtcInstant(filters.dueTo),
+    })
   return result
 }

@@ -44,6 +44,23 @@ function parseLocalDateOnly(value: string): Date | null {
 }
 
 /**
+ * Parses a `YYYY-MM-DD` date-only string as a local-midnight Date, or null
+ * when the value is not a valid calendar date. Calendar primitives select days
+ * as Date objects, so this is the bridge from filter bounds to their model.
+ */
+export function dateOnlyToLocalDate(
+  value: string | null | undefined
+): Date | null {
+  if (!isDateOnly(value)) return null
+  return parseLocalDateOnly(value)
+}
+
+/** Serializes a Date as the local calendar date (`YYYY-MM-DD`) it falls on. */
+export function localDateToDateOnly(date: Date): string {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+/**
  * Converts a value to a Date. Date-only strings are interpreted as local
  * midnight (a calendar day), while instants keep their absolute moment.
  */
