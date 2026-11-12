@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "@workspace/ui/components/button"
 import { Checkbox } from "@workspace/ui/components/checkbox"
+import { formatDateTime, resolveLocale } from "@workspace/ui/lib/date"
 import { DataTable } from "@workspace/shared-lib/components"
 import { useDialog, useTableState } from "@workspace/shared-lib/hooks"
 import { TaskBulkActions } from "@/features/tasks/components/task-bulk-actions"
@@ -68,7 +69,8 @@ const TaskActionsCell = memo(function TaskActionsCell({
 })
 
 export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const locale = resolveLocale(i18n.language)
 
   const {
     q,
@@ -115,7 +117,11 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
 
   const { applyBulk } = useTaskBulkActions({
     selectedIds,
-    onDone: () => setRowSelection({}),
+    onDone: (patch) => {
+      // An immediate Due-date set keeps the row selection and the picker open
+      // so the time can still be adjusted; completion actions clear it.
+      if (typeof patch.dueDate !== "string") setRowSelection({})
+    },
   })
 
   const columns = useMemo<ColumnDef<TaskRow>[]>(
@@ -171,7 +177,15 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
         size: 180,
         enableSorting: false,
       },
-      { accessorKey: "dueDate", header: t("tasks.columns.dueDate"), size: 140 },
+      {
+        accessorKey: "dueDate",
+        header: t("tasks.columns.dueDate"),
+        size: 200,
+        cell: ({ row }) =>
+          row.original.dueDate
+            ? formatDateTime(row.original.dueDate, locale)
+            : "",
+      },
       {
         id: "actions",
         header: t("tasks.columns.actions"),
@@ -188,7 +202,7 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
         ),
       },
     ],
-    [formDialog.open, deleteDialog.open, t]
+    [formDialog.open, deleteDialog.open, t, locale]
   )
 
   return (

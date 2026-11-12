@@ -1,6 +1,8 @@
 import { useTranslation } from "react-i18next"
 import { Button } from "@workspace/ui/components/button"
+import { DateRangePicker } from "@workspace/ui/components/date-range-picker"
 import { Input } from "@workspace/ui/components/input"
+import { resolveLocale } from "@workspace/ui/lib/date"
 import {
   Select,
   SelectContent,
@@ -30,7 +32,7 @@ export function TaskFiltersBar({
   onChange: (next: TaskFilters) => void
   onClear: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { status, priority, assignee, dueFrom, dueTo } = values
 
   return (
@@ -98,21 +100,29 @@ export function TaskFiltersBar({
         </SelectContent>
       </Select>
 
-      <Input
-        aria-label={t("tasks.filters.dueFrom")}
-        type="date"
-        value={dueFrom}
-        onChange={(event) =>
-          onChange({ ...values, dueFrom: event.target.value })
+      <DateRangePicker
+        id="tasks-due-date-filter"
+        aria-label={t("tasks.filters.dueDate")}
+        locale={resolveLocale(i18n.language)}
+        placeholder={t("tasks.filters.dueDatePlaceholder")}
+        clearLabel={t("tasks.filters.dueDateClear")}
+        labels={{
+          between: t("tasks.filters.dueDateModes.between"),
+          from: t("tasks.filters.dueDateModes.from"),
+          until: t("tasks.filters.dueDateModes.until"),
+          today: t("tasks.filters.dueDatePresets.today"),
+          last7Days: t("tasks.filters.dueDatePresets.last7Days"),
+          thisMonth: t("tasks.filters.dueDatePresets.thisMonth"),
+          mode: t("tasks.filters.dueDateMode"),
+        }}
+        value={{ from: dueFrom, to: dueTo }}
+        onChange={(next) =>
+          onChange({
+            ...values,
+            dueFrom: next.from,
+            dueTo: next.to,
+          })
         }
-        className="w-36"
-      />
-      <Input
-        aria-label={t("tasks.filters.dueTo")}
-        type="date"
-        value={dueTo}
-        onChange={(event) => onChange({ ...values, dueTo: event.target.value })}
-        className="w-36"
       />
 
       <Button type="button" variant="ghost" size="sm" onClick={onClear}>

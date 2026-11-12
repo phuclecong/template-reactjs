@@ -25,15 +25,17 @@ type BulkUpdateResponse = {
 
 /**
  * Write path for bulk task updates: apply a Status/Priority/Assignee patch to
- * the selected tasks via the tasks bulk endpoint, then invalidate the task list
- * and clear the selection.
+ * the selected tasks via the tasks bulk endpoint, then invalidate the task
+ * list. `onDone` receives the applied patch so the caller can decide whether
+ * the selection is complete; an immediate Due-date set keeps it selected while
+ * the picker is still open.
  */
 export function useTaskBulkActions({
   selectedIds,
   onDone,
 }: {
   selectedIds: string[]
-  onDone: () => void
+  onDone: (patch: BulkPatch) => void
 }) {
   const { t } = useTranslation()
   const invalidate = useInvalidate()
@@ -76,7 +78,7 @@ export function useTaskBulkActions({
         },
         {
           onSuccess: () => {
-            onDone()
+            onDone(patch)
             void invalidate({ resource: "tasks", invalidates: ["list"] })
           },
         }

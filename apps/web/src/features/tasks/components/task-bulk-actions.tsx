@@ -1,7 +1,8 @@
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Button } from "@workspace/ui/components/button"
-import { Input } from "@workspace/ui/components/input"
+import { DatePicker } from "@workspace/ui/components/date-picker"
+import { resolveLocale } from "@workspace/ui/lib/date"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +12,7 @@ import {
 import {
   PRIORITY_OPTIONS,
   STATUS_OPTIONS,
+  formValueToDueDate,
   type TaskPriority,
   type TaskStatus,
   type UserOption,
@@ -34,7 +36,8 @@ export function TaskBulkActions({
   }) => void
   onCreate: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const locale = resolveLocale(i18n.language)
   const [dueDate, setDueDate] = useState("")
 
   return (
@@ -139,18 +142,31 @@ export function TaskBulkActions({
           {t("tasks.bulk.clearDueDate")}
         </Button>
 
-        <Input
+        <DatePicker
           aria-label={t("tasks.bulk.setDueDate")}
-          type="date"
           value={dueDate}
-          disabled={!hasSelection}
-          onChange={(event) => {
-            const value = event.target.value
+          // Bulk updates apply immediately; the control stays open so the
+          // time can still be adjusted, then resets when it closes.
+          onChange={(value) => {
             if (!value) return
-            applyBulk({ dueDate: value })
-            setDueDate("")
+            setDueDate(value)
+            applyBulk({ dueDate: formValueToDueDate(value) })
           }}
-          className="w-36"
+          onOpenChange={(open) => {
+            if (!open) setDueDate("")
+          }}
+          disabled={!hasSelection}
+          locale={locale}
+          placeholder={t("tasks.bulk.setDueDate")}
+          labels={{
+            clear: t("common.clear"),
+            done: t("common.done"),
+            time: t("datePicker.time"),
+            typedEntryLabel: t("datePicker.typedLabel"),
+            typedEntryHint: t("datePicker.typedHint"),
+            typedEntryError: t("datePicker.typedError"),
+          }}
+          className="w-44"
         />
 
         <Button type="button" onClick={() => onCreate()} size="sm">

@@ -17,6 +17,7 @@ describe("generated client types", () => {
     expectTypeOf<Task>().toHaveProperty("title")
     expectTypeOf<Task>().toHaveProperty("status")
     expectTypeOf<Task>().toHaveProperty("assigneeId")
+    expectTypeOf<Task["dueDate"]>().toEqualTypeOf<string | null | undefined>()
   })
 
   it("matches the contract for bulk task updates", () => {
@@ -27,5 +28,21 @@ describe("generated client types", () => {
     expectTypeOf<BulkRequest>().toHaveProperty("status")
     expectTypeOf<BulkResponse>().toHaveProperty("updated")
     expectTypeOf<BulkResponse>().toHaveProperty("failed")
+  })
+
+  it("accepts nullable string dueDate on every write request", () => {
+    type CreateRequest = components["schemas"]["TaskCreateRequest"]
+    type UpdateRequest = components["schemas"]["TaskUpdateRequest"]
+    type BulkRequest = components["schemas"]["TaskBulkUpdateRequest"]
+
+    expectTypeOf<CreateRequest["dueDate"]>().toEqualTypeOf<
+      string | null | undefined
+    >()
+    expectTypeOf<UpdateRequest["dueDate"]>().toEqualTypeOf<
+      string | null | undefined
+    >()
+    expectTypeOf<BulkRequest["dueDate"]>().toEqualTypeOf<
+      string | null | undefined
+    >()
   })
 })

@@ -9,7 +9,9 @@ async function login(page: Page, email: string, password: string) {
 }
 
 async function openTasks(page: Page) {
-  await page.locator('[data-sidebar="menu-button"]', { hasText: "Tasks" }).click()
+  await page
+    .locator('[data-sidebar="menu-button"]', { hasText: "Tasks" })
+    .click()
   await expect(page).toHaveURL(/\/dashboard\/tasks/)
   await expect(page.getByRole("table")).toBeVisible()
 }
@@ -23,30 +25,45 @@ test("admin creates, edits, and deletes a task", async ({ page }) => {
   const createDialog = page.getByRole("dialog")
   await expect(createDialog).toBeVisible()
   await createDialog.getByLabel("Title").fill("E2E write task")
-  await createDialog.getByLabel("Description").fill("created by the write-path spec")
+  await createDialog
+    .getByLabel("Description")
+    .fill("created by the write-path spec")
   await createDialog.getByLabel("Status").click()
   await page.getByRole("option", { name: "done" }).click()
   await createDialog.getByLabel("Priority").click()
   await page.getByRole("option", { name: "high" }).click()
   await createDialog.getByLabel("Assignee").click()
   await page.getByRole("option", { name: "Mia Member" }).click()
-  await createDialog.getByLabel("Due date").fill("2026-12-31")
+  await createDialog.getByLabel("Due date").click()
+  await page.getByRole("button", { name: /^Today,/ }).click()
+  // The popover stays open after a date pick so a time can be set.
+  await page.getByLabel("Time", { exact: true }).fill("14:30")
+  await page.getByRole("button", { name: "Done" }).click()
+  await expect(createDialog.getByLabel("Due date")).toContainText("2:30 PM")
   await createDialog.getByRole("button", { name: "Create task" }).click()
 
   await expect(page.getByText("Task created")).toBeVisible()
 
-  // Isolate the new row and confirm the fields persisted.
+  // Isolate the new row and confirm the fields persisted. The Due date is
+  // rendered in the user's locale and timezone, not as a raw ISO instant.
   await page.getByLabel("Search tasks").fill("E2E write task")
   const createdRow = page.getByRole("row").filter({ hasText: "E2E write task" })
   await expect(createdRow).toBeVisible()
   await expect(createdRow.getByText("done", { exact: true })).toBeVisible()
   await expect(createdRow.getByText("high", { exact: true })).toBeVisible()
+  await expect(createdRow.getByText(/2:30 PM/)).toBeVisible()
 
-  // Edit the title; the change persists.
+  // Edit the title and the Due time; both persist as one datetime.
   await createdRow.getByRole("button", { name: "Edit" }).click()
   const editDialog = page.getByRole("dialog")
   await expect(editDialog).toBeVisible()
   await editDialog.getByLabel("Title").fill("E2E write task renamed")
+  await expect(editDialog.getByLabel("Due date")).not.toContainText(
+    "Pick a date"
+  )
+  await editDialog.getByLabel("Due date").click()
+  await page.getByLabel("Time", { exact: true }).fill("16:45")
+  await page.getByRole("button", { name: "Done" }).click()
   await editDialog.getByRole("button", { name: "Save changes" }).click()
 
   await expect(page.getByText("Task updated")).toBeVisible()
@@ -54,6 +71,18 @@ test("admin creates, edits, and deletes a task", async ({ page }) => {
     .getByRole("row")
     .filter({ hasText: "E2E write task renamed" })
   await expect(renamedRow).toBeVisible()
+  await expect(renamedRow.getByText(/4:45 PM/)).toBeVisible()
+
+  // Clearing the Due date through the picker persists null.
+  await renamedRow.getByRole("button", { name: "Edit" }).click()
+  const clearDialog = page.getByRole("dialog")
+  await expect(clearDialog).toBeVisible()
+  await clearDialog.getByLabel("Due date").click()
+  await page.getByRole("button", { name: "Clear", exact: true }).click()
+  await clearDialog.getByRole("button", { name: "Save changes" }).click()
+
+  await expect(page.getByText("Task updated")).toBeVisible()
+  await expect(renamedRow.getByText(/4:45 PM/)).toHaveCount(0)
 
   // Delete the task; it disappears.
   await renamedRow.getByRole("button", { name: "Delete" }).click()

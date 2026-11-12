@@ -8,6 +8,13 @@ import {
   type TaskStatus,
   type UserRecord,
 } from "@workspace/api/collections"
+import {
+  dateOnlyToLocalDate,
+  localEndOfDayUtcInstant,
+  localStartOfDayUtcInstant,
+  normalizeLegacyDateValue,
+  toUtcInstant,
+} from "@workspace/ui/lib/date"
 
 export type { Role, TaskPriority, TaskRecord, TaskStatus }
 
@@ -16,6 +23,24 @@ export const STATUS_OPTIONS = taskStatusSchema.options
 
 /** All Task Priorities in display order, derived from the API contract. */
 export const PRIORITY_OPTIONS = taskPrioritySchema.options
+
+/**
+ * Convert a stored Due date to the form value the DatePicker edits: the UTC
+ * instant itself, with legacy date-only records normalized to local midnight.
+ */
+export function dueDateToFormValue(dueDate: string | null | undefined): string {
+  return normalizeLegacyDateValue(dueDate) ?? ""
+}
+
+/**
+ * Convert the form value back to the UTC instant the API stores. The picker
+ * emits instants; a date-only value is rejected (null) rather than silently
+ * normalized, because new writes must be date-time instants. Empty clears
+ * the Due date.
+ */
+export function formValueToDueDate(value: string): string | null {
+  return toUtcInstant(value)
+}
 
 /** The slice of a User the task views need: an id and a display name. */
 export type UserOption = Pick<UserRecord, "id" | "name">
@@ -59,6 +84,10 @@ export type TaskFilters = Record<TaskFilterKey, string>
 /**
  * Convert the search query and URL filter values into the `CrudFilter[]` that
  * `@refinedev/core`'s `useList` understands. Empty values are skipped.
+ *
+ * The Due date URL keys stay date-only, but the API compares UTC instants:
+ * a From bound becomes the start of the selected local day and a To bound
+ * becomes the end of the selected local day.
  */
 export function toCrudFilters(q: string, filters: TaskFilters): CrudFilter[] {
   const result: CrudFilter[] = []
@@ -73,9 +102,17 @@ export function toCrudFilters(q: string, filters: TaskFilters): CrudFilter[] {
       operator: "eq",
       value: filters.assignee,
     })
-  if (filters.dueFrom)
-    result.push({ field: "dueDate", operator: "gte", value: filters.dueFrom })
-  if (filters.dueTo)
-    result.push({ field: "dueDate", operator: "lte", value: filters.dueTo })
+  if (dateOnlyToLocalDate(filters.dueFrom))
+    result.push({
+      field: "dueDate",
+      operator: "gte",
+      value: localStartOfDayUtcInstant(filters.dueFrom),
+    })
+  if (dateOnlyToLocalDate(filters.dueTo))
+    result.push({
+      field: "dueDate",
+      operator: "lte",
+      value: localEndOfDayUtcInstant(filters.dueTo),
+    })
   return result
 }

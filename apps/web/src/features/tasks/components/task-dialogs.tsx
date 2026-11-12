@@ -15,10 +15,12 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Button } from "@workspace/ui/components/button"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
+import { DatePicker } from "@workspace/ui/components/date-picker"
 import { Dialog } from "@workspace/ui/components/dialog"
 import { Field, FieldError, FieldLabel } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
 import { Textarea } from "@workspace/ui/components/textarea"
+import { resolveLocale } from "@workspace/ui/lib/date"
 import {
   Select,
   SelectContent,
@@ -30,6 +32,8 @@ import { describeError } from "@/utils/http-error"
 import {
   PRIORITY_OPTIONS,
   STATUS_OPTIONS,
+  dueDateToFormValue,
+  formValueToDueDate,
   type TaskInput,
   type TaskPriority,
   type TaskRecord,
@@ -64,7 +68,7 @@ function toFormValues(task: TaskRow | null): TaskFormValues {
     status: task.status,
     priority: task.priority ?? "",
     assigneeId: task.assigneeId ?? "",
-    dueDate: task.dueDate ?? "",
+    dueDate: dueDateToFormValue(task.dueDate),
   }
 }
 
@@ -75,7 +79,7 @@ function toPayload(values: TaskFormValues): TaskInput {
     status: values.status,
     priority: values.priority === "" ? null : values.priority,
     assigneeId: values.assigneeId === "" ? null : values.assigneeId,
-    dueDate: values.dueDate === "" ? null : values.dueDate,
+    dueDate: formValueToDueDate(values.dueDate),
   }
 }
 
@@ -90,9 +94,10 @@ export function TaskFormDialog({
   users: UserOption[]
   onClose: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const isEdit = task !== null
   const id = useId()
+  const locale = resolveLocale(i18n.language)
 
   const schema = useMemo(
     () =>
@@ -316,20 +321,38 @@ export function TaskFormDialog({
           <Controller
             control={form.control}
             name="dueDate"
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor={`${id}-due-date`}>
-                  {t("taskDialog.dueDate")}
-                </FieldLabel>
-                <Input
-                  {...field}
-                  id={`${id}-due-date`}
-                  type="date"
-                  aria-invalid={fieldState.invalid}
-                />
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
+            render={({ field, fieldState }) => {
+              const errorId = `${id}-due-date-error`
+              return (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={`${id}-due-date`}>
+                    {t("taskDialog.dueDate")}
+                  </FieldLabel>
+                  <DatePicker
+                    ref={field.ref}
+                    id={`${id}-due-date`}
+                    name={field.name}
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    disabled={isPending}
+                    locale={locale}
+                    placeholder={t("taskDialog.dueDatePlaceholder")}
+                    labels={{
+                      clear: t("common.clear"),
+                      done: t("common.done"),
+                      time: t("datePicker.time"),
+                      typedEntryLabel: t("datePicker.typedLabel"),
+                      typedEntryHint: t("datePicker.typedHint"),
+                      typedEntryError: t("datePicker.typedError"),
+                    }}
+                    aria-invalid={fieldState.invalid}
+                    aria-describedby={fieldState.error ? errorId : undefined}
+                  />
+                  <FieldError id={errorId} errors={[fieldState.error]} />
+                </Field>
+              )
+            }}
           />
         </div>
 

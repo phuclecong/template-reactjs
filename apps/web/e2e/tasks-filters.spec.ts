@@ -1,5 +1,10 @@
 import { expect, test, type Page } from "@playwright/test"
 
+// The Due date filter maps date-only URL bounds to local-day UTC instants. Pin
+// the browser to UTC so the seeded noon-UTC Due dates and the test's expected
+// date strings line up deterministically.
+test.use({ timezoneId: "UTC" })
+
 async function login(page: Page, email: string, password: string) {
   await page.goto("/login")
   await page.getByLabel("Email").fill(email)
@@ -9,9 +14,22 @@ async function login(page: Page, email: string, password: string) {
 }
 
 async function openTasks(page: Page) {
-  await page.locator('[data-sidebar="menu-button"]', { hasText: "Tasks" }).click()
+  await page
+    .locator('[data-sidebar="menu-button"]', { hasText: "Tasks" })
+    .click()
   await expect(page).toHaveURL(/\/dashboard\/tasks/)
   await expect(page.getByRole("table")).toBeVisible()
+}
+
+async function openDueDateFilter(page: Page) {
+  await page.locator("#tasks-due-date-filter").click()
+}
+
+/** Jumps the first visible calendar month to a known month and year. */
+async function showMonth(page: Page, year: string, month: string) {
+  const firstMonth = page.locator('[data-slot="calendar"] .rdp-month').first()
+  await firstMonth.getByLabel("Choose the Year").selectOption(year)
+  await firstMonth.getByLabel("Choose the Month").selectOption(month)
 }
 
 test("filters the table by status", async ({ page }) => {
@@ -48,6 +66,28 @@ test("selects a row and applies a bulk status update", async ({ page }) => {
   await expect(page.getByText("Updated 1 tasks")).toBeVisible()
 })
 
+test("applies a Due datetime through the bulk action", async ({ page }) => {
+  await login(page, "admin@example.com", "adminpass")
+  await openTasks(page)
+
+  const row = page.getByRole("row").filter({ hasText: "Build the MSW mock" })
+  await row.getByRole("checkbox").click()
+  await expect(page.getByText("1 selected")).toBeVisible()
+
+  const trigger = page.getByLabel("Set due date")
+  await trigger.click()
+  // The bulk picker applies each valid change immediately and stays open so
+  // the time can be adjusted; Done closes it and resets the control.
+  await page.getByRole("button", { name: /^Today,/ }).click()
+  await page.getByLabel("Time", { exact: true }).fill("14:30")
+  await page.getByRole("button", { name: "Done" }).click()
+
+  await expect(page.getByText("Updated 1 tasks").first()).toBeVisible()
+  await expect(row.getByText(/2:30 PM/)).toBeVisible()
+  // The control resets after applying so the next update is deliberate.
+  await expect(trigger).toContainText("Set due date")
+})
+
 test("paginates and reflects the page in the URL", async ({ page }) => {
   await login(page, "admin@example.com", "adminpass")
   await openTasks(page)
@@ -73,4 +113,60 @@ test("changes rows per page and resets to page one", async ({ page }) => {
 
   await expect(page).toHaveURL(/pageSize=10/)
   await expect(page).not.toHaveURL(/page=/)
+})
+
+test("filters the table by a custom due date range", async ({ page }) => {
+  await login(page, "admin@example.com", "adminpass")
+  await openTasks(page)
+
+  await openDueDateFilter(page)
+  await showMonth(page, "2026", "0")
+  await page
+    .getByRole("button", { name: /January 2nd, 2026/, exact: false })
+    .click()
+  await page
+    .getByRole("button", { name: /January 3rd, 2026/, exact: false })
+    .click()
+
+  await expect(page).toHaveURL(/dueFrom=2026-01-02/)
+  await expect(page).toHaveURL(/dueTo=2026-01-03/)
+  await expect(page.getByText("Review the login flow #4")).toBeVisible()
+  await expect(page.getByText("Fix the table pagination #5")).toBeVisible()
+  await expect(page.getByText("Author the OpenAPI contract")).toHaveCount(0)
+})
+
+test("filters the table with a due date preset", async ({ page }) => {
+  await login(page, "admin@example.com", "adminpass")
+  await openTasks(page)
+
+  const today = new Date().toISOString().slice(0, 10)
+
+  await openDueDateFilter(page)
+  await page.getByRole("button", { name: "Today", exact: true }).click()
+
+  await expect(page).toHaveURL(new RegExp(`dueFrom=${today}`))
+  await expect(page).toHaveURL(new RegExp(`dueTo=${today}`))
+  await expect(page.locator("#tasks-due-date-filter")).not.toContainText(
+    "Any due date"
+  )
+  // Tasks without a Due date never match a range filter.
+  await expect(page.getByText("Author the OpenAPI contract")).toHaveCount(0)
+})
+
+test("filters the table by an upper bound only", async ({ page }) => {
+  await login(page, "admin@example.com", "adminpass")
+  await openTasks(page)
+
+  await openDueDateFilter(page)
+  await page.getByRole("button", { name: "Until", exact: true }).click()
+  await showMonth(page, "2026", "0")
+  await page
+    .getByRole("button", { name: /January 3rd, 2026/, exact: false })
+    .click()
+
+  await expect(page).toHaveURL(/dueTo=2026-01-03/)
+  await expect(page).not.toHaveURL(/dueFrom=/)
+  await expect(page.getByText("Review the login flow #4")).toBeVisible()
+  await expect(page.getByText("Fix the table pagination #5")).toBeVisible()
+  await expect(page.getByText(/Write unit tests for search/)).toHaveCount(0)
 })

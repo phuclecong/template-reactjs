@@ -1,5 +1,6 @@
 import { http, HttpResponse, type JsonBodyType } from "msw"
 import {
+  dueDateWriteSchema,
   tasks,
   users,
   type Role,
@@ -8,6 +9,12 @@ import {
   type TaskStatus,
   type UserEntity,
 } from "./collections"
+import {
+  compareDueDates,
+  dueDateInstant,
+  normalizeDueDateInstant,
+  normalizeStoredDueDate,
+} from "./dates"
 import {
   getUserByAccessToken,
   loginUser,
@@ -92,12 +99,18 @@ function compareTaskValues(
   b: TaskEntity,
   field: SortableTaskField
 ): number {
+  if (field === "dueDate") return compareDueDates(a.dueDate, b.dueDate)
   const av = a[field]
   const bv = b[field]
   if (av == null && bv == null) return 0
   if (av == null) return 1
   if (bv == null) return -1
   return String(av).localeCompare(String(bv))
+}
+
+/** Normalizes legacy date-only Due dates before returning a Task. */
+function toPublicTask(task: TaskEntity): TaskEntity {
+  return { ...task, dueDate: normalizeStoredDueDate(task.dueDate) }
 }
 
 const sortableUserFields = ["name", "email", "role", "createdAt"] as const
@@ -165,6 +178,23 @@ function listUsers(request: Request): Response {
   })
 }
 
+/**
+ * Parses a Due date filter bound. Only date-time instants are accepted; the
+ * web app converts date-only URL bounds to local-day UTC instants before it
+ * queries. Empty or missing bounds are ignored.
+ */
+function parseDueDateBound(raw: string | null): {
+  valid: boolean
+  value: number | null
+} {
+  if (raw === null || raw === "") return { valid: true, value: null }
+  const parsed = dueDateWriteSchema.safeParse(raw)
+  if (!parsed.success || parsed.data == null) {
+    return { valid: false, value: null }
+  }
+  return { valid: true, value: Date.parse(parsed.data) }
+}
+
 /** Lists tasks with simple-rest compatible `_start`/`_end`/`_sort`/`_order`/`q`. */
 function listTasks(request: Request): Response {
   if (!getAuthUser(request)) {
@@ -176,8 +206,24 @@ function listTasks(request: Request): Response {
   const status = url.searchParams.get("status")
   const priority = url.searchParams.get("priority")
   const assigneeId = url.searchParams.get("assigneeId")
-  const dueDateGte = url.searchParams.get("dueDate_gte")
-  const dueDateLte = url.searchParams.get("dueDate_lte")
+  const dueDateGte = parseDueDateBound(url.searchParams.get("dueDate_gte"))
+  if (!dueDateGte.valid) {
+    return fail(
+      "invalid_request",
+      "dueDate_gte must be an ISO 8601 date-time.",
+      400
+    )
+  }
+  const dueDateLte = parseDueDateBound(url.searchParams.get("dueDate_lte"))
+  if (!dueDateLte.valid) {
+    return fail(
+      "invalid_request",
+      "dueDate_lte must be an ISO 8601 date-time.",
+      400
+    )
+  }
+  const dueDateGteMs = dueDateGte.value
+  const dueDateLteMs = dueDateLte.value
   const start = Number(url.searchParams.get("_start") ?? 0)
   const endParam = url.searchParams.get("_end")
   const end = endParam ? Number(endParam) : undefined
@@ -204,15 +250,17 @@ function listTasks(request: Request): Response {
         : task.assigneeId === assigneeId
     )
   }
-  if (dueDateGte) {
-    items = items.filter(
-      (task) => task.dueDate != null && task.dueDate >= dueDateGte
-    )
+  if (dueDateGteMs != null) {
+    items = items.filter((task) => {
+      const instant = dueDateInstant(task.dueDate)
+      return instant != null && instant >= dueDateGteMs
+    })
   }
-  if (dueDateLte) {
-    items = items.filter(
-      (task) => task.dueDate != null && task.dueDate <= dueDateLte
-    )
+  if (dueDateLteMs != null) {
+    items = items.filter((task) => {
+      const instant = dueDateInstant(task.dueDate)
+      return instant != null && instant <= dueDateLteMs
+    })
   }
   items.sort((a, b) => {
     const result = compareTaskValues(a, b, sortField)
@@ -221,7 +269,7 @@ function listTasks(request: Request): Response {
 
   const total = items.length
   const page = end === undefined ? items : items.slice(start, end)
-  return HttpResponse.json(page as JsonBodyType, {
+  return HttpResponse.json(page.map(toPublicTask) as JsonBodyType, {
     status: 200,
     headers: { "x-total-count": String(total) },
   })
@@ -247,8 +295,16 @@ async function bulkUpdateTasks(request: Request): Promise<Response> {
   const hasPriority = isPriority(body.priority) || body.priority === null
   const hasAssigneeId =
     typeof body.assigneeId === "string" || body.assigneeId === null
-  const hasDueDate =
-    typeof body.dueDate === "string" || body.dueDate === null
+  const dueDate = dueDateWriteSchema.safeParse(body.dueDate)
+  if (!dueDate.success) {
+    return fail(
+      "invalid_request",
+      "dueDate must be an ISO 8601 date-time.",
+      400
+    )
+  }
+  const hasDueDate = body.dueDate !== undefined
+  const normalizedDueDate = normalizeDueDateInstant(dueDate.data ?? null)
 
   if (!hasStatus && !hasPriority && !hasAssigneeId && !hasDueDate) {
     return fail(
@@ -277,7 +333,7 @@ async function bulkUpdateTasks(request: Request): Promise<Response> {
         if (hasStatus) draft.status = body.status as TaskStatus
         if (hasPriority) draft.priority = body.priority as TaskPriority | null
         if (hasAssigneeId) draft.assigneeId = body.assigneeId as string | null
-        if (hasDueDate) draft.dueDate = body.dueDate as string | null
+        if (hasDueDate) draft.dueDate = normalizedDueDate
         draft.updatedAt = new Date().toISOString()
       },
       strict: true,
@@ -370,6 +426,14 @@ export const dataHandlers = [
     if (!body || typeof body.title !== "string" || body.title.trim() === "") {
       return fail("invalid_request", "A title is required.", 400)
     }
+    const dueDate = dueDateWriteSchema.safeParse(body.dueDate)
+    if (!dueDate.success) {
+      return fail(
+        "invalid_request",
+        "dueDate must be an ISO 8601 date-time.",
+        400
+      )
+    }
     const timestamp = new Date().toISOString()
     const task = await tasks.create({
       id: `tsk_${crypto.randomUUID()}`,
@@ -384,11 +448,11 @@ export const dataHandlers = [
           : typeof body.assigneeId === "string"
             ? body.assigneeId
             : actor.id,
-      dueDate: typeof body.dueDate === "string" ? body.dueDate : null,
+      dueDate: normalizeDueDateInstant(dueDate.data ?? null),
       createdAt: timestamp,
       updatedAt: timestamp,
     })
-    return ok(task, 201)
+    return ok(toPublicTask(task), 201)
   }),
 
   http.patch("*/api/tasks/bulk", ({ request }) => bulkUpdateTasks(request)),
@@ -406,6 +470,14 @@ export const dataHandlers = [
     }
 
     const body = await readJson(request)
+    const dueDate = dueDateWriteSchema.safeParse(body?.dueDate)
+    if (!dueDate.success) {
+      return fail(
+        "invalid_request",
+        "dueDate must be an ISO 8601 date-time.",
+        400
+      )
+    }
     const updated = await tasks.update(target, {
       data(draft) {
         if (typeof body?.title === "string" && body.title.trim() !== "") {
@@ -424,14 +496,14 @@ export const dataHandlers = [
         if (typeof body?.assigneeId === "string" || body?.assigneeId === null) {
           draft.assigneeId = body.assigneeId
         }
-        if (typeof body?.dueDate === "string" || body?.dueDate === null) {
-          draft.dueDate = body.dueDate
+        if (body?.dueDate !== undefined) {
+          draft.dueDate = normalizeDueDateInstant(dueDate.data ?? null)
         }
         draft.updatedAt = new Date().toISOString()
       },
       strict: true,
     })
-    return ok(updated)
+    return ok(toPublicTask(updated))
   }),
 
   http.delete("*/api/tasks/:id", ({ request, params }) => {

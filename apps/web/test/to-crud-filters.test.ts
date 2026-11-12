@@ -1,5 +1,15 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { toCrudFilters } from "@/features/tasks/utils"
+
+const originalTimeZone = process.env.TZ
+
+beforeEach(() => {
+  process.env.TZ = "Asia/Ho_Chi_Minh"
+})
+
+afterEach(() => {
+  process.env.TZ = originalTimeZone
+})
 
 const emptyFilters = {
   status: "",
@@ -29,7 +39,10 @@ describe("toCrudFilters", () => {
     ])
   })
 
-  it("maps assignee to assigneeId and due dates to a range", () => {
+  it("maps assignee to assigneeId and due date bounds to UTC instants", () => {
+    // Asia/Ho_Chi_Minh is UTC+7, so the local day boundaries shift into the
+    // previous/next UTC day. A From bound is the start of the local day and a
+    // To bound is the end of the local day.
     expect(
       toCrudFilters("", {
         ...emptyFilters,
@@ -39,14 +52,54 @@ describe("toCrudFilters", () => {
       })
     ).toEqual([
       { field: "assigneeId", operator: "eq", value: "usr_1" },
-      { field: "dueDate", operator: "gte", value: "2026-01-01" },
-      { field: "dueDate", operator: "lte", value: "2026-01-31" },
+      {
+        field: "dueDate",
+        operator: "gte",
+        value: "2025-12-31T17:00:00.000Z",
+      },
+      {
+        field: "dueDate",
+        operator: "lte",
+        value: "2026-01-31T16:59:59.999Z",
+      },
+    ])
+  })
+
+  it("supports a lower bound only", () => {
+    expect(
+      toCrudFilters("", { ...emptyFilters, dueFrom: "2026-01-01" })
+    ).toEqual([
+      {
+        field: "dueDate",
+        operator: "gte",
+        value: "2025-12-31T17:00:00.000Z",
+      },
+    ])
+  })
+
+  it("supports an upper bound only", () => {
+    expect(toCrudFilters("", { ...emptyFilters, dueTo: "2026-01-31" })).toEqual([
+      {
+        field: "dueDate",
+        operator: "lte",
+        value: "2026-01-31T16:59:59.999Z",
+      },
     ])
   })
 
   it("skips empty filter values", () => {
     expect(
       toCrudFilters("", { ...emptyFilters, priority: "", dueFrom: "" })
+    ).toEqual([])
+  })
+
+  it("skips invalid date-only filter values", () => {
+    expect(
+      toCrudFilters("", {
+        ...emptyFilters,
+        dueFrom: "not-a-date",
+        dueTo: "2026-02-31",
+      })
     ).toEqual([])
   })
 })
