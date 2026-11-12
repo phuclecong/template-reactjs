@@ -25,12 +25,22 @@ export const userRecordSchema = z.object({
 })
 
 /**
- * A Due date is a UTC instant. The date-only branch keeps legacy persisted
- * records readable during the transition; reads and writes normalize to a
+ * A stored Due date is a UTC instant. The date-only branch keeps legacy
+ * persisted records readable during the migration; reads normalize them to a
  * UTC instant (see `dates.ts`).
  */
 export const dueDateSchema = z
   .union([z.string().datetime(), z.string().date()])
+  .nullable()
+  .optional()
+
+/**
+ * A Due date accepted by write requests: only a date-time instant or null.
+ * Date-only values are rejected so new writes cannot create legacy records.
+ */
+export const dueDateWriteSchema = z
+  .string()
+  .datetime({ offset: true })
   .nullable()
   .optional()
 

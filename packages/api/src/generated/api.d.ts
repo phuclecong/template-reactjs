@@ -294,7 +294,7 @@ export interface components {
             assigneeId?: string | null;
             /**
              * Format: date-time
-             * @description ISO 8601 UTC instant. Legacy date-only values are interpreted as local midnight and normalized to an instant on read and write.
+             * @description ISO 8601 UTC instant. Legacy date-only values are interpreted as local midnight and normalized to an instant on read.
              */
             dueDate?: string | null;
             /** Format: date-time */
@@ -311,7 +311,7 @@ export interface components {
             assigneeId?: string | null;
             /**
              * Format: date-time
-             * @description ISO 8601 UTC instant. Legacy date-only values are interpreted as local midnight and normalized to an instant on read and write.
+             * @description ISO 8601 date-time instant. Date-only values are rejected.
              */
             dueDate?: string | null;
         };
@@ -324,7 +324,7 @@ export interface components {
             assigneeId?: string | null;
             /**
              * Format: date-time
-             * @description ISO 8601 UTC instant. Legacy date-only values are interpreted as local midnight and normalized to an instant on read and write.
+             * @description ISO 8601 date-time instant. Date-only values are rejected.
              */
             dueDate?: string | null;
         };
@@ -337,7 +337,7 @@ export interface components {
             assigneeId?: string | null;
             /**
              * Format: date-time
-             * @description ISO 8601 UTC instant. Legacy date-only values are interpreted as local midnight and normalized to an instant on read and write.
+             * @description ISO 8601 date-time instant. Date-only values are rejected.
              */
             dueDate?: string | null;
         };
@@ -637,9 +637,9 @@ export interface operations {
                 priority?: "low" | "medium" | "high";
                 /** @description A user id, or the literal "unassigned" to match tasks with no assignee. */
                 assigneeId?: string;
-                /** @description Inclusive lower bound on the due date. Accepts an ISO 8601 date-time; a legacy date-only value is normalized to the local start of that day. */
+                /** @description Inclusive lower bound on the due date as an ISO 8601 date-time. Date-only values are rejected. */
                 dueDate_gte?: string;
-                /** @description Inclusive upper bound on the due date. Accepts an ISO 8601 date-time; a legacy date-only value is normalized to the local end of that day. */
+                /** @description Inclusive upper bound on the due date as an ISO 8601 date-time. Date-only values are rejected. */
                 dueDate_lte?: string;
                 /** @description Number of matching tasks to skip before returning results. Defaults to 0. */
                 _start?: number;

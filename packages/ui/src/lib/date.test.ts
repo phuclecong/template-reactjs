@@ -7,14 +7,13 @@ import {
   formatDateTime,
   formatTime,
   isDateOnly,
-  localDateInputToUtcInstant,
   localDateToDateOnly,
   localEndOfDayUtcInstant,
   localStartOfDayUtcInstant,
   normalizeLegacyDateValue,
   parseUtcInstant,
   serializeUtcInstant,
-  utcInstantToLocalDateInput,
+  toUtcInstant,
 } from "./date"
 
 const originalTimeZone = process.env.TZ
@@ -135,37 +134,30 @@ describe("local day boundaries", () => {
     )
   })
 
-  it("converts a date input value to local midnight in a UTC instant", () => {
-    process.env.TZ = "America/New_York"
-    expect(localDateInputToUtcInstant("2026-01-05")).toBe(
-      "2026-01-05T05:00:00.000Z"
-    )
-  })
 })
 
-describe("converting an instant back to a native date input value", () => {
-  it("uses the local calendar date", () => {
-    process.env.TZ = "Asia/Ho_Chi_Minh"
-    expect(utcInstantToLocalDateInput("2026-01-04T17:00:00.000Z")).toBe(
-      "2026-01-05"
+describe("write instant serialization", () => {
+  it("normalizes an offset date-time to a UTC instant", () => {
+    expect(toUtcInstant("2026-06-01T09:30:00+07:00")).toBe(
+      "2026-06-01T02:30:00.000Z"
     )
   })
 
-  it("handles negative-offset timezones", () => {
-    process.env.TZ = "America/New_York"
-    expect(utcInstantToLocalDateInput("2026-01-05T02:00:00.000Z")).toBe(
-      "2026-01-04"
+  it("preserves an existing UTC instant", () => {
+    expect(toUtcInstant("2026-06-01T02:30:00.000Z")).toBe(
+      "2026-06-01T02:30:00.000Z"
     )
   })
 
-  it("keeps a legacy date-only value on the same calendar day", () => {
-    process.env.TZ = "America/New_York"
-    expect(utcInstantToLocalDateInput("2026-01-05")).toBe("2026-01-05")
+  it("rejects date-only values so new writes cannot create legacy records", () => {
+    expect(toUtcInstant("2026-01-05")).toBeNull()
   })
 
-  it("returns an empty string when there is no value", () => {
-    expect(utcInstantToLocalDateInput(null)).toBe("")
-    expect(utcInstantToLocalDateInput(undefined)).toBe("")
+  it("returns null for empty and invalid values", () => {
+    expect(toUtcInstant(null)).toBeNull()
+    expect(toUtcInstant(undefined)).toBeNull()
+    expect(toUtcInstant("")).toBeNull()
+    expect(toUtcInstant("nope")).toBeNull()
   })
 })
 

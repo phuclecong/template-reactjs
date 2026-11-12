@@ -29,4 +29,20 @@ describe("generated client types", () => {
     expectTypeOf<BulkResponse>().toHaveProperty("updated")
     expectTypeOf<BulkResponse>().toHaveProperty("failed")
   })
+
+  it("accepts nullable string dueDate on every write request", () => {
+    type CreateRequest = components["schemas"]["TaskCreateRequest"]
+    type UpdateRequest = components["schemas"]["TaskUpdateRequest"]
+    type BulkRequest = components["schemas"]["TaskBulkUpdateRequest"]
+
+    expectTypeOf<CreateRequest["dueDate"]>().toEqualTypeOf<
+      string | null | undefined
+    >()
+    expectTypeOf<UpdateRequest["dueDate"]>().toEqualTypeOf<
+      string | null | undefined
+    >()
+    expectTypeOf<BulkRequest["dueDate"]>().toEqualTypeOf<
+      string | null | undefined
+    >()
+  })
 })

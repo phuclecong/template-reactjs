@@ -3,9 +3,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   compareDueDates,
   dueDateInstant,
-  isValidDueDateInput,
-  normalizeDueDate,
-  normalizeDueDateBound,
+  normalizeDueDateInstant,
+  normalizeStoredDueDate,
 } from "../src/dates"
 
 const originalTimeZone = process.env.TZ
@@ -18,61 +17,61 @@ afterEach(() => {
   process.env.TZ = originalTimeZone
 })
 
-describe("normalizeDueDate", () => {
-  it("normalizes a legacy date-only value to local midnight as a UTC instant", () => {
+describe("normalizeStoredDueDate", () => {
+  it("normalizes a legacy date-only record to local midnight as a UTC instant", () => {
     process.env.TZ = "Asia/Ho_Chi_Minh"
-    expect(normalizeDueDate("2026-01-05")).toBe("2026-01-04T17:00:00.000Z")
+    expect(normalizeStoredDueDate("2026-01-05")).toBe(
+      "2026-01-04T17:00:00.000Z"
+    )
   })
 
   it("normalizes an instant with an offset to UTC", () => {
-    expect(normalizeDueDate("2026-01-05T12:00:00+07:00")).toBe(
+    expect(normalizeStoredDueDate("2026-01-05T12:00:00+07:00")).toBe(
       "2026-01-05T05:00:00.000Z"
     )
   })
 
   it("preserves an existing UTC instant", () => {
-    expect(normalizeDueDate("2026-01-05T12:00:00.000Z")).toBe(
+    expect(normalizeStoredDueDate("2026-01-05T12:00:00.000Z")).toBe(
       "2026-01-05T12:00:00.000Z"
     )
   })
 
   it("returns null for empty and invalid values", () => {
-    expect(normalizeDueDate(null)).toBeNull()
-    expect(normalizeDueDate(undefined)).toBeNull()
-    expect(normalizeDueDate("")).toBeNull()
-    expect(normalizeDueDate("not-a-date")).toBeNull()
+    expect(normalizeStoredDueDate(null)).toBeNull()
+    expect(normalizeStoredDueDate(undefined)).toBeNull()
+    expect(normalizeStoredDueDate("")).toBeNull()
+    expect(normalizeStoredDueDate("not-a-date")).toBeNull()
   })
 })
 
-describe("normalizeDueDateBound", () => {
-  it("normalizes a date-only lower bound to local start of day", () => {
-    process.env.TZ = "Asia/Ho_Chi_Minh"
-    expect(normalizeDueDateBound("2026-01-05", "gte")).toBe(
-      "2026-01-04T17:00:00.000Z"
+describe("normalizeDueDateInstant", () => {
+  it("normalizes a date-time with an offset to a UTC instant", () => {
+    expect(normalizeDueDateInstant("2026-06-01T09:30:00+07:00")).toBe(
+      "2026-06-01T02:30:00.000Z"
     )
   })
 
-  it("normalizes a date-only upper bound to local end of day", () => {
-    process.env.TZ = "Asia/Ho_Chi_Minh"
-    expect(normalizeDueDateBound("2026-01-05", "lte")).toBe(
-      "2026-01-05T16:59:59.999Z"
+  it("preserves an existing UTC instant", () => {
+    expect(normalizeDueDateInstant("2026-06-01T02:30:00.000Z")).toBe(
+      "2026-06-01T02:30:00.000Z"
     )
   })
 
-  it("keeps a datetime bound as an instant", () => {
-    expect(normalizeDueDateBound("2026-01-05T12:00:00.000Z", "lte")).toBe(
-      "2026-01-05T12:00:00.000Z"
-    )
+  it("rejects date-only values so new writes cannot store them", () => {
+    expect(normalizeDueDateInstant("2026-01-05")).toBeNull()
   })
 
-  it("returns null for empty and invalid bounds", () => {
-    expect(normalizeDueDateBound(null, "gte")).toBeNull()
-    expect(normalizeDueDateBound("not-a-date", "lte")).toBeNull()
+  it("returns null for empty and invalid values", () => {
+    expect(normalizeDueDateInstant(null)).toBeNull()
+    expect(normalizeDueDateInstant(undefined)).toBeNull()
+    expect(normalizeDueDateInstant("")).toBeNull()
+    expect(normalizeDueDateInstant("not-a-date")).toBeNull()
   })
 })
 
 describe("due date comparison", () => {
-  it("compares legacy date-only values as local-midnight instants", () => {
+  it("compares legacy date-only records as local-midnight instants", () => {
     process.env.TZ = "Asia/Ho_Chi_Minh"
     // Legacy 2026-01-05 is 2026-01-04T17:00Z; the other instant is later.
     expect(
@@ -93,19 +92,5 @@ describe("due date comparison", () => {
     expect(compareDueDates(null, "2026-01-05T00:00:00.000Z")).toBeGreaterThan(0)
     expect(compareDueDates("2026-01-05T00:00:00.000Z", null)).toBeLessThan(0)
     expect(compareDueDates(null, null)).toBe(0)
-  })
-})
-
-describe("isValidDueDateInput", () => {
-  it("accepts date-only and datetime strings", () => {
-    expect(isValidDueDateInput("2026-01-05")).toBe(true)
-    expect(isValidDueDateInput("2026-01-05T12:00:00.000Z")).toBe(true)
-    expect(isValidDueDateInput("2026-01-05T12:00:00+07:00")).toBe(true)
-  })
-
-  it("rejects invalid strings", () => {
-    expect(isValidDueDateInput("")).toBe(false)
-    expect(isValidDueDateInput("nope")).toBe(false)
-    expect(isValidDueDateInput("2026-02-31")).toBe(false)
   })
 })
