@@ -9,6 +9,13 @@ import {
   type UserEntity,
 } from "./collections"
 import {
+  compareDueDates,
+  dueDateInstant,
+  isValidDueDateInput,
+  normalizeDueDate,
+  normalizeDueDateBound,
+} from "./dates"
+import {
   getUserByAccessToken,
   loginUser,
   refreshAccessToken,
@@ -92,12 +99,18 @@ function compareTaskValues(
   b: TaskEntity,
   field: SortableTaskField
 ): number {
+  if (field === "dueDate") return compareDueDates(a.dueDate, b.dueDate)
   const av = a[field]
   const bv = b[field]
   if (av == null && bv == null) return 0
   if (av == null) return 1
   if (bv == null) return -1
   return String(av).localeCompare(String(bv))
+}
+
+/** Normalizes legacy date-only Due dates before returning a Task. */
+function toPublicTask(task: TaskEntity): TaskEntity {
+  return { ...task, dueDate: normalizeDueDate(task.dueDate) }
 }
 
 const sortableUserFields = ["name", "email", "role", "createdAt"] as const
@@ -176,8 +189,16 @@ function listTasks(request: Request): Response {
   const status = url.searchParams.get("status")
   const priority = url.searchParams.get("priority")
   const assigneeId = url.searchParams.get("assigneeId")
-  const dueDateGte = url.searchParams.get("dueDate_gte")
-  const dueDateLte = url.searchParams.get("dueDate_lte")
+  const dueDateGte = normalizeDueDateBound(
+    url.searchParams.get("dueDate_gte"),
+    "gte"
+  )
+  const dueDateLte = normalizeDueDateBound(
+    url.searchParams.get("dueDate_lte"),
+    "lte"
+  )
+  const dueDateGteMs = dueDateGte ? Date.parse(dueDateGte) : null
+  const dueDateLteMs = dueDateLte ? Date.parse(dueDateLte) : null
   const start = Number(url.searchParams.get("_start") ?? 0)
   const endParam = url.searchParams.get("_end")
   const end = endParam ? Number(endParam) : undefined
@@ -204,15 +225,17 @@ function listTasks(request: Request): Response {
         : task.assigneeId === assigneeId
     )
   }
-  if (dueDateGte) {
-    items = items.filter(
-      (task) => task.dueDate != null && task.dueDate >= dueDateGte
-    )
+  if (dueDateGteMs != null) {
+    items = items.filter((task) => {
+      const instant = dueDateInstant(task.dueDate)
+      return instant != null && instant >= dueDateGteMs
+    })
   }
-  if (dueDateLte) {
-    items = items.filter(
-      (task) => task.dueDate != null && task.dueDate <= dueDateLte
-    )
+  if (dueDateLteMs != null) {
+    items = items.filter((task) => {
+      const instant = dueDateInstant(task.dueDate)
+      return instant != null && instant <= dueDateLteMs
+    })
   }
   items.sort((a, b) => {
     const result = compareTaskValues(a, b, sortField)
@@ -221,7 +244,7 @@ function listTasks(request: Request): Response {
 
   const total = items.length
   const page = end === undefined ? items : items.slice(start, end)
-  return HttpResponse.json(page as JsonBodyType, {
+  return HttpResponse.json(page.map(toPublicTask) as JsonBodyType, {
     status: 200,
     headers: { "x-total-count": String(total) },
   })
@@ -247,8 +270,13 @@ async function bulkUpdateTasks(request: Request): Promise<Response> {
   const hasPriority = isPriority(body.priority) || body.priority === null
   const hasAssigneeId =
     typeof body.assigneeId === "string" || body.assigneeId === null
-  const hasDueDate =
-    typeof body.dueDate === "string" || body.dueDate === null
+  const hasDueDate = typeof body.dueDate === "string" || body.dueDate === null
+
+  if (typeof body.dueDate === "string" && !isValidDueDateInput(body.dueDate)) {
+    return fail("invalid_request", "dueDate is not a valid date.", 400)
+  }
+  const normalizedDueDate =
+    typeof body.dueDate === "string" ? normalizeDueDate(body.dueDate) : null
 
   if (!hasStatus && !hasPriority && !hasAssigneeId && !hasDueDate) {
     return fail(
@@ -277,7 +305,7 @@ async function bulkUpdateTasks(request: Request): Promise<Response> {
         if (hasStatus) draft.status = body.status as TaskStatus
         if (hasPriority) draft.priority = body.priority as TaskPriority | null
         if (hasAssigneeId) draft.assigneeId = body.assigneeId as string | null
-        if (hasDueDate) draft.dueDate = body.dueDate as string | null
+        if (hasDueDate) draft.dueDate = normalizedDueDate
         draft.updatedAt = new Date().toISOString()
       },
       strict: true,
@@ -370,6 +398,12 @@ export const dataHandlers = [
     if (!body || typeof body.title !== "string" || body.title.trim() === "") {
       return fail("invalid_request", "A title is required.", 400)
     }
+    if (
+      typeof body.dueDate === "string" &&
+      !isValidDueDateInput(body.dueDate)
+    ) {
+      return fail("invalid_request", "dueDate is not a valid date.", 400)
+    }
     const timestamp = new Date().toISOString()
     const task = await tasks.create({
       id: `tsk_${crypto.randomUUID()}`,
@@ -384,11 +418,13 @@ export const dataHandlers = [
           : typeof body.assigneeId === "string"
             ? body.assigneeId
             : actor.id,
-      dueDate: typeof body.dueDate === "string" ? body.dueDate : null,
+      dueDate: normalizeDueDate(
+        typeof body.dueDate === "string" ? body.dueDate : null
+      ),
       createdAt: timestamp,
       updatedAt: timestamp,
     })
-    return ok(task, 201)
+    return ok(toPublicTask(task), 201)
   }),
 
   http.patch("*/api/tasks/bulk", ({ request }) => bulkUpdateTasks(request)),
@@ -406,6 +442,12 @@ export const dataHandlers = [
     }
 
     const body = await readJson(request)
+    if (
+      typeof body?.dueDate === "string" &&
+      !isValidDueDateInput(body.dueDate)
+    ) {
+      return fail("invalid_request", "dueDate is not a valid date.", 400)
+    }
     const updated = await tasks.update(target, {
       data(draft) {
         if (typeof body?.title === "string" && body.title.trim() !== "") {
@@ -425,13 +467,13 @@ export const dataHandlers = [
           draft.assigneeId = body.assigneeId
         }
         if (typeof body?.dueDate === "string" || body?.dueDate === null) {
-          draft.dueDate = body.dueDate
+          draft.dueDate = normalizeDueDate(body.dueDate)
         }
         draft.updatedAt = new Date().toISOString()
       },
       strict: true,
     })
-    return ok(updated)
+    return ok(toPublicTask(updated))
   }),
 
   http.delete("*/api/tasks/:id", ({ request, params }) => {

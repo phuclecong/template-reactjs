@@ -8,6 +8,10 @@ import {
   type TaskStatus,
   type UserRecord,
 } from "@workspace/api/collections"
+import {
+  localDateInputToUtcInstant,
+  utcInstantToLocalDateInput,
+} from "@workspace/ui/lib/date"
 
 export type { Role, TaskPriority, TaskRecord, TaskStatus }
 
@@ -16,6 +20,22 @@ export const STATUS_OPTIONS = taskStatusSchema.options
 
 /** All Task Priorities in display order, derived from the API contract. */
 export const PRIORITY_OPTIONS = taskPrioritySchema.options
+
+/**
+ * Convert a stored Due date (a UTC instant, or a legacy date-only value) to
+ * the local `YYYY-MM-DD` a native date input displays.
+ */
+export function dueDateToFormValue(dueDate: string | null | undefined): string {
+  return utcInstantToLocalDateInput(dueDate)
+}
+
+/**
+ * Convert a native date input's local `YYYY-MM-DD` value to the UTC instant
+ * the API stores. An empty form value clears the Due date.
+ */
+export function formValueToDueDate(value: string): string | null {
+  return value === "" ? null : localDateInputToUtcInstant(value)
+}
 
 /** The slice of a User the task views need: an id and a display name. */
 export type UserOption = Pick<UserRecord, "id" | "name">

@@ -30,6 +30,8 @@ import { describeError } from "@/utils/http-error"
 import {
   PRIORITY_OPTIONS,
   STATUS_OPTIONS,
+  dueDateToFormValue,
+  formValueToDueDate,
   type TaskInput,
   type TaskPriority,
   type TaskRecord,
@@ -64,7 +66,7 @@ function toFormValues(task: TaskRow | null): TaskFormValues {
     status: task.status,
     priority: task.priority ?? "",
     assigneeId: task.assigneeId ?? "",
-    dueDate: task.dueDate ?? "",
+    dueDate: dueDateToFormValue(task.dueDate),
   }
 }
 
@@ -75,7 +77,7 @@ function toPayload(values: TaskFormValues): TaskInput {
     status: values.status,
     priority: values.priority === "" ? null : values.priority,
     assigneeId: values.assigneeId === "" ? null : values.assigneeId,
-    dueDate: values.dueDate === "" ? null : values.dueDate,
+    dueDate: formValueToDueDate(values.dueDate),
   }
 }
 

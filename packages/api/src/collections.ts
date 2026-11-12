@@ -24,6 +24,16 @@ export const userRecordSchema = z.object({
   createdAt: z.string(),
 })
 
+/**
+ * A Due date is a UTC instant. The date-only branch keeps legacy persisted
+ * records readable during the transition; reads and writes normalize to a
+ * UTC instant (see `dates.ts`).
+ */
+export const dueDateSchema = z
+  .union([z.string().datetime(), z.string().date()])
+  .nullable()
+  .optional()
+
 export const taskRecordSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -31,7 +41,7 @@ export const taskRecordSchema = z.object({
   status: taskStatusSchema,
   priority: taskPrioritySchema.nullable().optional(),
   assigneeId: z.string().nullable().optional(),
-  dueDate: z.string().nullable().optional(),
+  dueDate: dueDateSchema,
   createdAt: z.string(),
   updatedAt: z.string(),
 })
@@ -82,9 +92,9 @@ const priorityCycle: (TaskPriority | null)[] = ["low", "medium", "high", null]
 
 function seedDueDate(index: number): string | null {
   if (index % 3 === 0) return null
-  const date = new Date(Date.UTC(2026, 0, 1))
-  date.setUTCDate(date.getUTCDate() + index)
-  return date.toISOString().slice(0, 10)
+  // Noon UTC keeps the seeded instant inside the same calendar day in the
+  // timezones the tests and demos use.
+  return new Date(Date.UTC(2026, 0, 1 + index, 12, 0, 0)).toISOString()
 }
 
 /** Ensures the two demo users exist without touching any registered users. */

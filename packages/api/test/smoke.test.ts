@@ -8,7 +8,12 @@ import {
   it,
 } from "vitest"
 import { setupServer } from "msw/node"
-import { handlers, resetDb } from "../src/index"
+import { handlers, resetDb, tasks } from "../src/index"
+
+// The API interprets legacy date-only values as local midnight. Pin the test
+// process to UTC so the expected instants are deterministic.
+const originalTimeZone = process.env.TZ
+process.env.TZ = "UTC"
 
 const server = setupServer(...handlers)
 
@@ -49,8 +54,14 @@ async function login(
 }
 
 beforeAll(() => server.listen({ onUnhandledFrame: "error" }))
-afterEach(() => server.resetHandlers())
-afterAll(() => server.close())
+afterEach(() => {
+  server.resetHandlers()
+  process.env.TZ = "UTC"
+})
+afterAll(() => {
+  server.close()
+  process.env.TZ = originalTimeZone
+})
 beforeEach(async () => {
   await resetDb()
 })
@@ -236,7 +247,9 @@ describe("tasks", () => {
     const byPriority = await api("/api/tasks?priority=high", {
       token: accessToken,
     })
-    const priorityList = (await byPriority.json()) as Array<{ priority: string }>
+    const priorityList = (await byPriority.json()) as Array<{
+      priority: string
+    }>
     for (const task of priorityList) expect(task.priority).toBe("high")
 
     const byAssignee = await api("/api/tasks?assigneeId=usr_admin", {
@@ -277,13 +290,15 @@ describe("tasks", () => {
   it("filters by an inclusive due-date range and excludes null due dates", async () => {
     const { accessToken } = await login("admin@example.com", "adminpass")
 
+    // Legacy date-only bounds keep whole-day semantics: the lower bound is the
+    // local start of day and the upper bound is the local end of day.
     const exact = await api(
       "/api/tasks?dueDate_gte=2026-01-05&dueDate_lte=2026-01-05",
       { token: accessToken }
     )
     const exactList = (await exact.json()) as Array<{ dueDate: string | null }>
     expect(exactList).toHaveLength(1)
-    expect(exactList[0]?.dueDate).toBe("2026-01-05")
+    expect(exactList[0]?.dueDate).toBe("2026-01-05T12:00:00.000Z")
 
     const range = await api(
       "/api/tasks?dueDate_gte=2026-01-05&dueDate_lte=2026-01-10",
@@ -293,9 +308,98 @@ describe("tasks", () => {
     expect(rangeList.length).toBeGreaterThan(0)
     for (const task of rangeList) {
       expect(task.dueDate).not.toBeNull()
-      expect(task.dueDate! >= "2026-01-05").toBe(true)
-      expect(task.dueDate! <= "2026-01-10").toBe(true)
+      expect(task.dueDate! >= "2026-01-05T00:00:00.000Z").toBe(true)
+      expect(task.dueDate! <= "2026-01-10T23:59:59.999Z").toBe(true)
     }
+  })
+
+  it("filters by datetime bounds as instants", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+
+    const inclusive = await api(
+      "/api/tasks?dueDate_gte=2026-01-05T00:00:00.000Z&dueDate_lte=2026-01-05T12:00:00.000Z",
+      { token: accessToken }
+    )
+    expect(inclusive.status).toBe(200)
+    const included = (await inclusive.json()) as Array<{ dueDate: string }>
+    expect(included.map((task) => task.dueDate)).toContain(
+      "2026-01-05T12:00:00.000Z"
+    )
+
+    const exclusive = await api(
+      "/api/tasks?dueDate_gte=2026-01-05T00:00:00.000Z&dueDate_lte=2026-01-05T11:59:59.999Z",
+      { token: accessToken }
+    )
+    expect(exclusive.status).toBe(200)
+    const excluded = (await exclusive.json()) as Array<{ dueDate: string }>
+    expect(excluded.map((task) => task.dueDate)).not.toContain(
+      "2026-01-05T12:00:00.000Z"
+    )
+  })
+
+  it("normalizes legacy date-only records to local midnight on read", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+    await tasks.create({
+      id: "tsk_legacy_read",
+      title: "Legacy due-date record",
+      description: null,
+      status: "todo",
+      priority: null,
+      assigneeId: null,
+      dueDate: "2026-02-01",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    })
+
+    const res = await api("/api/tasks?q=legacy+due-date+record", {
+      token: accessToken,
+    })
+    expect(res.status).toBe(200)
+    const list = (await res.json()) as Array<{ dueDate: string | null }>
+    expect(list).toHaveLength(1)
+    expect(list[0]?.dueDate).toBe("2026-02-01T00:00:00.000Z")
+  })
+
+  it("sorts due dates as instants, including legacy date-only values", async () => {
+    process.env.TZ = "Asia/Ho_Chi_Minh"
+    const { accessToken } = await login("admin@example.com", "adminpass")
+    // In +07:00, legacy 2026-01-05 is 2026-01-04T17:00Z, before the instant.
+    await tasks.create({
+      id: "tsk_sort_legacy",
+      title: "Sort due legacy",
+      description: null,
+      status: "todo",
+      priority: null,
+      assigneeId: null,
+      dueDate: "2026-01-05",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    })
+    await tasks.create({
+      id: "tsk_sort_instant",
+      title: "Sort due instant",
+      description: null,
+      status: "todo",
+      priority: null,
+      assigneeId: null,
+      dueDate: "2026-01-04T20:00:00.000Z",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    })
+
+    const res = await api("/api/tasks?q=sort+due&_sort=dueDate&_order=asc", {
+      token: accessToken,
+    })
+    expect(res.status).toBe(200)
+    const list = (await res.json()) as Array<{
+      id: string
+      dueDate: string | null
+    }>
+    expect(list.map((task) => task.id)).toEqual([
+      "tsk_sort_legacy",
+      "tsk_sort_instant",
+    ])
+    expect(list[0]?.dueDate).toBe("2026-01-04T17:00:00.000Z")
   })
 
   it("requires auth to bulk update (401)", async () => {
@@ -386,7 +490,7 @@ describe("tasks", () => {
       dueDate: string | null
     }>
     expect(setList.find((item) => item.id === "tsk_001")?.dueDate).toBe(
-      "2026-06-01"
+      "2026-06-01T00:00:00.000Z"
     )
 
     const clear = await api("/api/tasks/bulk", {
@@ -433,6 +537,60 @@ describe("tasks", () => {
     expect(res.status).toBe(201)
     const task = (await res.json()) as { assigneeId: string | null }
     expect(task.assigneeId).toBeNull()
+  })
+
+  it("stores a created task's dueDate as a UTC instant", async () => {
+    const { accessToken } = await login("member@example.com", "memberpass")
+    const legacy = await api("/api/tasks", {
+      method: "POST",
+      token: accessToken,
+      body: { title: "Legacy due date", dueDate: "2026-06-01" },
+    })
+    expect(legacy.status).toBe(201)
+    const legacyTask = (await legacy.json()) as { dueDate: string | null }
+    expect(legacyTask.dueDate).toBe("2026-06-01T00:00:00.000Z")
+
+    const instant = await api("/api/tasks", {
+      method: "POST",
+      token: accessToken,
+      body: { title: "Instant due date", dueDate: "2026-06-01T09:30:00+07:00" },
+    })
+    expect(instant.status).toBe(201)
+    const instantTask = (await instant.json()) as { dueDate: string | null }
+    expect(instantTask.dueDate).toBe("2026-06-01T02:30:00.000Z")
+  })
+
+  it("rejects an invalid dueDate on create", async () => {
+    const { accessToken } = await login("member@example.com", "memberpass")
+    const res = await api("/api/tasks", {
+      method: "POST",
+      token: accessToken,
+      body: { title: "Bad due date", dueDate: "not-a-date" },
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it("stores an updated dueDate as a UTC instant and clears it with null", async () => {
+    const { accessToken } = await login("member@example.com", "memberpass")
+    const updated = await api("/api/tasks/tsk_002", {
+      method: "PATCH",
+      token: accessToken,
+      body: { dueDate: "2026-06-01" },
+    })
+    expect(updated.status).toBe(200)
+    expect(((await updated.json()) as { dueDate: string | null }).dueDate).toBe(
+      "2026-06-01T00:00:00.000Z"
+    )
+
+    const cleared = await api("/api/tasks/tsk_002", {
+      method: "PATCH",
+      token: accessToken,
+      body: { dueDate: null },
+    })
+    expect(cleared.status).toBe(200)
+    expect(((await cleared.json()) as { dueDate: string | null }).dueDate).toBe(
+      null
+    )
   })
 
   it("lets a member update their own task", async () => {

@@ -255,14 +255,20 @@ paths:
           in: query
           schema:
             type: string
-            format: date
-          description: Inclusive lower bound on the due date.
+            format: date-time
+          description: >-
+            Inclusive lower bound on the due date. Accepts an ISO 8601
+            date-time; a legacy date-only value is normalized to the local
+            start of that day.
         - name: dueDate_lte
           in: query
           schema:
             type: string
-            format: date
-          description: Inclusive upper bound on the due date.
+            format: date-time
+          description: >-
+            Inclusive upper bound on the due date. Accepts an ISO 8601
+            date-time; a legacy date-only value is normalized to the local end
+            of that day.
         - name: _start
           in: query
           schema:
@@ -560,8 +566,11 @@ components:
           nullable: true
         dueDate:
           type: string
-          format: date
+          format: date-time
           nullable: true
+          description: >-
+            ISO 8601 UTC instant. Legacy date-only values are interpreted as
+            local midnight and normalized to an instant on read and write.
         createdAt:
           type: string
           format: date-time
@@ -588,8 +597,11 @@ components:
           nullable: true
         dueDate:
           type: string
-          format: date
+          format: date-time
           nullable: true
+          description: >-
+            ISO 8601 UTC instant. Legacy date-only values are interpreted as
+            local midnight and normalized to an instant on read and write.
     TaskUpdateRequest:
       type: object
       properties:
@@ -609,8 +621,11 @@ components:
           nullable: true
         dueDate:
           type: string
-          format: date
+          format: date-time
           nullable: true
+          description: >-
+            ISO 8601 UTC instant. Legacy date-only values are interpreted as
+            local midnight and normalized to an instant on read and write.
     TaskBulkUpdateRequest:
       type: object
       required: [ids]
@@ -632,8 +647,11 @@ components:
           nullable: true
         dueDate:
           type: string
-          format: date
+          format: date-time
           nullable: true
+          description: >-
+            ISO 8601 UTC instant. Legacy date-only values are interpreted as
+            local midnight and normalized to an instant on read and write.
     TaskBulkUpdateResponse:
       type: object
       required: [updated, failed]
