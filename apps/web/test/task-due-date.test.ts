@@ -34,8 +34,8 @@ describe("task Due date form boundary", () => {
     )
   })
 
-  it("normalizes a date-only input to local midnight", () => {
-    expect(formValueToDueDate("2026-01-05")).toBe("2026-01-04T17:00:00.000Z")
+  it("rejects a date-only form value instead of normalizing it", () => {
+    expect(formValueToDueDate("2026-01-05")).toBeNull()
   })
 
   it("sends null when the form value is empty", () => {

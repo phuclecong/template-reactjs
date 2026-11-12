@@ -131,28 +131,16 @@ export function localEndOfDayUtcInstant(value: Date | string): string {
 }
 
 /**
- * Converts a native date input value (`YYYY-MM-DD`) to the UTC instant for
- * local midnight, or null when the value is not a valid date-only string.
+ * Serializes a value for a write payload as a UTC instant. Only date-time
+ * values are accepted; legacy date-only values return null so new writes
+ * cannot silently create date-only records. Read-side compatibility lives in
+ * `normalizeLegacyDateValue`.
  */
-export function localDateInputToUtcInstant(value: string): string | null {
-  if (!isDateOnly(value)) return null
-  const date = parseLocalDateOnly(value)
-  return date ? date.toISOString() : null
-}
-
-/**
- * Converts a stored instant (or legacy date-only value) back to the local
- * calendar date (`YYYY-MM-DD`) expected by a native date input. Returns an
- * empty string when there is no value.
- */
-export function utcInstantToLocalDateInput(
+export function toUtcInstant(
   value: string | null | undefined
-): string {
-  if (!value) return ""
-  if (isDateOnly(value)) return value
-  const date = parseUtcInstant(value)
-  if (!date) return ""
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+): string | null {
+  if (!value || isDateOnly(value)) return null
+  return parseUtcInstant(value)?.toISOString() ?? null
 }
 
 function intlLocale(locale: string): string {

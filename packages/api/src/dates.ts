@@ -3,9 +3,9 @@
  *
  * The API package stays self-contained (it must not depend on the design
  * system), so these helpers duplicate the small amount of date logic the
- * handlers need. Due dates are UTC instants; legacy date-only values are
- * interpreted as local midnight, and legacy date-only filter bounds keep
- * their whole-day semantics (lower bound = start of day, upper = end of day).
+ * handlers need. Due dates are UTC instants. Writes only accept date-time
+ * instants; the stored-record read path still interprets legacy date-only
+ * values as local midnight so persisted data survives the migration.
  */
 
 const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
@@ -31,18 +31,11 @@ function isDateOnly(value: string): boolean {
   return DATE_ONLY_PATTERN.test(value)
 }
 
-/** True when a string is a valid legacy date or parseable date-time. */
-export function isValidDueDateInput(value: string): boolean {
-  if (value === "") return false
-  if (isDateOnly(value)) return parseLocalDateOnly(value) !== null
-  return !Number.isNaN(new Date(value).getTime())
-}
-
 /**
- * Normalizes a stored or incoming Due date to a UTC instant. Legacy
- * date-only values become local midnight; null/empty/invalid becomes null.
+ * Normalizes a stored Due date to a UTC instant for reads. Legacy date-only
+ * records become local midnight; null/empty/invalid becomes null.
  */
-export function normalizeDueDate(
+export function normalizeStoredDueDate(
   value: string | null | undefined
 ): string | null {
   if (value == null || value === "") return null
@@ -54,49 +47,23 @@ export function normalizeDueDate(
 }
 
 /**
- * Normalizes a `dueDate_gte` / `dueDate_lte` bound to a UTC instant. A
- * date-only lower bound becomes local start of day and a date-only upper
- * bound becomes local end of day, preserving the previous whole-day filter
- * semantics while the web app still sends date-only values.
+ * Normalizes a Due date from a write request to a UTC instant. Date-only
+ * values are rejected because new writes must be date-time instants; callers
+ * validate the shape first (see `dueDateWriteSchema`).
  */
-export function normalizeDueDateBound(
-  value: string | null | undefined,
-  bound: "gte" | "lte"
+export function normalizeDueDateInstant(
+  value: string | null | undefined
 ): string | null {
-  if (value == null || value === "") return null
-  if (isDateOnly(value)) {
-    const date = parseLocalDateOnly(value)
-    if (!date) return null
-    const normalized =
-      bound === "gte"
-        ? new Date(
-            date.getFullYear(),
-            date.getMonth(),
-            date.getDate(),
-            0,
-            0,
-            0,
-            0
-          )
-        : new Date(
-            date.getFullYear(),
-            date.getMonth(),
-            date.getDate(),
-            23,
-            59,
-            59,
-            999
-          )
-    return normalized.toISOString()
-  }
-  return normalizeDueDate(value)
+  if (value == null || value === "" || isDateOnly(value)) return null
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date.toISOString()
 }
 
-/** Parses a Due date (legacy or instant) to epoch milliseconds. */
+/** Parses a stored Due date (legacy or instant) to epoch milliseconds. */
 export function dueDateInstant(
   value: string | null | undefined
 ): number | null {
-  const normalized = normalizeDueDate(value)
+  const normalized = normalizeStoredDueDate(value)
   return normalized ? Date.parse(normalized) : null
 }
 

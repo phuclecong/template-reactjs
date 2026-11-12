@@ -10,8 +10,8 @@ import {
 import { setupServer } from "msw/node"
 import { handlers, resetDb, tasks } from "../src/index"
 
-// The API interprets legacy date-only values as local midnight. Pin the test
-// process to UTC so the expected instants are deterministic.
+// The read path interprets legacy date-only records as local midnight. Pin the
+// test process to UTC so the expected instants are deterministic.
 const originalTimeZone = process.env.TZ
 process.env.TZ = "UTC"
 
@@ -290,10 +290,8 @@ describe("tasks", () => {
   it("filters by an inclusive due-date range and excludes null due dates", async () => {
     const { accessToken } = await login("admin@example.com", "adminpass")
 
-    // Legacy date-only bounds keep whole-day semantics: the lower bound is the
-    // local start of day and the upper bound is the local end of day.
     const exact = await api(
-      "/api/tasks?dueDate_gte=2026-01-05&dueDate_lte=2026-01-05",
+      "/api/tasks?dueDate_gte=2026-01-05T00:00:00.000Z&dueDate_lte=2026-01-05T23:59:59.999Z",
       { token: accessToken }
     )
     const exactList = (await exact.json()) as Array<{ dueDate: string | null }>
@@ -301,7 +299,7 @@ describe("tasks", () => {
     expect(exactList[0]?.dueDate).toBe("2026-01-05T12:00:00.000Z")
 
     const range = await api(
-      "/api/tasks?dueDate_gte=2026-01-05&dueDate_lte=2026-01-10",
+      "/api/tasks?dueDate_gte=2026-01-05T00:00:00.000Z&dueDate_lte=2026-01-10T23:59:59.999Z",
       { token: accessToken }
     )
     const rangeList = (await range.json()) as Array<{ dueDate: string | null }>
@@ -310,6 +308,15 @@ describe("tasks", () => {
       expect(task.dueDate).not.toBeNull()
       expect(task.dueDate! >= "2026-01-05T00:00:00.000Z").toBe(true)
       expect(task.dueDate! <= "2026-01-10T23:59:59.999Z").toBe(true)
+    }
+  })
+
+  it("rejects date-only due-date bounds", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+
+    for (const query of ["dueDate_gte=2026-01-05", "dueDate_lte=2026-01-05"]) {
+      const res = await api(`/api/tasks?${query}`, { token: accessToken })
+      expect(res.status).toBe(400)
     }
   })
 
@@ -480,7 +487,7 @@ describe("tasks", () => {
     const set = await api("/api/tasks/bulk", {
       method: "PATCH",
       token: accessToken,
-      body: { ids: ["tsk_001"], dueDate: "2026-06-01" },
+      body: { ids: ["tsk_001"], dueDate: "2026-06-01T12:00:00.000Z" },
     })
     expect(set.status).toBe(200)
 
@@ -490,7 +497,7 @@ describe("tasks", () => {
       dueDate: string | null
     }>
     expect(setList.find((item) => item.id === "tsk_001")?.dueDate).toBe(
-      "2026-06-01T00:00:00.000Z"
+      "2026-06-01T12:00:00.000Z"
     )
 
     const clear = await api("/api/tasks/bulk", {
@@ -506,6 +513,16 @@ describe("tasks", () => {
       dueDate: string | null
     }>
     expect(clearList.find((item) => item.id === "tsk_001")?.dueDate).toBeNull()
+  })
+
+  it("rejects a date-only dueDate in a bulk update", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+    const res = await api("/api/tasks/bulk", {
+      method: "PATCH",
+      token: accessToken,
+      body: { ids: ["tsk_001"], dueDate: "2026-06-01" },
+    })
+    expect(res.status).toBe(400)
   })
 
   it("creates a task assigned to the creator", async () => {
@@ -539,17 +556,18 @@ describe("tasks", () => {
     expect(task.assigneeId).toBeNull()
   })
 
-  it("stores a created task's dueDate as a UTC instant", async () => {
+  it("rejects a date-only dueDate on create", async () => {
     const { accessToken } = await login("member@example.com", "memberpass")
-    const legacy = await api("/api/tasks", {
+    const res = await api("/api/tasks", {
       method: "POST",
       token: accessToken,
-      body: { title: "Legacy due date", dueDate: "2026-06-01" },
+      body: { title: "Date-only due date", dueDate: "2026-06-01" },
     })
-    expect(legacy.status).toBe(201)
-    const legacyTask = (await legacy.json()) as { dueDate: string | null }
-    expect(legacyTask.dueDate).toBe("2026-06-01T00:00:00.000Z")
+    expect(res.status).toBe(400)
+  })
 
+  it("stores a created task's dueDate as a UTC instant", async () => {
+    const { accessToken } = await login("member@example.com", "memberpass")
     const instant = await api("/api/tasks", {
       method: "POST",
       token: accessToken,
@@ -570,16 +588,26 @@ describe("tasks", () => {
     expect(res.status).toBe(400)
   })
 
+  it("rejects a date-only dueDate on update", async () => {
+    const { accessToken } = await login("member@example.com", "memberpass")
+    const res = await api("/api/tasks/tsk_002", {
+      method: "PATCH",
+      token: accessToken,
+      body: { dueDate: "2026-06-01" },
+    })
+    expect(res.status).toBe(400)
+  })
+
   it("stores an updated dueDate as a UTC instant and clears it with null", async () => {
     const { accessToken } = await login("member@example.com", "memberpass")
     const updated = await api("/api/tasks/tsk_002", {
       method: "PATCH",
       token: accessToken,
-      body: { dueDate: "2026-06-01" },
+      body: { dueDate: "2026-06-01T12:00:00.000Z" },
     })
     expect(updated.status).toBe(200)
     expect(((await updated.json()) as { dueDate: string | null }).dueDate).toBe(
-      "2026-06-01T00:00:00.000Z"
+      "2026-06-01T12:00:00.000Z"
     )
 
     const cleared = await api("/api/tasks/tsk_002", {

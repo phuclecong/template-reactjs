@@ -13,6 +13,7 @@ import {
   localEndOfDayUtcInstant,
   localStartOfDayUtcInstant,
   normalizeLegacyDateValue,
+  toUtcInstant,
 } from "@workspace/ui/lib/date"
 
 export type { Role, TaskPriority, TaskRecord, TaskStatus }
@@ -33,11 +34,12 @@ export function dueDateToFormValue(dueDate: string | null | undefined): string {
 
 /**
  * Convert the form value back to the UTC instant the API stores. The picker
- * emits instants; a legacy date-only value (for example the bulk native date
- * input) is still normalized to local midnight. Empty clears the Due date.
+ * emits instants; a date-only value is rejected (null) rather than silently
+ * normalized, because new writes must be date-time instants. Empty clears
+ * the Due date.
  */
 export function formValueToDueDate(value: string): string | null {
-  return value === "" ? null : normalizeLegacyDateValue(value)
+  return toUtcInstant(value)
 }
 
 /** The slice of a User the task views need: an id and a display name. */
