@@ -25,7 +25,7 @@ To set a Task's Assignee to a chosen User, or clear it so the Task is unassigned
 _Avoid_: Claim, reassign
 
 **Due date**:
-The date by which a Task should be completed. Optional; a Task without one has no due date.
+The date and time by which a Task should be completed, stored as a UTC instant and displayed in the user's local timezone. Optional; a Task without one has no due date.
 _Avoid_: Deadline
 
 **Status**:
