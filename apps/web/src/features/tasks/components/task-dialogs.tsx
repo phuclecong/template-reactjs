@@ -15,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Button } from "@workspace/ui/components/button"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
+import { DatePicker } from "@workspace/ui/components/date-picker"
 import { Dialog } from "@workspace/ui/components/dialog"
 import { Field, FieldError, FieldLabel } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
@@ -92,9 +93,10 @@ export function TaskFormDialog({
   users: UserOption[]
   onClose: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const isEdit = task !== null
   const id = useId()
+  const locale = i18n.language === "vi" ? "vi" : "en"
 
   const schema = useMemo(
     () =>
@@ -318,20 +320,31 @@ export function TaskFormDialog({
           <Controller
             control={form.control}
             name="dueDate"
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor={`${id}-due-date`}>
-                  {t("taskDialog.dueDate")}
-                </FieldLabel>
-                <Input
-                  {...field}
-                  id={`${id}-due-date`}
-                  type="date"
-                  aria-invalid={fieldState.invalid}
-                />
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
+            render={({ field, fieldState }) => {
+              const errorId = `${id}-due-date-error`
+              return (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={`${id}-due-date`}>
+                    {t("taskDialog.dueDate")}
+                  </FieldLabel>
+                  <DatePicker
+                    ref={field.ref}
+                    id={`${id}-due-date`}
+                    name={field.name}
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    disabled={isPending}
+                    locale={locale}
+                    placeholder={t("taskDialog.dueDatePlaceholder")}
+                    clearLabel={t("common.clear")}
+                    aria-invalid={fieldState.invalid}
+                    aria-describedby={fieldState.error ? errorId : undefined}
+                  />
+                  <FieldError id={errorId} errors={[fieldState.error]} />
+                </Field>
+              )
+            }}
           />
         </div>
 

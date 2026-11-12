@@ -7,6 +7,7 @@ export const en = {
     loading: "Loading…",
     cancel: "Cancel",
     delete: "Delete",
+    clear: "Clear",
   },
   shell: {
     title: "Dashboard",
@@ -130,6 +131,7 @@ export const en = {
     priority: "Priority",
     assignee: "Assignee",
     dueDate: "Due date",
+    dueDatePlaceholder: "Pick a date",
     none: "None",
     unassigned: "Unassigned",
     create: "Create task",

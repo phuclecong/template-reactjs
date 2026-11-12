@@ -10,10 +10,9 @@ import {
 } from "@workspace/api/collections"
 import {
   dateOnlyToLocalDate,
-  localDateInputToUtcInstant,
   localEndOfDayUtcInstant,
   localStartOfDayUtcInstant,
-  utcInstantToLocalDateInput,
+  normalizeLegacyDateValue,
 } from "@workspace/ui/lib/date"
 
 export type { Role, TaskPriority, TaskRecord, TaskStatus }
@@ -25,19 +24,20 @@ export const STATUS_OPTIONS = taskStatusSchema.options
 export const PRIORITY_OPTIONS = taskPrioritySchema.options
 
 /**
- * Convert a stored Due date (a UTC instant, or a legacy date-only value) to
- * the local `YYYY-MM-DD` a native date input displays.
+ * Convert a stored Due date to the form value the DatePicker edits: the UTC
+ * instant itself, with legacy date-only records normalized to local midnight.
  */
 export function dueDateToFormValue(dueDate: string | null | undefined): string {
-  return utcInstantToLocalDateInput(dueDate)
+  return normalizeLegacyDateValue(dueDate) ?? ""
 }
 
 /**
- * Convert a native date input's local `YYYY-MM-DD` value to the UTC instant
- * the API stores. An empty form value clears the Due date.
+ * Convert the form value back to the UTC instant the API stores. The picker
+ * emits instants; a legacy date-only value (for example the bulk native date
+ * input) is still normalized to local midnight. Empty clears the Due date.
  */
 export function formValueToDueDate(value: string): string | null {
-  return value === "" ? null : localDateInputToUtcInstant(value)
+  return value === "" ? null : normalizeLegacyDateValue(value)
 }
 
 /** The slice of a User the task views need: an id and a display name. */
