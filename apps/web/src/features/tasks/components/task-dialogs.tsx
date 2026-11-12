@@ -338,6 +338,11 @@ export function TaskFormDialog({
                     locale={locale}
                     placeholder={t("taskDialog.dueDatePlaceholder")}
                     clearLabel={t("common.clear")}
+                    doneLabel={t("common.done")}
+                    timeLabel={t("datePicker.time")}
+                    typedEntryLabel={t("datePicker.typedLabel")}
+                    typedEntryHint={t("datePicker.typedHint")}
+                    typedEntryError={t("datePicker.typedError")}
                     aria-invalid={fieldState.invalid}
                     aria-describedby={fieldState.error ? errorId : undefined}
                   />

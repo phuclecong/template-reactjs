@@ -14,7 +14,9 @@ async function login(page: Page, email: string, password: string) {
 }
 
 async function openTasks(page: Page) {
-  await page.locator('[data-sidebar="menu-button"]', { hasText: "Tasks" }).click()
+  await page
+    .locator('[data-sidebar="menu-button"]', { hasText: "Tasks" })
+    .click()
   await expect(page).toHaveURL(/\/dashboard\/tasks/)
   await expect(page.getByRole("table")).toBeVisible()
 }
@@ -64,6 +66,28 @@ test("selects a row and applies a bulk status update", async ({ page }) => {
   await expect(page.getByText("Updated 1 tasks")).toBeVisible()
 })
 
+test("applies a Due datetime through the bulk action", async ({ page }) => {
+  await login(page, "admin@example.com", "adminpass")
+  await openTasks(page)
+
+  const row = page.getByRole("row").filter({ hasText: "Build the MSW mock" })
+  await row.getByRole("checkbox").click()
+  await expect(page.getByText("1 selected")).toBeVisible()
+
+  const trigger = page.getByLabel("Set due date")
+  await trigger.click()
+  // The bulk picker defers the write until Done, so date and time are chosen
+  // as one action.
+  await page.getByRole("button", { name: /^Today,/ }).click()
+  await page.getByLabel("Time", { exact: true }).fill("14:30")
+  await page.getByRole("button", { name: "Done" }).click()
+
+  await expect(page.getByText("Updated 1 tasks")).toBeVisible()
+  await expect(row.getByText(/2:30 PM/)).toBeVisible()
+  // The control resets after applying so the next update is deliberate.
+  await expect(trigger).toContainText("Set due date")
+})
+
 test("paginates and reflects the page in the URL", async ({ page }) => {
   await login(page, "admin@example.com", "adminpass")
   await openTasks(page)
@@ -97,8 +121,12 @@ test("filters the table by a custom due date range", async ({ page }) => {
 
   await openDueDateFilter(page)
   await showMonth(page, "2026", "0")
-  await page.getByRole("button", { name: /January 2nd, 2026/, exact: false }).click()
-  await page.getByRole("button", { name: /January 3rd, 2026/, exact: false }).click()
+  await page
+    .getByRole("button", { name: /January 2nd, 2026/, exact: false })
+    .click()
+  await page
+    .getByRole("button", { name: /January 3rd, 2026/, exact: false })
+    .click()
 
   await expect(page).toHaveURL(/dueFrom=2026-01-02/)
   await expect(page).toHaveURL(/dueTo=2026-01-03/)
@@ -132,7 +160,9 @@ test("filters the table by an upper bound only", async ({ page }) => {
   await openDueDateFilter(page)
   await page.getByRole("button", { name: "Until", exact: true }).click()
   await showMonth(page, "2026", "0")
-  await page.getByRole("button", { name: /January 3rd, 2026/, exact: false }).click()
+  await page
+    .getByRole("button", { name: /January 3rd, 2026/, exact: false })
+    .click()
 
   await expect(page).toHaveURL(/dueTo=2026-01-03/)
   await expect(page).not.toHaveURL(/dueFrom=/)
