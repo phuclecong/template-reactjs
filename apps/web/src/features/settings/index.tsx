@@ -8,6 +8,7 @@ import { z } from "zod"
 import { Button } from "@workspace/ui/components/button"
 import { Field, FieldError, FieldLabel } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
+import { apiUrl } from "@/utils/api-url"
 import { describeError } from "@/utils/http-error"
 import { formatCurrency } from "@/utils/currency"
 
@@ -101,7 +102,7 @@ function ChangePasswordForm() {
   function onSubmit(values: ChangePasswordValues) {
     passwordMutation.mutate(
       {
-        url: "/api/password",
+        url: `${apiUrl}/password`,
         method: "put",
         values,
         successNotification: {

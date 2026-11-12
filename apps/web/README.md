@@ -1,4 +1,4 @@
-# `web` — the Refine + React Router dashboard app
+# `web` — the Refine + React Router app
 
 The user-facing app: an authenticated dashboard with Tasks, Users, and Settings
 pages. Domain-specific code (Tasks, Users, auth, settings) lives here. It may
@@ -18,16 +18,16 @@ data/auth backbone) · TanStack Query / Table · react-hook-form + zod · i18nex
 
 ## Layout
 
-| Directory          | What lives there                                                          |
-| ------------------ | ------------------------------------------------------------------------- |
-| `src/`             | Entry (`main.tsx`), the `App` router tree, and the `providers` tree        |
-| `src/routes/`      | Route components, the auth guard, and the dashboard layout                 |
-| `src/components/`  | Cross-cutting app shell — `DashboardShell`, `AppSidebar`, theme/MSW gates |
-| `src/features/`    | Vertical slices per resource (`tasks/`, `users/`, `auth/`, `settings/`)   |
-| `src/providers/`   | Refine providers — data, auth, access-control, i18n, notifications, audit |
-| `src/utils/`       | Auth transport, i18n engine, HTTP error/currency helpers                  |
-| `test/`            | Vitest unit tests, one per provider/utility                               |
-| `e2e/`             | Playwright specs and shared helpers                                       |
+| Directory         | What lives there                                                          |
+| ----------------- | ------------------------------------------------------------------------- |
+| `src/`            | Entry (`main.tsx`), the `App` router tree, and the `providers` tree       |
+| `src/routes/`     | Route components, the auth guard, and the dashboard layout                |
+| `src/components/` | Cross-cutting app shell — `DashboardShell`, `AppSidebar`, theme/MSW gates |
+| `src/features/`   | Vertical slices per resource (`tasks/`, `users/`, `auth/`, `settings/`)   |
+| `src/providers/`  | Refine providers — data, auth, access-control, i18n, notifications, audit |
+| `src/utils/`      | Auth transport, i18n engine, HTTP error/currency helpers                  |
+| `test/`           | Vitest unit tests, one per provider/utility                               |
+| `e2e/`            | Playwright specs and shared helpers                                       |
 
 ## Routing
 
@@ -70,7 +70,7 @@ is wired once in `src/providers/index.tsx` and pages fetch through Refine hooks
 
 | Provider                  | What it does                                                            |
 | ------------------------- | ----------------------------------------------------------------------- |
-| `data-provider`           | `simple-rest` pointed at `/api`; attaches the in-memory access token    |
+| `data-provider`           | `simple-rest` pointed at `VITE_API_URL` (or `/api` in mock mode); attaches the in-memory access token |
 | `auth-provider`           | Login/register/logout via the auth transport; in-memory token + user    |
 | `access-control-provider` | Admin/member matrix: admin = all; member = list users, act on own tasks |
 | `notification-provider`   | Refine's notification bus → sonner toasts                               |
@@ -79,8 +79,8 @@ is wired once in `src/providers/index.tsx` and pages fetch through Refine hooks
 
 **Mock vs. real backend.** With `VITE_API_URL` unset, the app runs fully against
 an in-browser MSW worker (booted in `src/components/msw-provider.tsx`). Set
-`VITE_API_URL` and the dev proxy in `vite.config.ts` (plus a production rewrite)
-routes `/api/*` to the real backend.
+`VITE_API_URL` and the app calls the real backend at that origin directly (CORS
+must be enabled on the backend).
 
 ## Auth
 

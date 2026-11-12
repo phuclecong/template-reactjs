@@ -6,6 +6,7 @@ import {
   type HttpError,
 } from "@refinedev/core"
 import type { TaskPriority, TaskStatus } from "@/features/tasks/utils"
+import { apiUrl } from "@/utils/api-url"
 import { describeError } from "@/utils/http-error"
 
 type BulkPatch = {
@@ -24,8 +25,8 @@ type BulkUpdateResponse = {
 
 /**
  * Write path for bulk task updates: apply a Status/Priority/Assignee patch to
- * the selected tasks via `/api/tasks/bulk`, then invalidate the task list and
- * clear the selection.
+ * the selected tasks via the tasks bulk endpoint, then invalidate the task list
+ * and clear the selection.
  */
 export function useTaskBulkActions({
   selectedIds,
@@ -47,7 +48,7 @@ export function useTaskBulkActions({
       if (selectedIds.length === 0) return
       bulkMutation.mutate(
         {
-          url: "/api/tasks/bulk",
+          url: `${apiUrl}/tasks/bulk`,
           method: "patch",
           values: { ids: selectedIds, ...patch },
           successNotification: (data) => {

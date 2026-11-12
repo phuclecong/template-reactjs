@@ -30,9 +30,9 @@ The app is a pure client-side SPA, so it needs a SPA fallback (every route →
 
 ## Environment variables
 
-| Variable       | Required | Purpose                                                                                                                                   |
-| -------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `VITE_API_URL` | optional | Real backend origin (including the `/api` prefix). When set, `/api/*` is proxied to it; when unset, the in-browser MSW mock serves `/api/*`. |
+| Variable       | Required | Purpose                                                                                                                                      |
+| -------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_API_URL` | optional | Real backend origin (including the `/api` prefix). When set, the app calls it directly (CORS must be enabled on the backend); when unset, the in-browser MSW mock serves the API. |
 
 ## Steps
 
@@ -47,8 +47,7 @@ The app is a pure client-side SPA, so it needs a SPA fallback (every route →
 - **Mock mode** (`VITE_API_URL` unset): the browser runs an MSW worker that
   intercepts `/api/*`, and auth calls `@workspace/api` in-process. Nothing
   external is needed.
-- **Real backend** (`VITE_API_URL` set): in dev, `vite.config.ts` proxies
-  `/api/*` to the backend (no CORS). In production, add an `/api/*` rewrite to
-  your backend in `vercel.json` **before** the SPA fallback, or enable CORS on
-  the backend. Since a static host cannot run a server, one of those two is
-  required for real-backend mode.
+- **Real backend** (`VITE_API_URL` set): the app calls the backend origin
+  directly, so the backend must allow the app's origin via CORS (see the
+  FastAPI backend's `CORS_ORIGINS` setting). Since a static host cannot run a
+  server or a dev proxy in production, CORS is required for real-backend mode.

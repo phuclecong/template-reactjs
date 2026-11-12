@@ -41,7 +41,7 @@ const INDEX_HTML = `<!DOCTYPE html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Template Dashboard API</title>
+    <title>Template API</title>
     <link rel="stylesheet" href="/swagger-ui.css" />
   </head>
   <body>
@@ -83,7 +83,9 @@ function openBrowser(url) {
 
 const server = createServer(async (req, res) => {
   try {
-    const pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname)
+    const pathname = decodeURIComponent(
+      new URL(req.url, "http://localhost").pathname
+    )
 
     if (pathname === "/") {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" })
@@ -100,7 +102,7 @@ const server = createServer(async (req, res) => {
     if (pathname === "/__reload") {
       res.writeHead(200, {
         "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
+        Connection: "keep-alive",
         "Content-Type": "text/event-stream",
       })
       res.write("retry: 1000\n\n")
@@ -116,7 +118,9 @@ const server = createServer(async (req, res) => {
       res.end("Forbidden")
       return
     }
-    res.writeHead(200, { "Content-Type": MIME[extname(filePath)] ?? "application/octet-stream" })
+    res.writeHead(200, {
+      "Content-Type": MIME[extname(filePath)] ?? "application/octet-stream",
+    })
     res.end(await readFile(filePath))
   } catch (err) {
     if (err.code === "ENOENT") {
@@ -131,7 +135,9 @@ const server = createServer(async (req, res) => {
 
 server.on("error", (err) => {
   if (err.code === "EADDRINUSE") {
-    console.error(`Port ${port} is already in use. Choose another with OPENAPI_PORT.`)
+    console.error(
+      `Port ${port} is already in use. Choose another with OPENAPI_PORT.`
+    )
     process.exit(1)
   }
   throw err

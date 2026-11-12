@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Template Dashboard API
+  title: Template API
   version: 0.1.0
   description: >-
     Contract-first API for the authenticated dashboard template. This spec is

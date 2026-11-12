@@ -23,6 +23,7 @@ import {
 import { UsersFilterBar } from "@/features/users/components/users-filter-bar"
 import { ROLE_OPTIONS, toUserCrudFilters } from "@/features/users/utils"
 import type { CurrentUser, UserRow } from "@/features/users/utils"
+import { apiUrl } from "@/utils/api-url"
 import { describeError } from "@/utils/http-error"
 
 const FILTER_KEYS = ["role"] as const
@@ -78,7 +79,7 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
       if (role === user.role) return
       roleMutation.mutate(
         {
-          url: `/api/users/${user.id}/role`,
+          url: `${apiUrl}/users/${user.id}/role`,
           method: "patch",
           values: { role },
           successNotification: {
