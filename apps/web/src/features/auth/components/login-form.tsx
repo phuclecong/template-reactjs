@@ -111,6 +111,13 @@ export function LoginForm() {
             {t("login.register")}
           </Link>
         </p>
+        <p>
+          <pre>
+            <p>Demo Account:</p>
+            <p>admin@example.com - adminpass </p>
+            <p>member@example.com - memberpass</p>
+          </pre>
+        </p>
       </form>
     </main>
   )

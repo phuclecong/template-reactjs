@@ -28,20 +28,38 @@ Playwright + Storybook).
 └── ...
 ```
 
+## Up and running
+
+1. Install dependencies and start the dev server
+
+```bash
+pnpm i
+pnpm dev
+```
+
+2. Open the app at http://localhost:5174/
+
+3. Log in with a demo account
+
+| Email                | Password     | Role     |
+| -------------------- | ------------ | -------- |
+| `admin@example.com`  | `adminpass`  | `admin`  |
+| `member@example.com` | `memberpass` | `member` |
+
 ## Commands
 
-| Command             | Description                                      |
-| ------------------- | ------------------------------------------------ |
-| `pnpm install`      | Install dependencies for all workspaces.         |
-| `pnpm dev`          | Start the `apps/web` Vite dev server.            |
-| `pnpm build`        | Build `apps/web` for production.                 |
-| `pnpm lint`         | Run linting across the monorepo.                 |
-| `pnpm typecheck`    | Run type-checking across the monorepo.           |
-| `pnpm test`         | Run Vitest unit tests.                           |
-| `pnpm test:e2e`     | Run Playwright end-to-end tests.                 |
-| `pnpm test:e2eui`   | Run Playwright end-to-end tests in UI mode.      |
-| `pnpm storybook`    | Start Storybook for `packages/ui`.               |
-| `pnpm view-openapi` | View the OpenAPI 3.0 contract.                   |
+| Command             | Description                                 |
+| ------------------- | ------------------------------------------- |
+| `pnpm install`      | Install dependencies for all workspaces.    |
+| `pnpm dev`          | Start the `apps/web` Vite dev server.       |
+| `pnpm build`        | Build `apps/web` for production.            |
+| `pnpm lint`         | Run linting across the monorepo.            |
+| `pnpm typecheck`    | Run type-checking across the monorepo.      |
+| `pnpm test`         | Run Vitest unit tests.                      |
+| `pnpm test:e2e`     | Run Playwright end-to-end tests.            |
+| `pnpm test:e2eui`   | Run Playwright end-to-end tests in UI mode. |
+| `pnpm storybook`    | Start Storybook for `packages/ui`.          |
+| `pnpm view-openapi` | View the OpenAPI 3.0 contract.              |
 
 ## The app
 
