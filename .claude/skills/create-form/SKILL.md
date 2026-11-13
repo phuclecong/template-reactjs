@@ -7,8 +7,8 @@ description: Create or rework a form in this repo. Use when the user asks to cre
 
 The stack is fixed — every form is `react-hook-form` + `zodResolver` (zod) rendered through the `Field` / `FieldLabel` / `FieldError` primitives from `@workspace/ui`. Copy the closest example rather than inventing:
 
-- **Dialog form** (create/edit a resource) — `apps/web/features/tasks/components/task-dialogs.tsx` (`TaskFormDialog`): fullest — one dialog for create and edit, selects, nullable fields, resource mutation.
-- **Inline form** (no dialog) — `apps/web/features/auth/components/login-form.tsx` (simplest) or `apps/web/features/settings/index.tsx` (`ChangePasswordForm`, custom endpoint).
+- **Dialog form** (create/edit a resource) — `apps/web/src/features/tasks/components/task-dialogs.tsx` (`TaskFormDialog`): fullest — one dialog for create and edit, selects, nullable fields, resource mutation.
+- **Inline form** (no dialog) — `apps/web/src/features/auth/components/login-form.tsx` (simplest) or `apps/web/src/features/settings/index.tsx` (`ChangePasswordForm`, custom endpoint).
 
 ## Steps
 
@@ -27,7 +27,7 @@ The stack is fixed — every form is `react-hook-form` + `zodResolver` (zod) ren
    - **Custom endpoint** (`useCustomMutation`): `useCustomMutation<TData, HttpError, TPayload>({})`, mutate with `{ url, method, values, ...notifications }`.
    Disable the submit button while pending — `.mutation.isPending` (resource/custom) or `isPending` (auth). *Done when* it typechecks and the mutation matches the example's notification + invalidation + `onSuccess` wiring.
 
-5. **Translations** — add the section to `apps/web/utils/translations/en.ts` and `vi.ts`. `vi` is typed `Translation = typeof en`, so both dictionaries must share every key; drift fails typecheck. *Done when* it typechecks.
+5. **Translations** — add the section to `apps/web/src/utils/translations/en.ts` and `vi.ts`. `vi` is typed `Translation = typeof en`, so both dictionaries must share every key; drift fails typecheck. *Done when* it typechecks.
 
 6. **Verify** — `pnpm --filter web typecheck`, `pnpm --filter web lint`, and confirm every rule in **Conventions** holds. If the form has a Playwright spec, run `pnpm --filter web test:e2e`.
 

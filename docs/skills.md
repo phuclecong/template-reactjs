@@ -37,8 +37,8 @@ So "add a users feature" is rarely one skill. It's a table (list), a form (creat
 
 **What the agent does** — copies the closest existing feature folder rather than inventing:
 
-- **Minimal example** — `apps/web/features/users/` (one filter, no selection).
-- **Fullest example** — `apps/web/features/tasks/` (five filters, selection, bulk actions, dialogs).
+- **Minimal example** — `apps/web/src/features/users/` (one filter, no selection).
+- **Fullest example** — `apps/web/src/features/tasks/` (five filters, selection, bulk actions, dialogs).
 
 It adds a mock list handler in `packages/api/src/data-handlers.ts`, a `utils/` folder with filter option lists and types, a row hook, the table component, a filter bar, bulk actions (only if rows are selected and edited together), the view + route, and English/Vietnamese translations.
 
@@ -56,8 +56,8 @@ It adds a mock list handler in `packages/api/src/data-handlers.ts`, a `utils/` f
 
 **Two shapes**, matched to the closest example:
 
-- **Dialog form** (create/edit) — `apps/web/features/tasks/components/task-dialogs.tsx` (`TaskFormDialog`).
-- **Inline form** (no dialog) — `apps/web/features/auth/components/login-form.tsx` or the settings `ChangePasswordForm`.
+- **Dialog form** (create/edit) — `apps/web/src/features/tasks/components/task-dialogs.tsx` (`TaskFormDialog`).
+- **Inline form** (no dialog) — `apps/web/src/features/auth/components/login-form.tsx` or the settings `ChangePasswordForm`.
 
 **What the agent does** — builds a zod schema (localized via `useMemo(..., [t])`), one `Controller` per field, then wires **submit** to one of three mutation paths: resource (`useCreate`/`useUpdate`), auth (`useLogin`/`useRegister`), or a custom endpoint (`useCustomMutation`). Mutations invalidate the list so the table refreshes.
 
