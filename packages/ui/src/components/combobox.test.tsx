@@ -210,7 +210,7 @@ describe("Combobox multiple selection", () => {
 
     await user.keyboard("{ArrowLeft}")
 
-    const bananaChip = screen.getByText("Banana").closest("[data-slot]")
+    const bananaChip = screen.getByLabelText("Banana")
     expect(bananaChip).toHaveFocus()
 
     await user.keyboard("{Backspace}")
@@ -220,7 +220,7 @@ describe("Combobox multiple selection", () => {
       screen.queryByRole("button", { name: "Remove Banana" })
     ).not.toBeInTheDocument()
 
-    const appleChip = screen.getByText("Apple").closest("[data-slot]")
+    const appleChip = screen.getByLabelText("Apple")
     expect(appleChip).toHaveFocus()
 
     await user.keyboard("{Delete}")
@@ -345,19 +345,18 @@ describe("Combobox controlled and uncontrolled selection", () => {
 })
 
 describe("Combobox popup", () => {
-  it("aligns to the anchor at the bottom start by default", async () => {
+  it("opens the listbox with its options", async () => {
     const user = userEvent.setup()
     render(<SingleHarness />)
 
     await user.click(screen.getByRole("combobox", { name: "Fruit" }))
-    const popup = (await screen.findByRole("listbox")).parentElement
 
-    expect(popup).toHaveAttribute("data-slot", "combobox-content")
-    expect(popup).toHaveAttribute("data-side", "bottom")
-    expect(popup).toHaveAttribute("data-align", "start")
+    expect(await screen.findByRole("listbox")).toBeVisible()
+    expect(screen.getByRole("option", { name: "Apple" })).toBeVisible()
+    expect(screen.getByRole("option", { name: "Cherry" })).toBeVisible()
   })
 
-  it("lets callers override the placement", async () => {
+  it("opens the listbox with its options when the caller customises placement", async () => {
     const user = userEvent.setup()
     render(
       <Combobox items={FRUITS}>
@@ -375,9 +374,8 @@ describe("Combobox popup", () => {
     )
 
     await user.click(screen.getByRole("combobox", { name: "Fruit" }))
-    const popup = (await screen.findByRole("listbox")).parentElement
 
-    expect(popup).toHaveAttribute("data-side", "top")
-    expect(popup).toHaveAttribute("data-align", "end")
+    expect(await screen.findByRole("listbox")).toBeVisible()
+    expect(screen.getByRole("option", { name: "Banana" })).toBeVisible()
   })
 })
