@@ -1,6 +1,6 @@
 # Migrate the UI layer to shadcn/ui
 
-**Status**: ready for implementation
+**Status**: implemented on `feat/use-shadcn`; verified by the #27 acceptance audit
 **Decision records**: `docs/adr/0009-shadcn-vendoring-policy.md`
 **Supersedes**: `use-shadcn-component.md` (folded into this spec)
 **Related**: `combobox.md`, `date-picker.md`, `layout-sidebar.md`, `shared-lib.md`, `task-table.md`
@@ -36,29 +36,43 @@ change is allowed only when (a) the current code departs from registry semantics
 and no theme override restores it, or (b) the deviation is deliberate and recorded
 in the override block. Every accepted delta is listed in the PR that makes it.
 
-## 3. Current state
+## 3. Current state (shipped)
 
 - `packages/ui/components.json` and `apps/web/components.json` both exist with
-  `style: "base-nova"`, `cssVariables: true`, `iconLibrary: "lucide"`. Both alias
-  `ui` to `@workspace/ui/components`.
-- 28 primitive implementation files live in `packages/ui/src/components/`.
-  25 match registry component names; 3 are repo-owned. All 25 are registry output
-  that has been locally restyled: stock registry tokens are `rounded-lg`,
-  `text-sm`, `ring-3`, while the repo uses `rounded-none`, `text-xs`, `ring-1`
-  and a muted border tone to get a compact look.
-- The `base-nova` registry imports `cn` from the `cn` npm package directly and
-  declares it as a dependency. `packages/ui/src/lib/utils.ts` re-exports it, but
-  it is not the registry's import target.
-- Tests: 4 primitive test files (`button`, `combobox`, `date-picker`,
-  `date-range-picker`) plus `lib/date.test.ts`.
-- Stories: 23 of 28 primitives. Missing: `alert-dialog`, `checkbox`,
-  `input-group`, `pagination`, `textarea`.
+  `style: "base-nova"`, `cssVariables: true`, `iconLibrary: "lucide"`; both alias
+  `ui` to `@workspace/ui/components`. `packages/ui` is the canonical CLI location;
+  `apps/web/components.json` is the resolution mirror.
+- 28 primitive implementation files live in `packages/ui/src/components/` (plus
+  the `calendar-focus.tsx` seam). 25 are registry-backed and byte-identical to the
+  canonical `shadcn@4.23.0` batch on re-run, except for the documented
+  `hooks/use-mobile.ts` deviation; 3 are repo-owned (`date-picker`,
+  `date-range-picker`, `confirm-dialog`).
+- Registry-backed primitives import `cn` from `cn`, exactly as the registry
+  emits; `packages/ui/src/lib/utils.ts` remains the configured alias re-export.
+- The compact look lives in `packages/ui/src/styles/globals.css`: palette and
+  radius as tokens, then one unlayered `data-slot`-keyed override block. No
+  vendored file carries a reintroduced override.
+- `Dialog` and `AlertDialog` expose the registry's composable parts; every app
+  call site composes them (`task-dialogs.tsx`, both tables, bulk actions), and
+  `ConfirmDialog` is a forced-choice composition over the registry
+  `AlertDialog`.
+- Repo-owned seams that moved out of vendored files: `calendar-focus.tsx` (the
+  4.23.0 `CalendarDayButton` focus-ref workaround), `lib/pagination.ts`
+  (`paginationItems`), `lib/sonner.ts` (`toast` re-export), and the app-level
+  sidebar cookie read in `dashboard-shell.tsx`. `lib/constants.ts` is deleted.
+- Stories: all 28 primitives have autodocs stories under `Primitives/*`
+  (29 story files counting `Testing/Smoke`); every interactive primitive has a
+  `play` function. The non-interactive ones (`avatar`, `breadcrumb`, `separator`,
+  `skeleton`, `table`) have none by design.
+- Tests: 5 component test files (`button`, `combobox`, `confirm-dialog`,
+  `date-picker`, `date-range-picker`) plus 2 logic test files (`lib/date`,
+  `lib/pagination`). `DataTable` is covered at the e2e seam.
 - Forms are already React Hook Form + Zod + `Field` + `Controller`.
-- Dark mode is shipped: `next-themes` class strategy, Settings buttons, a `d`
-  hotkey, and an e2e test that asserts `.dark` persists across reloads. The
-  "deferred dark-mode toggle" comment in `globals.css` is stale.
-- CI runs lint → typecheck → test → build → Storybook test-runner. It does **not**
-  run Playwright; all eight e2e specs are local-only.
+- Dark mode ships: `next-themes` class strategy, Settings buttons, a `d` hotkey,
+  and an e2e test that asserts `.dark` persists across reloads. The stale
+  "deferred dark-mode" comment is gone.
+- CI runs lint → typecheck → test → build → Storybook test-runner, plus a
+  separate `e2e (chromium)` job that runs `pnpm --filter web test:e2e`.
 
 ## 4. Scope
 
@@ -85,11 +99,15 @@ in the override block. Every accepted delta is listed in the PR that makes it.
 
 ### Registry-backed (must match registry output)
 
-Reconcile by running `shadcn add <name>` from `packages/ui` with the `base-nova`
-style, then reviewing the diff. Do not hand-copy registry JSON: the CLI resolves
-aliases (`@/registry/base-nova/*` → `@workspace/ui/*`) and icon placeholders.
+All rows below have landed: every registry-backed file is now verbatim
+`shadcn@4.23.0` output, verified by re-running the canonical batch with
+`--dry-run` (only `hooks/use-mobile.ts` reports an overwrite). Reconciliation
+runs `shadcn add` from `packages/ui` with the `base-nova` style; do not hand-copy
+registry JSON, because the CLI resolves aliases (`@/registry/base-nova/*` →
+`@workspace/ui/*`) and icon placeholders. The table records the pre-migration
+state and the work that closed it.
 
-| File                | Current state                          | Work                                                                        |
+| File                | State before this work                 | Work applied                                                                |
 | ------------------- | -------------------------------------- | --------------------------------------------------------------------------- |
 | `button.tsx`        | Wrapper + cva; square, `text-xs`       | Reconcile; radius/typography to theme layer                                 |
 | `input.tsx`         | Wrapper; square, `text-xs`             | Reconcile; theme layer                                                      |
@@ -117,19 +135,22 @@ aliases (`@/registry/base-nova/*` → `@workspace/ui/*`) and icon placeholders.
 | `table.tsx`         | Hand-rolled native, compact            | Replace with registry output; theme layer                                   |
 | `tooltip.tsx`       | Wrapper                                | Reconcile                                                                   |
 
-Supporting files: `hooks/use-mobile.ts` is the registry item's dependency but keeps
-its deliberate coarse-pointer check (documented deviation). `lib/utils.ts` stays as
-the configured `utils` alias and re-export. `lib/constants.ts` is deleted once the
-sidebar no longer imports `SIDEBAR_COOKIE_NAME`.
+Supporting files: `hooks/use-mobile.ts` is the registry item's dependency but
+keeps its deliberate coarse-pointer check (documented deviation; restore it after
+every registry run). `lib/utils.ts` stays as the configured `utils` alias and
+re-export. `lib/constants.ts` is deleted, and `SIDEBAR_COOKIE_NAME` now lives
+inside the vendored `sidebar.tsx` (write) and `apps/web/src/components/dashboard-shell.tsx`
+(read).
 
 ### Repo-owned compositions (no registry component exists)
 
-`date-picker.tsx`, `date-range-picker.tsx`, `confirm-dialog.tsx` (registry returns
-404 for all three). `DataTable` in `packages/shared-lib` is generic table
-infrastructure, not a component migration target. These files may be edited, but
-they may only use registry primitives and Base UI parts; they must keep their
-stories and tests, and they are documented in `packages/ui/README.md` as
-non-registry.
+`date-picker.tsx`, `date-range-picker.tsx`, `confirm-dialog.tsx` (the registry
+returns 404 for all three). `packages/ui/src/components/calendar-focus.tsx` is a
+repo-owned seam that supplies the day button for both pickers. `DataTable` in
+`packages/shared-lib` is generic table infrastructure, not a component migration
+target. These files may be edited, but they may only use registry primitives and
+Base UI parts; they keep their stories and tests, and they are documented in
+`packages/ui/README.md` as non-registry.
 
 ### Feature files (`apps/web`)
 
@@ -178,16 +199,20 @@ non-registry.
 
 ## 7. Testing and done bar
 
+All gates below pass on `feat/use-shadcn` (verified by the #27 audit).
+
 - Every primitive in `packages/ui` has a story under `Primitives/*` with
-  `tags: ["autodocs"]`.
+  `tags: ["autodocs"]` (28 primitive stories, plus `Testing/Smoke`).
 - Interactive primitives have `play` functions covering their main flow; the
   Storybook test-runner in CI is the interaction gate.
 - Unit tests are required only where logic cannot be expressed as story
-  interactions (date/UTC math, URL filter mapping). The existing combobox,
-  date-picker, date-range-picker, and date tests stay.
-- Playwright e2e runs in CI (`pnpm test:e2e` with the Chromium browser installed
-  for `apps/web`). All existing specs must pass unchanged except where a role or
-  label changes with the registry API.
+  interactions (date/UTC math, pagination windows). There are 5 component test
+  files (`button`, `combobox`, `confirm-dialog`, `date-picker`,
+  `date-range-picker`) and 2 logic test files (`lib/date`, `lib/pagination`).
+- Playwright e2e runs in CI as a separate `e2e (chromium)` job
+  (`pnpm test:e2e` with the Chromium browser installed for `apps/web`). All
+  existing specs pass unchanged except where a role or label changes with the
+  registry API.
 - `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and
   `pnpm --filter @workspace/ui test-storybook:ci` pass.
 - Each PR includes the Storybook light/dark pass over the three dashboard pages
@@ -195,7 +220,9 @@ non-registry.
 
 ## 8. Phases
 
-Each phase lands as its own PR on `feat/use-shadcn`, green before the next starts.
+Each phase landed as its own PR on `feat/use-shadcn`, green before the next
+started; all three are merged (guardrails, primitive reconciliation, dialog API
+and call sites).
 
 ### PR 1 — Guardrails
 
@@ -236,13 +263,20 @@ visual deltas listed in the PR.
 
 ## 9. Known defects fixed by this work
 
-- `sonner.tsx` spreads props then hardcodes `position="top-right"`, overriding the
-  app's `position="bottom-right"`. The toast position is a deliberate functional
-  change, recorded in the PR.
-- `globals.css` `@source` globs point at directories that do not exist.
-- `cn` is imported two ways across the primitive layer.
-- The `globals.css` comment claims dark mode is deferred; it shipped.
-- `packages/ui/src/lib/constants.ts` exists only for the sidebar deviation above.
+All five are fixed and covered by the acceptance checks:
+
+- `sonner.tsx` spread props then hardcoded `position="top-right"`, overriding the
+  app's `position="bottom-right"`. The registry file now spreads last and the app
+  keeps `bottom-right`; the toast position change is a deliberate functional
+  change, listed with the accepted deltas.
+- `globals.css` `@source` globs pointed at directories that do not exist; they now
+  resolve to `apps/**`, `packages/**`, and `packages/ui/src/**`.
+- `cn` was imported two ways across the primitive layer; all 25 vendored files
+  import from `cn`.
+- The `globals.css` comment claimed dark mode was deferred; it now describes the
+  shipped class strategy.
+- `packages/ui/src/lib/constants.ts` existed only for the sidebar deviation and is
+  deleted.
 
 ## 10. Consequences
 
@@ -259,18 +293,51 @@ visual deltas listed in the PR.
 
 ## 11. Acceptance criteria
 
-- [ ] Every registry-backed primitive is an unedited `shadcn add` output.
-- [ ] All visual deviation is confined to `globals.css`, and every override rule
+- [x] Every registry-backed primitive is an unedited `shadcn add` output.
+- [x] All visual deviation is confined to `globals.css`, and every override rule
       states its component and reason.
-- [ ] `Dialog` and `AlertDialog` use registry APIs; every call site, the
+- [x] `Dialog` and `AlertDialog` use registry APIs; every call site, the
       `create-dialog` skill, and `docs/skills.md` are updated.
-- [ ] Repo-owned compositions (`DatePicker`, `DateRangePicker`, `ConfirmDialog`)
+- [x] Repo-owned compositions (`DatePicker`, `DateRangePicker`, `ConfirmDialog`)
       are documented as non-registry and use only registry primitives.
-- [ ] Every primitive has an autodocs story; interactive primitives have `play`
+- [x] Every primitive has an autodocs story; interactive primitives have `play`
       functions.
-- [ ] Playwright e2e runs in CI and all existing specs pass.
-- [ ] `cn` is imported exclusively from `cn` in `packages/ui/src/components`.
-- [ ] The `@source` globs, sonner position override, stale dark-mode comment, and
+- [x] Playwright e2e runs in CI and all existing specs pass.
+- [x] `cn` is imported exclusively from `cn` in `packages/ui/src/components`.
+- [x] The `@source` globs, sonner position override, stale dark-mode comment, and
       unused sidebar constants are gone.
-- [ ] Light and dark passes over Tasks, Users, Settings, and Login show no
+- [x] Light and dark passes over Tasks, Users, Settings, and Login show no
       functional or accessibility regressions; accepted visual deltas are listed.
+
+### Accepted visual deltas
+
+Recorded during the light/dark pass and the phase reviews. Each is either a
+deliberate consequence of adopting registry semantics that no theme override can
+restore, or a composition detail with no functional/a11y regression.
+
+- **Dialog and AlertDialog chrome.** Registry 4.23.0 owns the overlay, content
+  padding, footer alignment, and close-button placement; form dialogs are
+  narrower (`max-w-xs`, `sm:max-w-sm`). The square radius and compact type still
+  come from tokens/theme, but the exact shell differs from the old bespoke
+  wrapper. Accepted: the API and a11y (focus trap, Escape/backdrop behaviour) are
+  the point of the migration.
+- **Pagination layout and active state.** Registry `Pagination*` renders
+  Button-based links inside the shared table footer. Page links are square and
+  compact (theme-provided), the active page reads as a bordered control rather
+  than the old underline, and the "Rows per page" label may wrap at narrow
+  widths. Accepted.
+- **Select item padding.** Registry 4.23.0 uses `px-1.5 py-1` for select items;
+  the compact type comes from the theme but the tighter horizontal padding is
+  registry-owned. Accepted.
+- **Checkbox indeterminate icon.** The registry/Base UI indicator renders an
+  indeterminate dash instead of the previous custom glyph. Accepted.
+- **Combobox chip composition.** The registry part surface (`ComboboxChips`,
+  `ComboboxChip`, `useComboboxAnchor`) replaces the old 18-part wrapper;
+  `ComboboxChipRemove`/`ComboboxClear` are no longer exported. Chip layout and
+  removal affordances follow the registry. Accepted.
+- **Sidebar mobile-drawer labels.** The app's sidebar labels remain hardcoded
+  English inside the registry mobile `Sheet`; this predates the migration and is
+  not a regression. Accepted.
+- **Toast position.** Toasts now honour the app's `position="bottom-right"`
+  instead of the vendored file's hardcoded `top-right` — a deliberate
+  functional change (§9). Accepted.
