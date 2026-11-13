@@ -7,8 +7,8 @@ description: Create or rework a dialog in this repo. Use when the user asks to c
 
 The shell is fixed — every dialog is a controlled modal driven by `useDialog` (state). `Dialog` and `AlertDialog` are unedited registry composable parts, so a dismissable dialog composes the `Dialog*` parts and a forced decision uses the repo-owned `ConfirmDialog` (a composition over the `AlertDialog*` parts). Copy the closest example rather than inventing:
 
-- **Confirmation** — `apps/web/features/tasks/components/task-dialogs.tsx` (`DeleteTaskDialog`) or inline in `apps/web/features/users/components/users-table.tsx`: `ConfirmDialog` (registry `AlertDialog` composition).
-- **Dismissable** — `apps/web/features/tasks/components/task-dialogs.tsx` (`TaskFormDialog`): `Dialog` + `DialogContent`/`DialogHeader`/`DialogTitle` wrapping a form.
+- **Confirmation** — `apps/web/src/features/tasks/components/task-dialogs.tsx` (`DeleteTaskDialog`) or inline in `apps/web/src/features/users/components/users-table.tsx`: `ConfirmDialog` (registry `AlertDialog` composition).
+- **Dismissable** — `apps/web/src/features/tasks/components/task-dialogs.tsx` (`TaskFormDialog`): `Dialog` + `DialogContent`/`DialogHeader`/`DialogTitle` wrapping a form.
 
 A dialog that holds a **form** spans two skills: this one for the shell, the create-form skill for the form content.
 
@@ -25,7 +25,7 @@ A dialog that holds a **form** spans two skills: this one for the shell, the cre
 
 4. **Remount on reopen** — pass `key={version}` from `useDialog` to content whose state is read only on mount (a form's `defaultValues`), so reopening for a different row re-reads it. *Done when* reopening for a second row shows that row's data.
 
-5. **Translations** — add the section to `apps/web/utils/translations/en.ts` and `vi.ts`. `vi` is typed `Translation = typeof en`, so both dictionaries must share every key; drift fails typecheck. *Done when* it typechecks.
+5. **Translations** — add the section to `apps/web/src/utils/translations/en.ts` and `vi.ts`. `vi` is typed `Translation = typeof en`, so both dictionaries must share every key; drift fails typecheck. *Done when* it typechecks.
 
 6. **Verify** — `pnpm --filter web typecheck`, `pnpm --filter web lint`, and confirm every rule in **Conventions** holds. If the dialog has a Playwright spec, run `pnpm --filter web test:e2e`.
 

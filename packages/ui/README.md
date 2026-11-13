@@ -39,7 +39,7 @@ primitive already owns.
 | ------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | DatePicker          | `@workspace/ui/components/date-picker`              | `Popover`/`PopoverContent`, `Sheet`/`SheetContent`, `Calendar`, `Button`, Base UI `Dialog.Trigger` | Date + time, locale-aware, mobile sheet variant.                            |
 | DateRangePicker     | `@workspace/ui/components/date-range-picker`        | `Popover`/`PopoverContent`, `Sheet`/`SheetContent`, `Calendar`, `Button`                           | Range selection with presets; mobile sheet variant.                         |
-| ConfirmDialog       | `@workspace/ui/components/confirm-dialog`           | Registry `AlertDialog` parts + `Button`                                                             | Forced explicit choice: no close button, Escape and outside clicks rejected. |
+| ConfirmDialog       | `@workspace/ui/components/confirm-dialog`           | Registry `AlertDialog` parts                                                                        | Forced explicit choice: no close button, Escape and outside clicks rejected. |
 | `DataTable`         | `@workspace/shared-lib/components`                  | `Table`, `Pagination`, `Select` from `@workspace/ui`                                                | Generic table infrastructure in `shared-lib`, not a migration target.       |
 
 ## Repo-owned seams

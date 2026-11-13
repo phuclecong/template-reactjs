@@ -19,6 +19,7 @@ import {
   PaginationPrevious,
 } from "@workspace/ui/components/pagination"
 import { paginationItems } from "@workspace/ui/lib/pagination"
+import { paginationEdgeProps } from "../utils"
 import {
   Select,
   SelectContent,
@@ -97,6 +98,8 @@ export function DataTable<T>({
   })
 
   const showFooter = data.length > 0
+  const isFirstPage = pagination.page <= 1
+  const isLastPage = pagination.page >= pagination.pageCount
 
   return (
     <>
@@ -217,13 +220,9 @@ export function DataTable<T>({
                   <PaginationPrevious
                     text=""
                     aria-label={t("table.pagination.prev")}
-                    aria-disabled={pagination.page <= 1 || undefined}
-                    tabIndex={pagination.page <= 1 ? -1 : undefined}
-                    onClick={
-                      pagination.page <= 1
-                        ? undefined
-                        : () => pagination.onPageChange(pagination.page - 1)
-                    }
+                    {...paginationEdgeProps(isFirstPage, () =>
+                      pagination.onPageChange(pagination.page - 1)
+                    )}
                   />
                 </PaginationItem>
                 {paginationItems(pagination.page, pagination.pageCount).map(
@@ -251,17 +250,9 @@ export function DataTable<T>({
                   <PaginationNext
                     text=""
                     aria-label={t("table.pagination.next")}
-                    aria-disabled={
-                      pagination.page >= pagination.pageCount || undefined
-                    }
-                    tabIndex={
-                      pagination.page >= pagination.pageCount ? -1 : undefined
-                    }
-                    onClick={
-                      pagination.page >= pagination.pageCount
-                        ? undefined
-                        : () => pagination.onPageChange(pagination.page + 1)
-                    }
+                    {...paginationEdgeProps(isLastPage, () =>
+                      pagination.onPageChange(pagination.page + 1)
+                    )}
                   />
                 </PaginationItem>
               </PaginationContent>

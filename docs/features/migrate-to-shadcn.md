@@ -289,6 +289,12 @@ All five are fixed and covered by the acceptance checks:
   show up as conflicts, which is the point.
 - `packages/ui` is the canonical place to run `shadcn add`. The `apps/web` config
   stays as a mirror for CLI resolution; its aliases must match.
+- Toasts coalesce repeated identical notifications. The notification provider
+  assigns a stable sonner `id` — Refine's notification `key` when provided,
+  otherwise `${type}:${message}` — so a repeated identical notification updates
+  the toast already on screen instead of stacking a duplicate. This is a
+  deliberate functional change beyond the toast seam, and it keeps e2e
+  assertions deterministic.
 - Recipes in `docs/skills.md` remain valid, but the dialog recipe changes shape.
 
 ## 11. Acceptance criteria
@@ -335,9 +341,17 @@ restore, or a composition detail with no functional/a11y regression.
   `ComboboxChip`, `useComboboxAnchor`) replaces the old 18-part wrapper;
   `ComboboxChipRemove`/`ComboboxClear` are no longer exported. Chip layout and
   removal affordances follow the registry. Accepted.
-- **Sidebar mobile-drawer labels.** The app's sidebar labels remain hardcoded
-  English inside the registry mobile `Sheet`; this predates the migration and is
-  not a regression. Accepted.
+- **Sidebar mobile-drawer labels (registry-imposed i18n/a11y delta).** Registry
+  4.23.0 renders the mobile drawer's `SheetTitle` and `SheetDescription` as
+  hardcoded English strings with no app seam, so translating them would require
+  editing the vendored `sidebar.tsx` (forbidden by ADR-0009). The header trigger
+  label is app-owned and is restored via `aria-label={t("shell.toggleSidebar")}`,
+  so the trigger's accessible name is translated; the drawer's screen-reader
+  title/description remain English. This is an accepted registry-imposed delta,
+  not a pre-existing behaviour.
 - **Toast position.** Toasts now honour the app's `position="bottom-right"`
   instead of the vendored file's hardcoded `top-right` — a deliberate
   functional change (§9). Accepted.
+- **Toast coalescing.** Repeated identical notifications update a single toast
+  instead of stacking; the stable id is Refine's `key` or
+  `${type}:${message}` — a deliberate functional change (§10). Accepted.

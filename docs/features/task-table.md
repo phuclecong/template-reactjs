@@ -1,4 +1,4 @@
-# Features for [tasks-table](../../apps/web/components/tasks-table.tsx)
+# Features for [tasks-table](../../apps/web/src/features/tasks/components/tasks-table.tsx)
 
 ## Filtering
 

@@ -23,8 +23,6 @@ export const vi: Translation = {
     title: "Bảng điều khiển",
     signOut: "Đăng xuất",
     toggleSidebar: "Chuyển đổi thanh bên",
-    sidebar: "Thanh bên",
-    sidebarDescription: "Hiển thị thanh bên trên thiết bị di động.",
     nav: {
       tasks: "Công việc",
       users: "Người dùng",
