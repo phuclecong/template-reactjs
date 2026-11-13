@@ -14,7 +14,7 @@ const toast = vi.hoisted(() => {
   })
 })
 
-vi.mock("@workspace/ui/components/sonner", () => ({ toast }))
+vi.mock("@workspace/ui/lib/sonner", () => ({ toast }))
 
 import { notificationProvider } from "@/providers/notification-provider"
 
