@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react"
+import { expect, userEvent, within } from "@storybook/test"
 
 import { Button } from "./button"
-import { Toaster, toast } from "./sonner"
+import { Toaster } from "./sonner"
+import { toast } from "../lib/sonner"
 
 function ToastDemo() {
   return (
@@ -42,4 +44,17 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: () => <ToastDemo />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+
+    await userEvent.click(canvas.getByRole("button", { name: "Success toast" }))
+
+    await expect(
+      await within(document.body).findByText("Saved")
+    ).toBeInTheDocument()
+
+    const toaster = document.querySelector("[data-sonner-toaster]")
+    await expect(toaster).toHaveAttribute("data-y-position", "bottom")
+    await expect(toaster).toHaveAttribute("data-x-position", "right")
+  },
 }
