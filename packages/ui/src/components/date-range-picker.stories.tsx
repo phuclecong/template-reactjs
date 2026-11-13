@@ -24,7 +24,7 @@ function clickCalendarDay(date: Date) {
 }
 
 const meta = {
-  title: "Components/DateRangePicker",
+  title: "Primitives/DateRangePicker",
   component: DateRangePicker,
   parameters: { layout: "centered" },
   tags: ["autodocs"],

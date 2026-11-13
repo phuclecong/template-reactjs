@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react"
+import { expect, userEvent, within } from "@storybook/test"
 
 import { Input } from "./input"
 import { Textarea } from "./textarea"
@@ -15,7 +16,15 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Default: Story = {}
+export const Default: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const input = canvas.getByPlaceholderText("you@example.com")
+
+    await userEvent.type(input, "paul@example.com")
+    await expect(input).toHaveValue("paul@example.com")
+  },
+}
 
 export const WithValue: Story = {
   args: { defaultValue: "paul@example.com" },

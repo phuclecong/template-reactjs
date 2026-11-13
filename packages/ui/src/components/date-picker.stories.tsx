@@ -29,7 +29,7 @@ function ControlledDatePicker(
 }
 
 const meta = {
-  title: "Components/DatePicker",
+  title: "Primitives/DatePicker",
   component: DatePicker,
   parameters: { layout: "centered" },
   tags: ["autodocs"],

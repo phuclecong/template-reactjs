@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react"
+import { expect, userEvent, within } from "@storybook/test"
 import * as React from "react"
 import type { DateRange } from "react-day-picker"
 import { enUS } from "react-day-picker/locale/en-US"
@@ -76,6 +77,18 @@ export const Default: Story = {
 
 export const WithSelectedDate: Story = {
   render: () => <SingleCalendar />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const day = canvas.getByRole("button", { name: /January 20/ })
+
+    await userEvent.click(day)
+
+    await expect(day).toHaveAttribute("data-selected-single", "true")
+    await expect(day.closest("[role='gridcell']")).toHaveAttribute(
+      "aria-selected",
+      "true"
+    )
+  },
 }
 
 export const Range: Story = {

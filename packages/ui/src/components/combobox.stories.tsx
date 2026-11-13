@@ -166,9 +166,7 @@ export const MultiWithChips: Story = {
       canvas.getByRole("button", { name: "Remove Banana" })
     ).toBeVisible()
 
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Remove Apple" })
-    )
+    await userEvent.click(canvas.getByRole("button", { name: "Remove Apple" }))
 
     await expect(
       canvas.queryByRole("button", { name: "Remove Apple" })

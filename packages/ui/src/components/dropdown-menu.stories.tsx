@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react"
+import { expect, userEvent, waitFor, within } from "@storybook/test"
 
 import { Button } from "./button"
 import {
@@ -37,4 +38,28 @@ export const Default: Story = {
       </DropdownMenuContent>
     </DropdownMenu>
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const trigger = canvas.getByRole("button", { name: "Open menu" })
+
+    await userEvent.click(trigger)
+
+    const menu = await within(document.body).findByRole("menu")
+    await expect(within(menu).getByText("Profile")).toBeVisible()
+
+    await userEvent.keyboard("{ArrowDown}")
+    await userEvent.keyboard("{Enter}")
+    await waitFor(() =>
+      expect(within(document.body).queryByRole("menu")).not.toBeInTheDocument()
+    )
+
+    await userEvent.click(trigger)
+    const reopened = await within(document.body).findByRole("menu")
+    await userEvent.click(
+      within(reopened).getByRole("menuitem", { name: "Settings" })
+    )
+    await waitFor(() =>
+      expect(within(document.body).queryByRole("menu")).not.toBeInTheDocument()
+    )
+  },
 }
