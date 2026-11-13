@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react"
+import { expect, userEvent, within } from "@storybook/test"
 
 import { Field, FieldDescription, FieldError, FieldLabel } from "./field"
 import { Input } from "./input"
@@ -22,9 +23,9 @@ export const Default: Story = {
         <FieldDescription>We&apos;ll never share your email.</FieldDescription>
       </Field>
       <Field data-invalid>
-        <FieldLabel htmlFor="field-email-invalid">Email</FieldLabel>
+        <FieldLabel htmlFor="field-recovery-invalid">Recovery email</FieldLabel>
         <Input
-          id="field-email-invalid"
+          id="field-recovery-invalid"
           aria-invalid
           defaultValue="not-an-email"
         />
@@ -32,4 +33,23 @@ export const Default: Story = {
       </Field>
     </div>
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const email = canvas.getByRole("textbox", { name: "Email" })
+    const recovery = canvas.getByRole("textbox", { name: "Recovery email" })
+
+    // Label association: the accessible name comes from FieldLabel.
+    await expect(
+      canvas.getByText("We'll never share your email.")
+    ).toBeVisible()
+    await userEvent.type(email, "paul@example.com")
+    await expect(email).toHaveValue("paul@example.com")
+
+    // Invalid styling semantics: aria-invalid drives the error treatment and
+    // the message is announced as an alert.
+    await expect(recovery).toHaveAttribute("aria-invalid", "true")
+    await expect(canvas.getByRole("alert")).toHaveTextContent(
+      "Enter a valid email address."
+    )
+  },
 }
