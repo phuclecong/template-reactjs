@@ -6,7 +6,6 @@ import {
   ComboboxContent,
   ComboboxEmpty,
   ComboboxGroup,
-  ComboboxIcon,
   ComboboxInput,
   ComboboxItem,
   ComboboxLabel,
@@ -199,13 +198,13 @@ export function TaskBulkActions({
             aria-label={t("tasks.bulk.actions")}
           >
             {t("tasks.bulk.actions")}
-            <ComboboxIcon />
           </ComboboxTrigger>
           <ComboboxContent>
             <div className="p-1">
               <ComboboxInput
                 aria-label={t("tasks.bulk.searchActions")}
                 placeholder={t("tasks.bulk.searchActions")}
+                showTrigger={false}
               />
             </div>
             <ComboboxEmpty>{t("combobox.noResults")}</ComboboxEmpty>

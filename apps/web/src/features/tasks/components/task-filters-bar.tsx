@@ -4,20 +4,18 @@ import { Button } from "@workspace/ui/components/button"
 import {
   Combobox,
   ComboboxChip,
-  ComboboxChipRemove,
   ComboboxChips,
-  ComboboxClear,
+  ComboboxChipsInput,
   ComboboxContent,
   ComboboxEmpty,
-  ComboboxIcon,
-  ComboboxInput,
   ComboboxItem,
   ComboboxList,
   ComboboxValue,
+  useComboboxAnchor,
 } from "@workspace/ui/components/combobox"
 import { DateRangePicker } from "@workspace/ui/components/date-range-picker"
 import { Input } from "@workspace/ui/components/input"
-import { InputGroup } from "@workspace/ui/components/input-group"
+import { ChevronDownIcon, XIcon } from "lucide-react"
 import { resolveLocale } from "@workspace/ui/lib/date"
 import {
   PRIORITY_OPTIONS,
@@ -50,6 +48,16 @@ function FilterCombobox({
 }) {
   const { t } = useTranslation()
   const selectedValues = parseFilterValues(value)
+  const anchor = useComboboxAnchor()
+
+  // The registry chip exposes removal through `showRemove`, whose internal
+  // control is icon-only. Compose a labelled Button so the mouse affordance
+  // keeps its accessible name; the chip itself still handles Backspace and
+  // Delete, and Left/Right Arrow moves focus between chips.
+  const removeValue = (selected: string[], removed: string) =>
+    onValueChange(
+      joinFilterValues(selected.filter((candidate) => candidate !== removed))
+    )
 
   return (
     <Combobox
@@ -64,33 +72,57 @@ function FilterCombobox({
         if (!open && details.reason === "item-press") details.cancel()
       }}
     >
-      <InputGroup className="h-auto min-h-8 w-56 flex-wrap items-center py-1">
+      <ComboboxChips ref={anchor} className="w-56">
         <ComboboxValue>
           {(selected: string[]) => (
-            <ComboboxChips className="min-w-0 flex-1">
+            <>
               {selected.map((selectedValue) => {
                 const label = labelFor(selectedValue)
                 return (
-                  <ComboboxChip key={selectedValue} aria-label={label}>
+                  <ComboboxChip
+                    key={selectedValue}
+                    aria-label={label}
+                    showRemove={false}
+                  >
                     {label}
-                    <ComboboxChipRemove
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
                       aria-label={t("combobox.removeChip", { value: label })}
-                    />
+                      className="-ml-1 opacity-50 hover:opacity-100"
+                      onClick={() => removeValue(selected, selectedValue)}
+                    >
+                      <XIcon className="pointer-events-none" />
+                    </Button>
                   </ComboboxChip>
                 )
               })}
-              <ComboboxInput
+              <ComboboxChipsInput
                 aria-label={ariaLabel}
                 placeholder={selected.length > 0 ? "" : placeholder}
-                className="h-6 min-w-16 flex-1 border-0 bg-transparent px-1 py-0 shadow-none ring-0 focus-visible:ring-0 dark:bg-transparent"
               />
-            </ComboboxChips>
+            </>
           )}
         </ComboboxValue>
-        <ComboboxClear aria-label={t("common.clear")} />
-        <ComboboxIcon aria-hidden="true" className="pointer-events-none mr-1.5" />
-      </InputGroup>
-      <ComboboxContent>
+        {selectedValues.length > 0 ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label={t("common.clear")}
+            className="ml-auto opacity-50 hover:opacity-100"
+            onClick={() => onValueChange("")}
+          >
+            <XIcon className="pointer-events-none" />
+          </Button>
+        ) : null}
+        <ChevronDownIcon
+          aria-hidden="true"
+          className="pointer-events-none size-4 shrink-0 text-muted-foreground"
+        />
+      </ComboboxChips>
+      <ComboboxContent anchor={anchor}>
         <ComboboxEmpty>{t("combobox.noResults")}</ComboboxEmpty>
         <ComboboxList>
           {(option: string) => (

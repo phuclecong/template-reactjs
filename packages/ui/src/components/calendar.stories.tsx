@@ -83,8 +83,12 @@ export const WithSelectedDate: Story = {
 
     await userEvent.click(day)
 
-    await expect(day).toHaveAttribute("data-selected-single", "true")
-    await expect(day.closest("[role='gridcell']")).toHaveAttribute(
+    // Selecting re-renders the controlled calendar and the registry's inline
+    // day component is a new identity, so the button is replaced; re-query the
+    // selected day rather than asserting against the detached node.
+    const selected = canvas.getByRole("button", { name: /January 20/ })
+    await expect(selected).toHaveAttribute("data-selected-single", "true")
+    await expect(selected.closest("[role='gridcell']")).toHaveAttribute(
       "aria-selected",
       "true"
     )

@@ -154,7 +154,7 @@
 [data-slot="textarea"],
 [data-slot="select-trigger"],
 [data-slot="select-item"],
-[data-slot="combobox-input"],
+[data-slot="combobox-chip-input"],
 [data-slot="combobox-item"],
 [data-slot="combobox-empty"],
 [data-slot="combobox-chips"],
@@ -173,6 +173,26 @@
 [data-slot="sidebar-menu-sub-button"],
 [data-slot="avatar-group-count"],
 [data-slot="calendar"] {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+/* Checkbox radius
+ * Stock base-nova uses an arbitrary `rounded-[4px]`, which the radius tokens
+ * cannot reach; the template keeps every control square. */
+[data-slot="checkbox"] {
+  border-radius: 0;
+}
+
+/* Calendar caption typography
+ * Stock 4.23.0 renders the month/year caption, dropdowns, and weekday / week
+ * number labels at text-sm or 0.8rem. react-day-picker owns those class names,
+ * so they are targeted inside the calendar root to keep the compact text-xs
+ * scale the date pickers and filter share. */
+[data-slot="calendar"] .rdp-caption_label,
+[data-slot="calendar"] .rdp-dropdowns,
+[data-slot="calendar"] .rdp-weekday,
+[data-slot="calendar"] .rdp-week_number {
   font-size: 0.75rem;
   line-height: 1rem;
 }
