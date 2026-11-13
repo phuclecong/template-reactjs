@@ -241,7 +241,8 @@ describe("tasks", () => {
 
     const byStatus = await api("/api/tasks?status=done", { token: accessToken })
     const statusList = (await byStatus.json()) as Array<{ status: string }>
-    expect(statusList.length).toBeGreaterThan(0)
+    expect(statusList.length).toBe(38)
+    expect(byStatus.headers.get("x-total-count")).toBe("38")
     for (const task of statusList) expect(task.status).toBe("done")
 
     const byPriority = await api("/api/tasks?priority=high", {
@@ -269,6 +270,59 @@ describe("tasks", () => {
     }>
     expect(unassignedList.length).toBeGreaterThan(0)
     for (const task of unassignedList) expect(task.assigneeId).toBeNull()
+  })
+
+  it("filters by repeated status values with OR semantics", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+
+    const res = await api("/api/tasks?status=todo&status=in-progress", {
+      token: accessToken,
+    })
+    expect(res.status).toBe(200)
+
+    const list = (await res.json()) as Array<{ status: string }>
+    // todo 37 + in-progress 38 from the deterministic seed.
+    expect(res.headers.get("x-total-count")).toBe("75")
+    expect(list).toHaveLength(75)
+    expect(new Set(list.map((task) => task.status))).toEqual(
+      new Set(["todo", "in-progress"])
+    )
+  })
+
+  it("rejects an invalid status value with 400", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+
+    for (const path of [
+      "/api/tasks?status=archived",
+      "/api/tasks?status=todo&status=archived",
+    ]) {
+      const res = await api(path, { token: accessToken })
+      expect(res.status).toBe(400)
+      const body = (await res.json()) as { code: string }
+      expect(body.code).toBe("invalid_request")
+    }
+  })
+
+  it("combines repeated status values with another filter using AND", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+
+    const res = await api(
+      "/api/tasks?status=todo&status=in-progress&priority=medium",
+      { token: accessToken }
+    )
+    expect(res.status).toBe(200)
+
+    const list = (await res.json()) as Array<{
+      status: string
+      priority: string
+    }>
+    // Every in-progress task in the seed is medium priority; todo is low.
+    expect(res.headers.get("x-total-count")).toBe("38")
+    expect(list).toHaveLength(38)
+    for (const task of list) {
+      expect(["todo", "in-progress"]).toContain(task.status)
+      expect(task.priority).toBe("medium")
+    }
   })
 
   it("combines filters with AND", async () => {
