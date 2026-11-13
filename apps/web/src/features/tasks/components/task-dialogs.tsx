@@ -16,7 +16,12 @@ import { z } from "zod"
 import { Button } from "@workspace/ui/components/button"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import { DatePicker } from "@workspace/ui/components/date-picker"
-import { Dialog } from "@workspace/ui/components/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@workspace/ui/components/dialog"
 import { Field, FieldError, FieldLabel } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
 import { Textarea } from "@workspace/ui/components/textarea"
@@ -173,78 +178,34 @@ export function TaskFormDialog({
   return (
     <Dialog
       open={open}
-      title={isEdit ? t("taskDialog.editTitle") : t("taskDialog.newTitle")}
-      onClose={onClose}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose()
+      }}
     >
-      <form
-        noValidate
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="flex flex-col gap-3"
-      >
-        <Controller
-          control={form.control}
-          name="title"
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor={`${id}-title`}>
-                {t("taskDialog.title")}
-              </FieldLabel>
-              <Input
-                {...field}
-                id={`${id}-title`}
-                aria-invalid={fieldState.invalid}
-              />
-              <FieldError errors={[fieldState.error]} />
-            </Field>
-          )}
-        />
-
-        <Controller
-          control={form.control}
-          name="description"
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor={`${id}-description`}>
-                {t("taskDialog.description")}
-              </FieldLabel>
-              <Textarea
-                {...field}
-                id={`${id}-description`}
-                rows={3}
-                aria-invalid={fieldState.invalid}
-              />
-              <FieldError errors={[fieldState.error]} />
-            </Field>
-          )}
-        />
-
-        <div className="grid grid-cols-2 gap-3">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            {isEdit ? t("taskDialog.editTitle") : t("taskDialog.newTitle")}
+          </DialogTitle>
+        </DialogHeader>
+        <form
+          noValidate
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="flex flex-col gap-3"
+        >
           <Controller
             control={form.control}
-            name="status"
+            name="title"
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor={`${id}-status`}>
-                  {t("taskDialog.status")}
+                <FieldLabel htmlFor={`${id}-title`}>
+                  {t("taskDialog.title")}
                 </FieldLabel>
-                <Select
-                  value={field.value}
-                  onValueChange={(value) => field.onChange(value)}
-                >
-                  <SelectTrigger
-                    id={`${id}-status`}
-                    aria-invalid={fieldState.invalid}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {t(`tasks.status.${status}`)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  {...field}
+                  id={`${id}-title`}
+                  aria-invalid={fieldState.invalid}
+                />
                 <FieldError errors={[fieldState.error]} />
               </Field>
             )}
@@ -252,119 +213,171 @@ export function TaskFormDialog({
 
           <Controller
             control={form.control}
-            name="priority"
+            name="description"
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor={`${id}-priority`}>
-                  {t("taskDialog.priority")}
+                <FieldLabel htmlFor={`${id}-description`}>
+                  {t("taskDialog.description")}
                 </FieldLabel>
-                <Select
-                  value={field.value}
-                  onValueChange={(value) => field.onChange(value)}
-                >
-                  <SelectTrigger
-                    id={`${id}-priority`}
-                    aria-invalid={fieldState.invalid}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">{t("taskDialog.none")}</SelectItem>
-                    {PRIORITY_OPTIONS.map((priority) => (
-                      <SelectItem key={priority} value={priority}>
-                        {t(`tasks.priority.${priority}`)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Controller
-            control={form.control}
-            name="assigneeId"
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor={`${id}-assignee`}>
-                  {t("taskDialog.assignee")}
-                </FieldLabel>
-                <Select
-                  value={field.value}
-                  onValueChange={(value) => field.onChange(value)}
-                >
-                  <SelectTrigger
-                    id={`${id}-assignee`}
-                    aria-invalid={fieldState.invalid}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">
-                      {t("taskDialog.unassigned")}
-                    </SelectItem>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Textarea
+                  {...field}
+                  id={`${id}-description`}
+                  rows={3}
+                  aria-invalid={fieldState.invalid}
+                />
                 <FieldError errors={[fieldState.error]} />
               </Field>
             )}
           />
 
-          <Controller
-            control={form.control}
-            name="dueDate"
-            render={({ field, fieldState }) => {
-              const errorId = `${id}-due-date-error`
-              return (
+          <div className="grid grid-cols-2 gap-3">
+            <Controller
+              control={form.control}
+              name="status"
+              render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={`${id}-due-date`}>
-                    {t("taskDialog.dueDate")}
+                  <FieldLabel htmlFor={`${id}-status`}>
+                    {t("taskDialog.status")}
                   </FieldLabel>
-                  <DatePicker
-                    ref={field.ref}
-                    id={`${id}-due-date`}
-                    name={field.name}
+                  <Select
                     value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    disabled={isPending}
-                    locale={locale}
-                    placeholder={t("taskDialog.dueDatePlaceholder")}
-                    labels={{
-                      clear: t("common.clear"),
-                      done: t("common.done"),
-                      time: t("datePicker.time"),
-                      typedEntryLabel: t("datePicker.typedLabel"),
-                      typedEntryHint: t("datePicker.typedHint"),
-                      typedEntryError: t("datePicker.typedError"),
-                    }}
-                    aria-invalid={fieldState.invalid}
-                    aria-describedby={fieldState.error ? errorId : undefined}
-                  />
-                  <FieldError id={errorId} errors={[fieldState.error]} />
+                    onValueChange={(value) => field.onChange(value)}
+                  >
+                    <SelectTrigger
+                      id={`${id}-status`}
+                      aria-invalid={fieldState.invalid}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUS_OPTIONS.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {t(`tasks.status.${status}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldError errors={[fieldState.error]} />
                 </Field>
-              )
-            }}
-          />
-        </div>
+              )}
+            />
 
-        <div className="mt-2 flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
-            {t("common.cancel")}
-          </Button>
-          <Button type="submit" disabled={isPending}>
-            {isEdit ? t("taskDialog.save") : t("taskDialog.create")}
-          </Button>
-        </div>
-      </form>
+            <Controller
+              control={form.control}
+              name="priority"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={`${id}-priority`}>
+                    {t("taskDialog.priority")}
+                  </FieldLabel>
+                  <Select
+                    value={field.value}
+                    onValueChange={(value) => field.onChange(value)}
+                  >
+                    <SelectTrigger
+                      id={`${id}-priority`}
+                      aria-invalid={fieldState.invalid}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">{t("taskDialog.none")}</SelectItem>
+                      {PRIORITY_OPTIONS.map((priority) => (
+                        <SelectItem key={priority} value={priority}>
+                          {t(`tasks.priority.${priority}`)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldError errors={[fieldState.error]} />
+                </Field>
+              )}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Controller
+              control={form.control}
+              name="assigneeId"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={`${id}-assignee`}>
+                    {t("taskDialog.assignee")}
+                  </FieldLabel>
+                  <Select
+                    value={field.value}
+                    onValueChange={(value) => field.onChange(value)}
+                  >
+                    <SelectTrigger
+                      id={`${id}-assignee`}
+                      aria-invalid={fieldState.invalid}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">
+                        {t("taskDialog.unassigned")}
+                      </SelectItem>
+                      {users.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldError errors={[fieldState.error]} />
+                </Field>
+              )}
+            />
+
+            <Controller
+              control={form.control}
+              name="dueDate"
+              render={({ field, fieldState }) => {
+                const errorId = `${id}-due-date-error`
+                return (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={`${id}-due-date`}>
+                      {t("taskDialog.dueDate")}
+                    </FieldLabel>
+                    <DatePicker
+                      ref={field.ref}
+                      id={`${id}-due-date`}
+                      name={field.name}
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                      disabled={isPending}
+                      locale={locale}
+                      placeholder={t("taskDialog.dueDatePlaceholder")}
+                      labels={{
+                        clear: t("common.clear"),
+                        done: t("common.done"),
+                        time: t("datePicker.time"),
+                        typedEntryLabel: t("datePicker.typedLabel"),
+                        typedEntryHint: t("datePicker.typedHint"),
+                        typedEntryError: t("datePicker.typedError"),
+                      }}
+                      aria-invalid={fieldState.invalid}
+                      aria-describedby={fieldState.error ? errorId : undefined}
+                    />
+                    <FieldError id={errorId} errors={[fieldState.error]} />
+                  </Field>
+                )
+              }}
+            />
+          </div>
+
+          <div className="mt-2 flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>
+              {t("common.cancel")}
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isEdit ? t("taskDialog.save") : t("taskDialog.create")}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
     </Dialog>
   )
 }

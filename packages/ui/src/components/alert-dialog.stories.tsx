@@ -2,7 +2,17 @@ import { useState } from "react"
 import type { Meta, StoryObj } from "@storybook/react"
 import { expect, userEvent, waitFor, within } from "@storybook/test"
 
-import { AlertDialog } from "./alert-dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "./alert-dialog"
 import { Button } from "./button"
 
 function AlertDialogDemo({
@@ -15,26 +25,28 @@ function AlertDialogDemo({
   const [open, setOpen] = useState(false)
 
   return (
-    <>
-      <Button variant="destructive" onClick={() => setOpen(true)}>
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger render={<Button variant="destructive" />}>
         Open alert dialog
-      </Button>
-      <AlertDialog
-        open={open}
-        onClose={() => setOpen(false)}
-        title="Delete task"
-        description={description}
-      >
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button variant="destructive" onClick={() => setOpen(false)}>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete task</AlertDialogTitle>
+          {description !== undefined ? (
+            <AlertDialogDescription>{description}</AlertDialogDescription>
+          ) : null}
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            onClick={() => setOpen(false)}
+          >
             {confirmLabel}
-          </Button>
-        </div>
-      </AlertDialog>
-    </>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
 
@@ -43,12 +55,6 @@ const meta = {
   component: AlertDialog,
   parameters: { layout: "centered" },
   tags: ["autodocs"],
-  args: {
-    open: false,
-    onClose: () => {},
-    title: "Delete task",
-    children: null,
-  },
 } satisfies Meta<typeof AlertDialog>
 
 export default meta
@@ -70,6 +76,7 @@ export const Default: Story = {
       within(dialog).getByText("This action cannot be undone.")
     ).toBeVisible()
 
+    // Cancel is the explicit rejection path.
     await userEvent.click(
       within(dialog).getByRole("button", { name: "Cancel" })
     )
