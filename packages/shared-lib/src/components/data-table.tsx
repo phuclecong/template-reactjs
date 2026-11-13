@@ -17,8 +17,8 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-  paginationItems,
 } from "@workspace/ui/components/pagination"
+import { paginationItems } from "@workspace/ui/lib/pagination"
 import {
   Select,
   SelectContent,
@@ -215,9 +215,15 @@ export function DataTable<T>({
               <PaginationContent>
                 <PaginationItem>
                   <PaginationPrevious
+                    text=""
                     aria-label={t("table.pagination.prev")}
-                    disabled={pagination.page <= 1}
-                    onClick={() => pagination.onPageChange(pagination.page - 1)}
+                    aria-disabled={pagination.page <= 1 || undefined}
+                    tabIndex={pagination.page <= 1 ? -1 : undefined}
+                    onClick={
+                      pagination.page <= 1
+                        ? undefined
+                        : () => pagination.onPageChange(pagination.page - 1)
+                    }
                   />
                 </PaginationItem>
                 {paginationItems(pagination.page, pagination.pageCount).map(
@@ -243,9 +249,19 @@ export function DataTable<T>({
                 )}
                 <PaginationItem>
                   <PaginationNext
+                    text=""
                     aria-label={t("table.pagination.next")}
-                    disabled={pagination.page >= pagination.pageCount}
-                    onClick={() => pagination.onPageChange(pagination.page + 1)}
+                    aria-disabled={
+                      pagination.page >= pagination.pageCount || undefined
+                    }
+                    tabIndex={
+                      pagination.page >= pagination.pageCount ? -1 : undefined
+                    }
+                    onClick={
+                      pagination.page >= pagination.pageCount
+                        ? undefined
+                        : () => pagination.onPageChange(pagination.page + 1)
+                    }
                   />
                 </PaginationItem>
               </PaginationContent>
