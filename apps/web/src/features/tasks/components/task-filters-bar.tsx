@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -104,6 +104,17 @@ function FilterCombobox({
   )
 }
 
+/** Compare two filter records by value, independent of object identity. */
+function sameFilters(a: TaskFilters, b: TaskFilters): boolean {
+  return (
+    a.status === b.status &&
+    a.priority === b.priority &&
+    a.assignee === b.assignee &&
+    a.dueFrom === b.dueFrom &&
+    a.dueTo === b.dueTo
+  )
+}
+
 export function TaskFiltersBar({
   searchValue,
   onSearchChange,
@@ -120,7 +131,59 @@ export function TaskFiltersBar({
   onClear: () => void
 }) {
   const { t, i18n } = useTranslation()
-  const { status, priority, assignee, dueFrom, dueTo } = values
+
+  // The URL is the source of truth, but `navigate()` commits asynchronously.
+  // Two option clicks can therefore land before the new `values` prop arrives,
+  // and Base UI would compute the second selection from the stale committed
+  // value. Keep a synchronous optimistic draft (state + ref) so each change
+  // builds on the previous one, and pass the draft to the controls.
+  const [draft, setDraft] = useState<TaskFilters>(values)
+  const draftRef = useRef<TaskFilters>(values)
+  // The last value emitted upward whose URL echo has not arrived yet. While it
+  // is set, an incoming `values` prop may be an intermediate navigation echo,
+  // so the newer draft wins; once the URL matches, drop the marker.
+  const pendingRef = useRef<TaskFilters | null>(null)
+
+  const setDraftValues = useCallback((next: TaskFilters) => {
+    draftRef.current = next
+    setDraft(next)
+  }, [])
+
+  const emit = useCallback(
+    (patch: Partial<TaskFilters>) => {
+      const next = { ...draftRef.current, ...patch }
+      pendingRef.current = next
+      setDraftValues(next)
+      onChange(next)
+    },
+    [onChange, setDraftValues]
+  )
+
+  useEffect(() => {
+    if (pendingRef.current) {
+      if (sameFilters(pendingRef.current, values)) {
+        pendingRef.current = null
+        setDraftValues(values)
+      }
+      return
+    }
+    // No write in flight: the URL changed externally (back/forward, clear).
+    setDraftValues(values)
+  }, [values, setDraftValues])
+
+  const handleClear = useCallback(() => {
+    pendingRef.current = null
+    setDraftValues({
+      status: "",
+      priority: "",
+      assignee: "",
+      dueFrom: "",
+      dueTo: "",
+    })
+    onClear()
+  }, [onClear, setDraftValues])
+
+  const { status, priority, assignee, dueFrom, dueTo } = draft
   // Stable identities: Base UI re-syncs its selection when `items` changes, so
   // rebuilding these arrays/functions on every render can drop a rapid second
   // selection before the URL-driven `value` prop catches up.
@@ -161,7 +224,7 @@ export function TaskFiltersBar({
         items={STATUS_OPTIONS}
         labelFor={statusLabel}
         value={status}
-        onValueChange={(next) => onChange({ ...values, status: next })}
+        onValueChange={(next) => emit({ status: next })}
         ariaLabel={t("tasks.filters.status")}
         placeholder={t("tasks.filters.all")}
       />
@@ -170,7 +233,7 @@ export function TaskFiltersBar({
         items={PRIORITY_OPTIONS}
         labelFor={priorityLabel}
         value={priority}
-        onValueChange={(next) => onChange({ ...values, priority: next })}
+        onValueChange={(next) => emit({ priority: next })}
         ariaLabel={t("tasks.filters.priority")}
         placeholder={t("tasks.filters.all")}
       />
@@ -179,7 +242,7 @@ export function TaskFiltersBar({
         items={assigneeOptions}
         labelFor={assigneeLabel}
         value={assignee}
-        onValueChange={(next) => onChange({ ...values, assignee: next })}
+        onValueChange={(next) => emit({ assignee: next })}
         ariaLabel={t("tasks.filters.assignee")}
         placeholder={t("tasks.filters.all")}
       />
@@ -201,15 +264,14 @@ export function TaskFiltersBar({
         }}
         value={{ from: dueFrom, to: dueTo }}
         onChange={(next) =>
-          onChange({
-            ...values,
+          emit({
             dueFrom: next.from,
             dueTo: next.to,
           })
         }
       />
 
-      <Button type="button" variant="ghost" size="sm" onClick={onClear}>
+      <Button type="button" variant="ghost" size="sm" onClick={handleClear}>
         {t("tasks.filters.clear")}
       </Button>
     </div>

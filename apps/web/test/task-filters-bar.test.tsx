@@ -77,6 +77,31 @@ function Harness({
   )
 }
 
+/**
+ * Mirrors production, where the URL is the source of truth and `navigate()` is
+ * asynchronous: a change is emitted but the new `values` prop does not arrive
+ * until the URL round-trip commits. Keeping the prop frozen reproduces two
+ * rapid selections landing before that re-render.
+ */
+function DelayedHarness({
+  onChange,
+}: {
+  onChange: (next: TaskFilters) => void
+}) {
+  return (
+    <I18nextProvider i18n={i18n}>
+      <TaskFiltersBar
+        searchValue=""
+        onSearchChange={() => {}}
+        values={emptyFilters}
+        users={users}
+        onChange={onChange}
+        onClear={() => {}}
+      />
+    </I18nextProvider>
+  )
+}
+
 describe("TaskFiltersBar status filter", () => {
   it("has no field clear control when nothing is selected", () => {
     renderFilter()
@@ -127,6 +152,25 @@ describe("TaskFiltersBar status filter", () => {
     expect(
       screen.getByRole("button", { name: "Remove in-progress" })
     ).toBeVisible()
+  })
+
+  it("keeps both values when two selections land before the URL updates", async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(<DelayedHarness onChange={onChange} />)
+
+    const input = screen.getByRole("combobox", { name: "Status" })
+    await user.click(input)
+    await user.click(await screen.findByRole("option", { name: "todo" }))
+    // The parent has not re-rendered with the URL value yet, but the second
+    // click must still build on the first optimistic selection.
+    await user.click(screen.getByRole("option", { name: "in-progress" }))
+
+    expect(onChange).toHaveBeenCalledTimes(2)
+    expect(onChange).toHaveBeenLastCalledWith({
+      ...emptyFilters,
+      status: "todo,in-progress",
+    })
   })
 
   it("removes a single status from its chip", async () => {

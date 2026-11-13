@@ -27,7 +27,9 @@ describe("notificationProvider", () => {
     notificationProvider.open({ type: "success", message: "Saved" })
 
     expect(toast.success).toHaveBeenCalledTimes(1)
-    expect(toast.success).toHaveBeenCalledWith("Saved", undefined)
+    expect(toast.success).toHaveBeenCalledWith("Saved", {
+      id: "success:Saved",
+    })
     expect(toast.error).not.toHaveBeenCalled()
     expect(toast).not.toHaveBeenCalled()
   })
@@ -41,6 +43,7 @@ describe("notificationProvider", () => {
 
     expect(toast.error).toHaveBeenCalledTimes(1)
     expect(toast.error).toHaveBeenCalledWith("Failed to update", {
+      id: "error:Failed to update",
       description: "Network error",
     })
     expect(toast.success).not.toHaveBeenCalled()
@@ -51,9 +54,42 @@ describe("notificationProvider", () => {
     notificationProvider.open({ type: "progress", message: "Heads up" })
 
     expect(toast).toHaveBeenCalledTimes(1)
-    expect(toast).toHaveBeenCalledWith("Heads up", undefined)
+    expect(toast).toHaveBeenCalledWith("Heads up", {
+      id: "progress:Heads up",
+    })
     expect(toast.success).not.toHaveBeenCalled()
     expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it("reuses the same id for repeated identical notifications", () => {
+    notificationProvider.open({ type: "success", message: "Task updated" })
+    notificationProvider.open({ type: "success", message: "Task updated" })
+
+    const first = toast.success.mock.calls[0]?.[1] as { id?: string }
+    const second = toast.success.mock.calls[1]?.[1] as { id?: string }
+    expect(first.id).toBeDefined()
+    expect(second.id).toBe(first.id)
+  })
+
+  it("uses different ids for different messages", () => {
+    notificationProvider.open({ type: "success", message: "Task updated" })
+    notificationProvider.open({ type: "success", message: "Task created" })
+
+    const first = toast.success.mock.calls[0]?.[1] as { id?: string }
+    const second = toast.success.mock.calls[1]?.[1] as { id?: string }
+    expect(first.id).not.toBe(second.id)
+  })
+
+  it("honours an explicit key as the toast id", () => {
+    notificationProvider.open({
+      type: "success",
+      message: "Task updated",
+      key: "task-update-1",
+    })
+
+    expect(toast.success).toHaveBeenCalledWith("Task updated", {
+      id: "task-update-1",
+    })
   })
 
   it("dismisses a toast by key", () => {
