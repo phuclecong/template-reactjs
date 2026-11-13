@@ -115,14 +115,20 @@ export function toCrudFilters(q: string, filters: TaskFilters): CrudFilter[] {
   } else if (onlyStatus) {
     result.push({ field: "status", operator: "eq", value: onlyStatus })
   }
-  if (filters.priority)
-    result.push({ field: "priority", operator: "eq", value: filters.priority })
-  if (filters.assignee)
-    result.push({
-      field: "assigneeId",
-      operator: "eq",
-      value: filters.assignee,
-    })
+  const priorities = parseFilterValues(filters.priority)
+  const onlyPriority = priorities[0]
+  if (priorities.length > 1) {
+    result.push({ field: "priority", operator: "in", value: priorities })
+  } else if (onlyPriority) {
+    result.push({ field: "priority", operator: "eq", value: onlyPriority })
+  }
+  const assignees = parseFilterValues(filters.assignee)
+  const onlyAssignee = assignees[0]
+  if (assignees.length > 1) {
+    result.push({ field: "assigneeId", operator: "in", value: assignees })
+  } else if (onlyAssignee) {
+    result.push({ field: "assigneeId", operator: "eq", value: onlyAssignee })
+  }
   if (dateOnlyToLocalDate(filters.dueFrom))
     result.push({
       field: "dueDate",

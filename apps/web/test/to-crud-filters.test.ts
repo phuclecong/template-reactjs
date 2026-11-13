@@ -89,6 +89,33 @@ describe("toCrudFilters", () => {
     ).toEqual([{ field: "status", operator: "eq", value: "done" }])
   })
 
+  it("maps a single priority to an eq filter", () => {
+    expect(
+      toCrudFilters("", { ...emptyFilters, priority: "high" })
+    ).toEqual([{ field: "priority", operator: "eq", value: "high" }])
+  })
+
+  it("maps several priorities to an in filter", () => {
+    expect(
+      toCrudFilters("", { ...emptyFilters, priority: "low, high" })
+    ).toEqual([{ field: "priority", operator: "in", value: ["low", "high"] }])
+  })
+
+  it("maps several assignees to an in filter, keeping the unassigned sentinel", () => {
+    expect(
+      toCrudFilters("", {
+        ...emptyFilters,
+        assignee: "usr_admin,unassigned",
+      })
+    ).toEqual([
+      {
+        field: "assigneeId",
+        operator: "in",
+        value: ["usr_admin", "unassigned"],
+      },
+    ])
+  })
+
   it("maps assignee to assigneeId and due date bounds to UTC instants", () => {
     // Asia/Ho_Chi_Minh is UTC+7, so the local day boundaries shift into the
     // previous/next UTC day. A From bound is the start of the local day and a

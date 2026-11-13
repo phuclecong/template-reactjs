@@ -1,3 +1,4 @@
+import { useCallback, useMemo } from "react"
 import { useTranslation } from "react-i18next"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -18,13 +19,6 @@ import { DateRangePicker } from "@workspace/ui/components/date-range-picker"
 import { Input } from "@workspace/ui/components/input"
 import { InputGroup } from "@workspace/ui/components/input-group"
 import { resolveLocale } from "@workspace/ui/lib/date"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select"
 import {
   PRIORITY_OPTIONS,
   STATUS_OPTIONS,
@@ -52,6 +46,22 @@ export function TaskFiltersBar({
   const { t, i18n } = useTranslation()
   const { status, priority, assignee, dueFrom, dueTo } = values
   const statusValues = parseFilterValues(status)
+  const priorityValues = parseFilterValues(priority)
+  const assigneeValues = parseFilterValues(assignee)
+  // Stable identities: Base UI re-syncs its selection when `items` changes, so
+  // rebuilding these arrays/functions on every render can drop a rapid second
+  // selection before the URL-driven `value` prop catches up.
+  const assigneeOptions = useMemo(
+    () => [...users.map((user) => user.id), "unassigned"],
+    [users]
+  )
+  const assigneeLabel = useCallback(
+    (id: string) =>
+      id === "unassigned"
+        ? t("tasks.unassigned")
+        : users.find((user) => user.id === id)?.name ?? id,
+    [users, t]
+  )
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -120,44 +130,122 @@ export function TaskFiltersBar({
         </ComboboxContent>
       </Combobox>
 
-      <Select
-        value={priority}
-        onValueChange={(value) =>
-          onChange({ ...values, priority: value ?? "" })
+      <Combobox
+        multiple
+        items={PRIORITY_OPTIONS}
+        value={priorityValues}
+        onValueChange={(next) =>
+          onChange({ ...values, priority: joinFilterValues(next) })
         }
+        onOpenChange={(open, details) => {
+          // Multi-select: picking a value must not close the popup, so several
+          // priorities can be chosen from one query.
+          if (!open && details.reason === "item-press") details.cancel()
+        }}
       >
-        <SelectTrigger aria-label={t("tasks.filters.priority")}>
-          <SelectValue placeholder={t("tasks.filters.priority")} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="">{t("tasks.filters.all")}</SelectItem>
-          {PRIORITY_OPTIONS.map((option) => (
-            <SelectItem key={option} value={option}>
-              {t(`tasks.priority.${option}`)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        <InputGroup className="h-auto min-h-8 w-56 flex-wrap items-center py-1">
+          <ComboboxValue>
+            {(selected: string[]) => (
+              <ComboboxChips className="min-w-0 flex-1">
+                {selected.map((value) => {
+                  const label = t(`tasks.priority.${value}`)
+                  return (
+                    <ComboboxChip key={value} aria-label={label}>
+                      {label}
+                      <ComboboxChipRemove
+                        aria-label={t("combobox.removeChip", { value: label })}
+                      />
+                    </ComboboxChip>
+                  )
+                })}
+                <ComboboxInput
+                  aria-label={t("tasks.filters.priority")}
+                  placeholder={
+                    selected.length > 0 ? "" : t("tasks.filters.all")
+                  }
+                  className="h-6 min-w-16 flex-1 border-0 bg-transparent px-1 py-0 shadow-none ring-0 focus-visible:ring-0 dark:bg-transparent"
+                />
+              </ComboboxChips>
+            )}
+          </ComboboxValue>
+          {priorityValues.length > 0 && (
+            <ComboboxClear aria-label={t("common.clear")} />
+          )}
+          <ComboboxIcon
+            aria-hidden="true"
+            className="pointer-events-none mr-1.5"
+          />
+        </InputGroup>
+        <ComboboxContent>
+          <ComboboxEmpty>{t("combobox.noResults")}</ComboboxEmpty>
+          <ComboboxList>
+            {(option: string) => (
+              <ComboboxItem key={option} value={option}>
+                {t(`tasks.priority.${option}`)}
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
 
-      <Select
-        value={assignee}
-        onValueChange={(value) =>
-          onChange({ ...values, assignee: value ?? "" })
+      <Combobox
+        multiple
+        items={assigneeOptions}
+        itemToStringLabel={assigneeLabel}
+        value={assigneeValues}
+        onValueChange={(next) =>
+          onChange({ ...values, assignee: joinFilterValues(next) })
         }
+        onOpenChange={(open, details) => {
+          // Multi-select: picking a value must not close the popup, so several
+          // assignees can be chosen from one query.
+          if (!open && details.reason === "item-press") details.cancel()
+        }}
       >
-        <SelectTrigger aria-label={t("tasks.filters.assignee")}>
-          <SelectValue placeholder={t("tasks.filters.assignee")} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="">{t("tasks.filters.all")}</SelectItem>
-          {users.map((user) => (
-            <SelectItem key={user.id} value={user.id}>
-              {user.name}
-            </SelectItem>
-          ))}
-          <SelectItem value="unassigned">{t("tasks.unassigned")}</SelectItem>
-        </SelectContent>
-      </Select>
+        <InputGroup className="h-auto min-h-8 w-56 flex-wrap items-center py-1">
+          <ComboboxValue>
+            {(selected: string[]) => (
+              <ComboboxChips className="min-w-0 flex-1">
+                {selected.map((value) => {
+                  const label = assigneeLabel(value)
+                  return (
+                    <ComboboxChip key={value} aria-label={label}>
+                      {label}
+                      <ComboboxChipRemove
+                        aria-label={t("combobox.removeChip", { value: label })}
+                      />
+                    </ComboboxChip>
+                  )
+                })}
+                <ComboboxInput
+                  aria-label={t("tasks.filters.assignee")}
+                  placeholder={
+                    selected.length > 0 ? "" : t("tasks.filters.all")
+                  }
+                  className="h-6 min-w-16 flex-1 border-0 bg-transparent px-1 py-0 shadow-none ring-0 focus-visible:ring-0 dark:bg-transparent"
+                />
+              </ComboboxChips>
+            )}
+          </ComboboxValue>
+          {assigneeValues.length > 0 && (
+            <ComboboxClear aria-label={t("common.clear")} />
+          )}
+          <ComboboxIcon
+            aria-hidden="true"
+            className="pointer-events-none mr-1.5"
+          />
+        </InputGroup>
+        <ComboboxContent>
+          <ComboboxEmpty>{t("combobox.noResults")}</ComboboxEmpty>
+          <ComboboxList>
+            {(option: string) => (
+              <ComboboxItem key={option} value={option}>
+                {assigneeLabel(option)}
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
 
       <DateRangePicker
         id="tasks-due-date-filter"
