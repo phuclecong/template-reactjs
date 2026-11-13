@@ -1,0 +1,13 @@
+# Registry-vendored primitives are generated output and must stay byte-identical
+# to `shadcn add` (ADR-0009). Never format them.
+src/components/*.tsx
+
+# Repo-owned compositions and seams are hand-written; keep them formatted.
+!src/components/confirm-dialog.tsx
+!src/components/date-picker.tsx
+!src/components/date-range-picker.tsx
+!src/components/calendar-focus.tsx
+
+# Stories and tests are repo-owned, even for vendored primitives.
+!src/components/*.stories.tsx
+!src/components/*.test.tsx

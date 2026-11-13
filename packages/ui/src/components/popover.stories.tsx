@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react"
+import { expect, userEvent, waitFor, within } from "@storybook/test"
 
 import { Button } from "./button"
 import { Calendar } from "./calendar"
@@ -38,6 +39,22 @@ export const Default: Story = {
       </PopoverContent>
     </Popover>
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const trigger = canvas.getByRole("button", { name: "Open popover" })
+
+    await userEvent.click(trigger)
+
+    const popover = await within(document.body).findByRole("dialog")
+    await expect(within(popover).getByText("Popover title")).toBeVisible()
+
+    await userEvent.keyboard("{Escape}")
+    await waitFor(() =>
+      expect(
+        within(document.body).queryByRole("dialog")
+      ).not.toBeInTheDocument()
+    )
+  },
 }
 
 export const Open: Story = {

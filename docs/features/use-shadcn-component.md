@@ -1,4 +1,12 @@
-# Use shadcn components - https://ui.shadcn.com/docs/components
+# Use shadcn components (folded into `migrate-to-shadcn.md`)
 
-- I've added shadcn components for Input, Input Group, TextArea, Field, Select, Table,... https://ui.shadcn.com/docs/components, update code to march with new update.
-- Update all form to use React Hook Form https://ui.shadcn.com/docs/forms/react-hook-form
+This note's two asks are now part of the migration spec:
+
+1. **Adopt the shadcn primitives** — see
+   [`migrate-to-shadcn.md`](./migrate-to-shadcn.md) §5 for the component audit and
+   §8 for the phased plan.
+2. **Move all forms to React Hook Form** — already done. Every form uses
+   `react-hook-form` + `zod` + `@hookform/resolvers` with the `Field` primitives;
+   no `FormField` migration is planned (see `migrate-to-shadcn.md` §4).
+
+Do not add requirements here; update the migration spec instead.

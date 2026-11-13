@@ -56,3 +56,30 @@ jobs:
 
       - name: Storybook interaction tests
         run: pnpm --filter @workspace/ui test-storybook:ci
+
+  e2e:
+    name: e2e (chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        run: pnpm --filter web test:e2e

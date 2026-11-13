@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react"
+import { expect, userEvent, waitFor, within } from "@storybook/test"
 
 import { Button } from "./button"
 import {
@@ -30,4 +31,29 @@ export const Default: Story = {
       </CollapsibleContent>
     </Collapsible>
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const trigger = canvas.getByRole("button", { name: "Toggle" })
+    const content = canvas.getByText(
+      "Content that collapses and expands with the trigger."
+    )
+
+    await expect(content).toBeVisible()
+
+    await userEvent.click(trigger)
+    await waitFor(() =>
+      expect(
+        canvas.queryByText(
+          "Content that collapses and expands with the trigger."
+        )
+      ).not.toBeInTheDocument()
+    )
+
+    await userEvent.click(trigger)
+    await expect(
+      await canvas.findByText(
+        "Content that collapses and expands with the trigger."
+      )
+    ).toBeVisible()
+  },
 }

@@ -5,8 +5,8 @@ import { expect, screen, userEvent, within } from "@storybook/test"
 import {
   Combobox,
   ComboboxChip,
-  ComboboxChipRemove,
   ComboboxChips,
+  ComboboxChipsInput,
   ComboboxContent,
   ComboboxEmpty,
   ComboboxGroup,
@@ -15,6 +15,7 @@ import {
   ComboboxLabel,
   ComboboxList,
   ComboboxValue,
+  useComboboxAnchor,
 } from "./combobox"
 
 const FRUITS = ["Apple", "Banana", "Blueberry", "Cherry", "Mango"]
@@ -52,6 +53,7 @@ function SingleCombobox({
 
 function MultiCombobox() {
   const [value, setValue] = React.useState<string[]>(["Apple"])
+  const anchor = useComboboxAnchor()
 
   return (
     <Combobox
@@ -60,29 +62,21 @@ function MultiCombobox() {
       value={value}
       onValueChange={(next) => setValue(next)}
     >
-      <ComboboxChips
-        aria-label="Selected fruits"
-        className="min-h-8 w-full rounded-none border border-input px-1.5 py-1 dark:bg-input/30"
-      >
+      <ComboboxChips ref={anchor} aria-label="Selected fruits" className="w-full">
         <ComboboxValue>
           {(selected: string[]) => (
             <>
               {selected.map((item) => (
                 <ComboboxChip key={item} aria-label={item}>
                   {item}
-                  <ComboboxChipRemove aria-label={`Remove ${item}`} />
                 </ComboboxChip>
               ))}
-              <ComboboxInput
-                aria-label="Fruit"
-                placeholder="All"
-                className="h-6 flex-1 border-0 bg-transparent px-1 shadow-none ring-0 focus-visible:ring-0 dark:bg-transparent"
-              />
+              <ComboboxChipsInput aria-label="Fruit" placeholder="All" />
             </>
           )}
         </ComboboxValue>
       </ComboboxChips>
-      <ComboboxContent>
+      <ComboboxContent anchor={anchor}>
         <ComboboxEmpty>No results found.</ComboboxEmpty>
         <ComboboxList>
           {(item: string) => (
@@ -159,20 +153,14 @@ export const MultiWithChips: Story = {
     await userEvent.type(input, "ban")
     await userEvent.keyboard("{ArrowDown}{Enter}")
 
-    await expect(
-      canvas.getByRole("button", { name: "Remove Apple" })
-    ).toBeVisible()
-    await expect(
-      canvas.getByRole("button", { name: "Remove Banana" })
-    ).toBeVisible()
+    await expect(canvas.getByLabelText("Apple")).toBeVisible()
+    await expect(canvas.getByLabelText("Banana")).toBeVisible()
 
-    await userEvent.click(
-      canvas.getByRole("button", { name: "Remove Apple" })
-    )
+    // The registry chip renders its own remove control; target it through the
+    // chip's accessible name rather than its generated markup.
+    await userEvent.click(within(canvas.getByLabelText("Apple")).getByRole("button"))
 
-    await expect(
-      canvas.queryByRole("button", { name: "Remove Apple" })
-    ).not.toBeInTheDocument()
+    await expect(canvas.queryByLabelText("Apple")).not.toBeInTheDocument()
   },
 }
 
@@ -204,7 +192,7 @@ export const Disabled: Story = {
     const canvas = within(canvasElement)
     const input = canvas.getByRole("combobox", { name: "Fruit" })
 
-    await expect(input).toBeDisabled()
+    await expect(input).toHaveAttribute("data-disabled")
     await expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
   },
 }

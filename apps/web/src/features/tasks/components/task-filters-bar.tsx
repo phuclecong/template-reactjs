@@ -1,29 +1,29 @@
-import { useCallback, useMemo } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Button } from "@workspace/ui/components/button"
 import {
   Combobox,
   ComboboxChip,
-  ComboboxChipRemove,
   ComboboxChips,
-  ComboboxClear,
+  ComboboxChipsInput,
   ComboboxContent,
   ComboboxEmpty,
-  ComboboxIcon,
-  ComboboxInput,
   ComboboxItem,
   ComboboxList,
   ComboboxValue,
+  useComboboxAnchor,
 } from "@workspace/ui/components/combobox"
 import { DateRangePicker } from "@workspace/ui/components/date-range-picker"
 import { Input } from "@workspace/ui/components/input"
-import { InputGroup } from "@workspace/ui/components/input-group"
+import { ChevronDownIcon, XIcon } from "lucide-react"
 import { resolveLocale } from "@workspace/ui/lib/date"
 import {
+  EMPTY_TASK_FILTERS,
   PRIORITY_OPTIONS,
   STATUS_OPTIONS,
   joinFilterValues,
   parseFilterValues,
+  taskFiltersEqual,
   type TaskFilters,
   type UserOption,
 } from "@/features/tasks/utils"
@@ -50,6 +50,16 @@ function FilterCombobox({
 }) {
   const { t } = useTranslation()
   const selectedValues = parseFilterValues(value)
+  const anchor = useComboboxAnchor()
+
+  // The registry chip exposes removal through `showRemove`, whose internal
+  // control is icon-only. Compose a labelled Button so the mouse affordance
+  // keeps its accessible name; the chip itself still handles Backspace and
+  // Delete, and Left/Right Arrow moves focus between chips.
+  const removeValue = (selected: string[], removed: string) =>
+    onValueChange(
+      joinFilterValues(selected.filter((candidate) => candidate !== removed))
+    )
 
   return (
     <Combobox
@@ -64,33 +74,57 @@ function FilterCombobox({
         if (!open && details.reason === "item-press") details.cancel()
       }}
     >
-      <InputGroup className="h-auto min-h-8 w-56 flex-wrap items-center py-1">
+      <ComboboxChips ref={anchor} className="w-56">
         <ComboboxValue>
           {(selected: string[]) => (
-            <ComboboxChips className="min-w-0 flex-1">
+            <>
               {selected.map((selectedValue) => {
                 const label = labelFor(selectedValue)
                 return (
-                  <ComboboxChip key={selectedValue} aria-label={label}>
+                  <ComboboxChip
+                    key={selectedValue}
+                    aria-label={label}
+                    showRemove={false}
+                  >
                     {label}
-                    <ComboboxChipRemove
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
                       aria-label={t("combobox.removeChip", { value: label })}
-                    />
+                      className="-ml-1 opacity-50 hover:opacity-100"
+                      onClick={() => removeValue(selected, selectedValue)}
+                    >
+                      <XIcon className="pointer-events-none" />
+                    </Button>
                   </ComboboxChip>
                 )
               })}
-              <ComboboxInput
+              <ComboboxChipsInput
                 aria-label={ariaLabel}
                 placeholder={selected.length > 0 ? "" : placeholder}
-                className="h-6 min-w-16 flex-1 border-0 bg-transparent px-1 py-0 shadow-none ring-0 focus-visible:ring-0 dark:bg-transparent"
               />
-            </ComboboxChips>
+            </>
           )}
         </ComboboxValue>
-        <ComboboxClear aria-label={t("common.clear")} />
-        <ComboboxIcon aria-hidden="true" className="pointer-events-none mr-1.5" />
-      </InputGroup>
-      <ComboboxContent>
+        {selectedValues.length > 0 ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label={t("common.clear")}
+            className="ml-auto opacity-50 hover:opacity-100"
+            onClick={() => onValueChange("")}
+          >
+            <XIcon className="pointer-events-none" />
+          </Button>
+        ) : null}
+        <ChevronDownIcon
+          aria-hidden="true"
+          className="pointer-events-none size-4 shrink-0 text-muted-foreground"
+        />
+      </ComboboxChips>
+      <ComboboxContent anchor={anchor}>
         <ComboboxEmpty>{t("combobox.noResults")}</ComboboxEmpty>
         <ComboboxList>
           {(option: string) => (
@@ -120,7 +154,55 @@ export function TaskFiltersBar({
   onClear: () => void
 }) {
   const { t, i18n } = useTranslation()
-  const { status, priority, assignee, dueFrom, dueTo } = values
+
+  // The URL is the source of truth, but `navigate()` commits asynchronously.
+  // Two option clicks can therefore land before the new `values` prop arrives,
+  // and Base UI would compute the second selection from the stale committed
+  // value. Keep a synchronous optimistic value (state + ref) so each change
+  // builds on the previous one, and pass it to the controls.
+  const [optimisticFilters, setOptimisticFilters] =
+    useState<TaskFilters>(values)
+  const optimisticFiltersRef = useRef<TaskFilters>(values)
+  // The last value committed upward whose URL echo has not arrived yet. While
+  // it is set, an incoming `values` prop may be an intermediate navigation
+  // echo, so the newer optimistic value wins; once the URL matches, drop the
+  // marker.
+  const unconfirmedFilters = useRef<TaskFilters | null>(null)
+
+  const updateOptimisticFilters = useCallback((next: TaskFilters) => {
+    optimisticFiltersRef.current = next
+    setOptimisticFilters(next)
+  }, [])
+
+  const commitFilters = useCallback(
+    (patch: Partial<TaskFilters>) => {
+      const next = { ...optimisticFiltersRef.current, ...patch }
+      unconfirmedFilters.current = next
+      updateOptimisticFilters(next)
+      onChange(next)
+    },
+    [onChange, updateOptimisticFilters]
+  )
+
+  useEffect(() => {
+    if (unconfirmedFilters.current) {
+      if (taskFiltersEqual(unconfirmedFilters.current, values)) {
+        unconfirmedFilters.current = null
+        updateOptimisticFilters(values)
+      }
+      return
+    }
+    // No write in flight: the URL changed externally (back/forward, clear).
+    updateOptimisticFilters(values)
+  }, [values, updateOptimisticFilters])
+
+  const handleClear = useCallback(() => {
+    unconfirmedFilters.current = null
+    updateOptimisticFilters({ ...EMPTY_TASK_FILTERS })
+    onClear()
+  }, [onClear, updateOptimisticFilters])
+
+  const { status, priority, assignee, dueFrom, dueTo } = optimisticFilters
   // Stable identities: Base UI re-syncs its selection when `items` changes, so
   // rebuilding these arrays/functions on every render can drop a rapid second
   // selection before the URL-driven `value` prop catches up.
@@ -161,7 +243,7 @@ export function TaskFiltersBar({
         items={STATUS_OPTIONS}
         labelFor={statusLabel}
         value={status}
-        onValueChange={(next) => onChange({ ...values, status: next })}
+        onValueChange={(next) => commitFilters({ status: next })}
         ariaLabel={t("tasks.filters.status")}
         placeholder={t("tasks.filters.all")}
       />
@@ -170,7 +252,7 @@ export function TaskFiltersBar({
         items={PRIORITY_OPTIONS}
         labelFor={priorityLabel}
         value={priority}
-        onValueChange={(next) => onChange({ ...values, priority: next })}
+        onValueChange={(next) => commitFilters({ priority: next })}
         ariaLabel={t("tasks.filters.priority")}
         placeholder={t("tasks.filters.all")}
       />
@@ -179,7 +261,7 @@ export function TaskFiltersBar({
         items={assigneeOptions}
         labelFor={assigneeLabel}
         value={assignee}
-        onValueChange={(next) => onChange({ ...values, assignee: next })}
+        onValueChange={(next) => commitFilters({ assignee: next })}
         ariaLabel={t("tasks.filters.assignee")}
         placeholder={t("tasks.filters.all")}
       />
@@ -201,15 +283,14 @@ export function TaskFiltersBar({
         }}
         value={{ from: dueFrom, to: dueTo }}
         onChange={(next) =>
-          onChange({
-            ...values,
+          commitFilters({
             dueFrom: next.from,
             dueTo: next.to,
           })
         }
       />
 
-      <Button type="button" variant="ghost" size="sm" onClick={onClear}>
+      <Button type="button" variant="ghost" size="sm" onClick={handleClear}>
         {t("tasks.filters.clear")}
       </Button>
     </div>

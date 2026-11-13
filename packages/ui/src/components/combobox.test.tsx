@@ -3,18 +3,19 @@ import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 
+import { Button } from "./button"
 import {
   Combobox,
   ComboboxChip,
-  ComboboxChipRemove,
   ComboboxChips,
-  ComboboxClear,
+  ComboboxChipsInput,
   ComboboxContent,
   ComboboxEmpty,
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
   ComboboxValue,
+  useComboboxAnchor,
 } from "./combobox"
 
 const FRUITS = ["Apple", "Banana", "Blueberry", "Cherry"]
@@ -124,33 +125,46 @@ function MultiHarness({
   initialValue?: string[]
 }) {
   const [value, setValue] = React.useState<string[]>(initialValue)
+  const anchor = useComboboxAnchor()
+
+  const change = (next: string[]) => {
+    setValue(next)
+    onValueChange?.(next)
+  }
 
   return (
     <Combobox
       multiple
       items={FRUITS}
       value={value}
-      onValueChange={(next) => {
-        setValue(next)
-        onValueChange?.(next)
-      }}
+      onValueChange={change}
     >
-      <ComboboxChips aria-label="Selected fruits">
+      <ComboboxChips ref={anchor} aria-label="Selected fruits">
         <ComboboxValue>
           {(selected: string[]) => (
             <>
               {selected.map((item) => (
-                <ComboboxChip key={item} aria-label={item}>
+                <ComboboxChip key={item} aria-label={item} showRemove={false}>
                   {item}
-                  <ComboboxChipRemove aria-label={`Remove ${item}`} />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`Remove ${item}`}
+                    onClick={() =>
+                      change(
+                        value.filter((candidate) => candidate !== item)
+                      )
+                    }
+                  />
                 </ComboboxChip>
               ))}
-              <ComboboxInput aria-label="Fruit" placeholder="All" />
+              <ComboboxChipsInput aria-label="Fruit" placeholder="All" />
             </>
           )}
         </ComboboxValue>
       </ComboboxChips>
-      <ComboboxContent>
+      <ComboboxContent anchor={anchor}>
         <ComboboxEmpty>No results found.</ComboboxEmpty>
         <ComboboxList>
           {(item: string) => (
@@ -243,10 +257,7 @@ function ClearHarness({
       defaultValue="Apple"
       onValueChange={(next) => onValueChange?.(next)}
     >
-      <div className="relative">
-        <ComboboxInput aria-label="Fruit" placeholder="All" />
-        <ComboboxClear aria-label="Clear" />
-      </div>
+      <ComboboxInput aria-label="Fruit" placeholder="All" showClear />
       <ComboboxContent>
         <ComboboxEmpty>No results found.</ComboboxEmpty>
         <ComboboxList>
@@ -259,6 +270,16 @@ function ClearHarness({
       </ComboboxContent>
     </Combobox>
   )
+}
+
+/** The registry keeps `ComboboxClear` internal; its `data-slot` is the contract
+ * the theme and consumers can target. */
+function getClearControl() {
+  const clear = document.querySelector<HTMLButtonElement>(
+    '[data-slot="combobox-clear"]'
+  )
+  if (!clear) throw new Error("Combobox clear control not found")
+  return clear
 }
 
 describe("Combobox states", () => {
@@ -279,7 +300,7 @@ describe("Combobox states", () => {
     render(<SingleHarness disabled />)
 
     const input = screen.getByRole("combobox", { name: "Fruit" })
-    expect(input).toBeDisabled()
+    expect(input).toHaveAttribute("data-disabled")
 
     await user.click(input)
 
@@ -294,7 +315,7 @@ describe("Combobox states", () => {
     const input = screen.getByRole("combobox", { name: "Fruit" })
     expect(input).toHaveValue("Apple")
 
-    await user.click(screen.getByRole("button", { name: "Clear" }))
+    await user.click(getClearControl())
 
     expect(onValueChange).toHaveBeenLastCalledWith(null)
     expect(input).toHaveValue("")

@@ -1,17 +1,22 @@
 @import "tailwindcss";
-@source "../../../apps/**/*.{ts,tsx}";
-@source "../../../components/**/*.{ts,tsx}";
+@source "../../../../apps/**/*.{ts,tsx}";
+@source "../../../../packages/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
 @custom-variant dark (&:is(.dark *));
 
 /*
  * The shadcn token base (Optimus Prime: blue primary + red accent over
- * zinc neutrals). Light is the single active mode; dark tokens are defined
- * so the deferred dark-mode toggle has no token work left.
+ * zinc neutrals). Dark mode ships via next-themes' class strategy: adding
+ * `.dark` to the root swaps in the token set below.
  */
 :root {
-  --radius: 0.2rem;
+  /*
+   * Radius is a token, not a component edit: registry `rounded-*` classes
+   * resolve to 0 so every surface keeps the template's square look.
+   * `rounded-full` is intentionally unaffected.
+   */
+  --radius: 0rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -101,10 +106,10 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-sm: 0rem;
+  --radius-md: 0rem;
+  --radius-lg: 0rem;
+  --radius-xl: 0rem;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -118,7 +123,261 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-2xl: 0rem;
+  --radius-3xl: 0rem;
+  --radius-4xl: 0rem;
 }
+
+/*
+ * Theme deviation layer (unlayered).
+ *
+ * Stock base-nova output is the source of truth (ADR-0009). The tokens above
+ * carry the palette and radius; this block restores the remaining template
+ * differences that tokens cannot express: control typography, focus-ring
+ * width, border tone, and compact density. It sits outside every cascade layer
+ * so it wins over Tailwind utilities, and it is keyed on `data-slot` attributes
+ * so registry updates never require touching a vendored file. Extend the
+ * grouped selector lists below instead of starting a new block.
+ */
+
+/* Control typography
+ * Stock base-nova controls are text-sm (inputs are text-base below md); the
+ * template's compact controls are text-xs. Covers Buttons, text fields,
+ * selects, comboboxes, input groups, dropdown-menu items, popovers,
+ * breadcrumbs, sidebar navigation, avatar group counts, the calendar frame,
+ * and pagination links. PaginationLink renders a Button as an `<a>` whose
+ * `data-slot` is its own, so it does not inherit the Button entry. Text-xs
+ * also sets the 1rem line-height the template relies on. The input's
+ * file-selector button is included because stock sets its own text-sm, which
+ * would otherwise escape the field's compact typography. */
+[data-slot="button"],
+[data-slot="pagination-link"],
+[data-slot="input"],
+[data-slot="input"]::file-selector-button,
+[data-slot="textarea"],
+[data-slot="select-trigger"],
+[data-slot="select-item"],
+[data-slot="combobox-chip-input"],
+[data-slot="combobox-item"],
+[data-slot="combobox-empty"],
+[data-slot="combobox-chips"],
+[data-slot="input-group-addon"],
+[data-slot="input-group-text"],
+[data-slot="input-group-control"],
+[data-slot="dropdown-menu-item"],
+[data-slot="dropdown-menu-sub-trigger"],
+[data-slot="dropdown-menu-checkbox-item"],
+[data-slot="dropdown-menu-radio-item"],
+[data-slot="popover-content"],
+[data-slot="popover-header"],
+[data-slot="breadcrumb-list"],
+[data-slot="sidebar-group-content"],
+[data-slot="sidebar-menu-button"],
+[data-slot="sidebar-menu-sub-button"],
+[data-slot="avatar-group-count"],
+[data-slot="calendar"] {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+/* Checkbox radius
+ * Stock base-nova uses an arbitrary `rounded-[4px]`, which the radius tokens
+ * cannot reach; the template keeps every control square. */
+[data-slot="checkbox"] {
+  border-radius: 0;
+}
+
+/* Calendar caption typography
+ * Stock 4.23.0 renders the month/year caption, dropdowns, and weekday / week
+ * number labels at text-sm or 0.8rem. react-day-picker owns those class names,
+ * so they are targeted inside the calendar root to keep the compact text-xs
+ * scale the date pickers and filter share. */
+[data-slot="calendar"] .rdp-caption_label,
+[data-slot="calendar"] .rdp-dropdowns,
+[data-slot="calendar"] .rdp-weekday,
+[data-slot="calendar"] .rdp-week_number {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+/* Sidebar group-label weight
+ * Stock base-nova renders sidebar section headings with font-medium; the
+ * template's compact navigation uses a regular-weight section label. */
+[data-slot="sidebar-group-label"] {
+  font-weight: 400;
+}
+
+/* Control-label typography
+ * Stock Label is text-sm and font-medium; the template labels are text-xs and
+ * normal weight. FieldLabel and FieldTitle render through Label, so they need
+ * the field-label slot too. Line-height is left alone: `leading-none` and
+ * `leading-snug` already match stock. */
+[data-slot="label"],
+[data-slot="field-label"] {
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+/* Description typography
+ * Stock FieldDescription and PopoverDescription are text-sm; the template uses
+ * text-xs with the `relaxed` line-height. Covers the description-family text
+ * that sits beside controls inside fields and popovers. */
+[data-slot="field-description"],
+[data-slot="popover-description"] {
+  font-size: 0.75rem;
+  line-height: 1.625;
+}
+
+/* Field supporting text
+ * Stock FieldError and FieldSeparator are text-sm; the template uses text-xs.
+ * Kept separate from descriptions because the template gives those a relaxed
+ * line-height and this supporting text a normal one. */
+[data-slot="field-error"],
+[data-slot="field-separator"] {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+/* Field legend typography
+ * Stock renders the label variant at text-sm and the legend variant at
+ * text-base; the template uses text-xs and text-sm respectively. */
+[data-slot="field-legend"][data-variant="label"] {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+[data-slot="field-legend"][data-variant="legend"] {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+/* Field legend spacing
+ * Registry 4.23.0 tightened the legend margin to mb-1.5; the template keeps
+ * its mb-2.5 rhythm between a legend and the fields it introduces. */
+[data-slot="field-legend"] {
+  margin-bottom: 0.625rem;
+}
+
+/* Field-label nested control padding
+ * When a FieldLabel wraps a Field (checkbox/radio cards), registry 4.23.0 uses
+ * p-2.5; the template's compact density uses p-2. */
+[data-slot="field-label"] > [data-slot="field"] {
+  padding: 0.5rem;
+}
+
+/* Sheet typography
+ * Stock SheetContent and SheetDescription are text-sm and SheetTitle is
+ * text-base; the template uses text-xs/relaxed content and a text-sm title.
+ * The sidebar's mobile drawer passes data-slot="sidebar" to SheetContent (to
+ * key its own layout), so the content font must also target that slot. */
+[data-slot="sheet-content"],
+[data-slot="sheet-description"],
+[data-slot="sidebar"][data-mobile="true"] {
+  font-size: 0.75rem;
+  line-height: 1.625;
+}
+
+[data-slot="sheet-title"] {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+/* Table density
+ * Stock Table and TableCaption are text-sm; the template's tables are text-xs.
+ * Both font-size and line-height are set because row density comes from the
+ * line box, not from cell padding. */
+[data-slot="table"],
+[data-slot="table-caption"] {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+/* Border tone
+ * Stock TableRow and the default Sidebar container inherit currentColor for
+ * their borders; the template uses a muted border (border-muted/90) that the
+ * palette tokens cannot express as a border-color. */
+[data-slot="table-row"],
+[data-slot="sidebar-container"] {
+  border-color: color-mix(in oklab, var(--muted) 90%, transparent);
+}
+
+/* Pagination disabled state
+ * Registry PaginationPrevious/Next render an `<a>` through Button's non-native
+ * render path, so `:disabled` never matches and the stock `disabled:` styles
+ * do not apply. Callers mark an edge page with `aria-disabled` and omit its
+ * click handler; this restores the stock disabled treatment (non-interactive,
+ * half opacity) without editing the vendored component. */
+[data-slot="pagination-link"][aria-disabled="true"] {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* Focus-ring width
+ * Stock base-nova uses a 3px ring (ring-3 / ring-[3px]); the template uses
+ * 1px. Override the Tailwind ring variable rather than `box-shadow` so ring
+ * colour (including ring-ring/50), offsets, and inset variants stay intact.
+ * Covers buttons, pagination links, text fields, selects, combobox chips,
+ * checkboxes, input groups, field labels that own a focus ring, and calendar
+ * day cells. PaginationLink renders an `<a>` with its own `data-slot`, so it
+ * needs its own entry. Surfaces with a 1px surface ring (popover/select/menu
+ * content) and the sidebar's 2px focus ring are intentionally untouched. */
+[data-slot="button"],
+[data-slot="pagination-link"],
+[data-slot="input"],
+[data-slot="textarea"],
+[data-slot="select-trigger"],
+[data-slot="checkbox"],
+[data-slot="input-group"],
+[data-slot="combobox-chips"],
+[data-slot="field-label"],
+[data-slot="calendar"] [data-day] {
+  --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(1px + var(--tw-ring-offset-width))
+    var(--tw-ring-color, currentcolor);
+}
+
+/* Compact control height
+ * No height override is required today: the registry's control sizes already
+ * match the template's compact scale (button h-8/h-7/h-6, input and select
+ * h-8/h-7, sidebar menu h-8/h-7, calendar cells --spacing(7)). When a later
+ * registry default expands a control, add its data-slot to a height rule here
+ * rather than starting a new block. */
+
+/* Dropdown-menu density
+ * Registry 4.23.0 tightened rows to py-1/px-1.5/gap-1.5, added popup padding
+ * (p-1), separator spacing (my-1), and a medium-weight group label. The
+ * template's menus keep the roomier py-2/px-2/gap-2 rows, flush popups, and a
+ * regular-weight label, so restore those metrics in the theme layer. Inset
+ * rows keep their registry pl-7 indent. */
+[data-slot="dropdown-menu-content"],
+[data-slot="dropdown-menu-sub-content"] {
+  padding: 0;
+}
+
+[data-slot="dropdown-menu-item"],
+[data-slot="dropdown-menu-sub-trigger"],
+[data-slot="dropdown-menu-checkbox-item"],
+[data-slot="dropdown-menu-radio-item"] {
+  padding-block: 0.5rem;
+  gap: 0.5rem;
+}
+
+[data-slot="dropdown-menu-label"] {
+  padding-block: 0.5rem;
+  font-weight: 400;
+}
+
+[data-slot="dropdown-menu-item"]:not([data-inset="true"]),
+[data-slot="dropdown-menu-sub-trigger"]:not([data-inset="true"]),
+[data-slot="dropdown-menu-label"]:not([data-inset="true"]) {
+  padding-inline: 0.5rem;
+}
+
+[data-slot="dropdown-menu-checkbox-item"]:not([data-inset="true"]),
+[data-slot="dropdown-menu-radio-item"]:not([data-inset="true"]) {
+  padding-left: 0.5rem;
+}
+
+[data-slot="dropdown-menu-separator"] {
+  margin-block: 0;
+}
+

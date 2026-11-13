@@ -5,6 +5,7 @@ import { cn } from "cn"
 
 import { Button } from "@workspace/ui/components/button"
 import { Calendar } from "@workspace/ui/components/calendar"
+import { FocusableCalendarDayButton } from "@workspace/ui/components/calendar-focus"
 import {
   Popover,
   PopoverContent,
@@ -311,6 +312,7 @@ export const DateRangePicker = React.forwardRef<
         captionLayout="dropdown"
         startMonth={startMonth}
         endMonth={endMonth}
+        components={{ DayButton: FocusableCalendarDayButton }}
         autoFocus
       />
 

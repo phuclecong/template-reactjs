@@ -24,8 +24,6 @@ export const en = {
     title: "Dashboard",
     signOut: "Sign out",
     toggleSidebar: "Toggle sidebar",
-    sidebar: "Sidebar",
-    sidebarDescription: "Displays the mobile sidebar.",
     nav: {
       tasks: "Tasks",
       users: "Users",

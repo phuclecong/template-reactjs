@@ -29,23 +29,40 @@ const SEGMENT_LABELS: Record<string, string> = {
   settings: "shell.nav.settings",
 }
 
+const SIDEBAR_COOKIE_NAME = "sidebar_state"
+
+/**
+ * The registry `SidebarProvider` persists the collapsed rail to the
+ * `sidebar_state` cookie but never reads it. This SPA has no server layout to
+ * hydrate the initial state, so the app shell restores it here and passes it
+ * in as `defaultOpen` (ADR-0009 keeps the vendored file unedited).
+ */
+function readSidebarCookie(fallback: boolean): boolean {
+  if (typeof document === "undefined") return fallback
+  const match = document.cookie.match(
+    new RegExp(`(?:^|; )${SIDEBAR_COOKIE_NAME}=([^;]*)`)
+  )
+  return match ? match[1] === "true" : fallback
+}
+
 /**
  * Client shell for every `/dashboard/*` route: a collapsible sidebar (icon
  * rail on desktop, Sheet drawer on mobile) plus a content inset with a sticky
- * header. The server layout resolves the session and the persisted sidebar
- * state and passes them in as props.
+ * header. The shell is the app-owned seam that restores the persisted sidebar
+ * state; the registry provider only writes the cookie.
  */
 export function DashboardShell({
   user,
-  defaultOpen = true,
   children,
 }: {
   user: DashboardUser
-  defaultOpen?: boolean
   children: React.ReactNode
 }) {
   const { t } = useTranslation()
   const { pathname } = useLocation()
+  // Read once on mount so later toggles (which write the cookie) do not
+  // overwrite the provider's internal state.
+  const [defaultOpen] = React.useState(() => readSidebarCookie(true))
 
   // Everything after the leading "dashboard" segment, e.g. ["tasks"].
   const routeSegments = (pathname ?? "").split("/").filter(Boolean).slice(1)
@@ -66,17 +83,12 @@ export function DashboardShell({
   return (
     <TooltipProvider>
       <SidebarProvider defaultOpen={defaultOpen}>
-        <AppSidebar
-          user={user}
-          collapsible="icon"
-          title={t("shell.sidebar")}
-          description={t("shell.sidebarDescription")}
-        />
+        <AppSidebar user={user} collapsible="icon" />
         <SidebarInset>
           <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-2 border-b border-muted/90 bg-background px-4">
             <SidebarTrigger
+              aria-label={t("shell.toggleSidebar")}
               className="-ml-1"
-              label={t("shell.toggleSidebar")}
             />
             <Breadcrumb>
               <BreadcrumbList>

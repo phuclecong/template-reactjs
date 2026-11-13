@@ -1,5 +1,6 @@
 import { useState } from "react"
 import type { Meta, StoryObj } from "@storybook/react"
+import { expect, userEvent, waitFor, within } from "@storybook/test"
 
 import { Button } from "./button"
 import { ConfirmDialog } from "./confirm-dialog"
@@ -55,6 +56,43 @@ type Story = StoryObj<typeof meta>
 
 export const Danger: Story = {
   render: () => <ConfirmDialogDemo />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const trigger = canvas.getByRole("button", {
+      name: "Open confirm dialog",
+    })
+
+    await userEvent.click(trigger)
+
+    const dialog = await within(document.body).findByRole("alertdialog")
+    await expect(dialog).toHaveTextContent("Delete task")
+
+    // A forced decision cannot be dismissed with Escape.
+    await userEvent.keyboard("{Escape}")
+    await expect(
+      within(document.body).getByRole("alertdialog")
+    ).toBeVisible()
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Cancel" })
+    )
+    await waitFor(() =>
+      expect(
+        within(document.body).queryByRole("alertdialog")
+      ).not.toBeInTheDocument()
+    )
+
+    await userEvent.click(trigger)
+    const reopened = await within(document.body).findByRole("alertdialog")
+    await userEvent.click(
+      within(reopened).getByRole("button", { name: "Delete" })
+    )
+    await waitFor(() =>
+      expect(
+        within(document.body).queryByRole("alertdialog")
+      ).not.toBeInTheDocument()
+    )
+  },
 }
 
 export const Default: Story = {
