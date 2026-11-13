@@ -145,9 +145,12 @@
  * template's compact controls are text-xs. Covers Buttons, text fields,
  * selects, comboboxes, input groups, dropdown-menu items, popovers,
  * breadcrumbs, sidebar navigation, avatar group counts, and the calendar
- * frame. Text-xs also sets the 1rem line-height the template relies on. */
+ * frame. Text-xs also sets the 1rem line-height the template relies on. The
+ * input's file-selector button is included because stock sets its own
+ * text-sm, which would otherwise escape the field's compact typography. */
 [data-slot="button"],
 [data-slot="input"],
+[data-slot="input"]::file-selector-button,
 [data-slot="textarea"],
 [data-slot="select-trigger"],
 [data-slot="select-item"],
@@ -175,13 +178,14 @@
 }
 
 /* Control-label typography
- * Stock Label is text-sm; the template labels are text-xs. FieldLabel and
- * FieldTitle render through Label, so they need the field-label slot too.
- * Line-height is left alone: `leading-none` and `leading-snug` already match
- * stock. */
+ * Stock Label is text-sm and font-medium; the template labels are text-xs and
+ * normal weight. FieldLabel and FieldTitle render through Label, so they need
+ * the field-label slot too. Line-height is left alone: `leading-none` and
+ * `leading-snug` already match stock. */
 [data-slot="label"],
 [data-slot="field-label"] {
   font-size: 0.75rem;
+  font-weight: 400;
 }
 
 /* Description typography
@@ -215,6 +219,20 @@
 [data-slot="field-legend"][data-variant="legend"] {
   font-size: 0.875rem;
   line-height: 1.25rem;
+}
+
+/* Field legend spacing
+ * Registry 4.23.0 tightened the legend margin to mb-1.5; the template keeps
+ * its mb-2.5 rhythm between a legend and the fields it introduces. */
+[data-slot="field-legend"] {
+  margin-bottom: 0.625rem;
+}
+
+/* Field-label nested control padding
+ * When a FieldLabel wraps a Field (checkbox/radio cards), registry 4.23.0 uses
+ * p-2.5; the template's compact density uses p-2. */
+[data-slot="field-label"] > [data-slot="field"] {
+  padding: 0.5rem;
 }
 
 /* Sheet typography
