@@ -9,6 +9,10 @@ export const vi: Translation = {
     clear: "Xóa",
     done: "Xong",
   },
+  combobox: {
+    noResults: "Không tìm thấy kết quả.",
+    removeChip: "Xóa {{value}}",
+  },
   datePicker: {
     time: "Thời gian",
     typedLabel: "Ngày và giờ",

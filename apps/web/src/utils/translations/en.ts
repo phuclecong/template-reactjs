@@ -10,6 +10,10 @@ export const en = {
     clear: "Clear",
     done: "Done",
   },
+  combobox: {
+    noResults: "No results found.",
+    removeChip: "Remove {{value}}",
+  },
   datePicker: {
     time: "Time",
     typedLabel: "Date and time",
