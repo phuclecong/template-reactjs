@@ -177,6 +177,13 @@
   line-height: 1rem;
 }
 
+/* Sidebar group-label weight
+ * Stock base-nova renders sidebar section headings with font-medium; the
+ * template's compact navigation uses a regular-weight section label. */
+[data-slot="sidebar-group-label"] {
+  font-weight: 400;
+}
+
 /* Control-label typography
  * Stock Label is text-sm and font-medium; the template labels are text-xs and
  * normal weight. FieldLabel and FieldTitle render through Label, so they need
