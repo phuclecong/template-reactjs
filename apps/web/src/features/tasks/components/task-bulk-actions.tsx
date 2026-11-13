@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -45,26 +45,13 @@ type BulkActionGroup = {
   items: BulkActionItem[]
 }
 
-const collator = new Intl.Collator(undefined, {
-  usage: "search",
-  sensitivity: "base",
-  ignorePunctuation: true,
-})
-
 /**
- * Base UI filters each item by its label only. Bulk action search must also
- * match the group heading ("assign", "status", …), so the heading rides along
- * on every item and this custom filter searches both.
+ * Base UI's default collator matcher searches each item's label. Feeding it the
+ * group heading plus the item label lets "assign", "status", and "priority"
+ * match without a custom filter implementation.
  */
-function matchesAction(item: BulkActionItem, query: string): boolean {
-  if (!query) return true
-  const haystack = `${item.groupLabel} ${item.label}`
-  for (let i = 0; i <= haystack.length - query.length; i += 1) {
-    if (collator.compare(haystack.slice(i, i + query.length), query) === 0) {
-      return true
-    }
-  }
-  return false
+function actionSearchLabel(item: BulkActionItem): string {
+  return `${item.groupLabel} ${item.label}`
 }
 
 export function TaskBulkActions({
@@ -78,7 +65,7 @@ export function TaskBulkActions({
   hasSelection: boolean
   selectedCount: number
   users: UserOption[]
-  applyBulk: (patch: BulkPatch) => void
+  applyBulk: (patch: BulkPatch, options?: { onSettled?: () => void }) => void
   isApplying: boolean
   onCreate: () => void
 }) {
@@ -91,22 +78,6 @@ export function TaskBulkActions({
     item: BulkActionItem
     count: number
   } | null>(null)
-  const [submitted, setSubmitted] = useState(false)
-  const wasApplying = useRef(false)
-
-  // The confirmation stays up until an in-flight update settles, then closes.
-  useEffect(() => {
-    if (!submitted) return
-    if (isApplying) {
-      wasApplying.current = true
-      return
-    }
-    if (wasApplying.current) {
-      wasApplying.current = false
-      setSubmitted(false)
-      setPendingAction(null)
-    }
-  }, [submitted, isApplying])
 
   const groups = useMemo<BulkActionGroup[]>(() => {
     const statusLabel = t("tasks.filters.status")
@@ -186,15 +157,14 @@ export function TaskBulkActions({
 
   function handleCancel() {
     if (isApplying) return
-    setSubmitted(false)
-    wasApplying.current = false
     setPendingAction(null)
   }
 
   function handleConfirm() {
     if (!pendingAction) return
-    setSubmitted(true)
-    applyBulk(pendingAction.item.patch)
+    applyBulk(pendingAction.item.patch, {
+      onSettled: () => setPendingAction(null),
+    })
   }
 
   return (
@@ -213,7 +183,7 @@ export function TaskBulkActions({
           onValueChange={handleSelect}
           inputValue={search}
           onInputValueChange={setSearch}
-          filter={matchesAction}
+          itemToStringLabel={actionSearchLabel}
           disabled={!hasSelection}
         >
           <ComboboxTrigger
@@ -291,6 +261,9 @@ export function TaskBulkActions({
         onClose={handleCancel}
         title={t("tasks.bulk.confirmTitle", {
           action: pendingAction?.item.label ?? "",
+          count: pendingAction?.count ?? 0,
+        })}
+        description={t("tasks.bulk.confirmBody", {
           count: pendingAction?.count ?? 0,
         })}
         confirmLabel={t("tasks.bulk.apply")}

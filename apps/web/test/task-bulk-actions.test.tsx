@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { ComponentProps } from "react"
-import { fireEvent, render, screen, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { I18nextProvider } from "react-i18next"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -239,6 +239,10 @@ describe("TaskBulkActions actions combobox", () => {
       name: 'Apply "done" to 3 tasks?',
     })
     expect(dialog).toBeVisible()
+    // The confirmation explains the scope of the update.
+    expect(
+      within(dialog).getByText("This will update 3 selected tasks.")
+    ).toBeVisible()
     // Selecting an action closes the action popup before the confirmation.
     expect(screen.queryByRole("listbox")).toBeNull()
 
@@ -260,7 +264,10 @@ describe("TaskBulkActions actions combobox", () => {
       })
     )
 
-    expect(applyBulk).toHaveBeenCalledWith({ status: "done" })
+    expect(applyBulk).toHaveBeenCalledWith(
+      { status: "done" },
+      expect.objectContaining({ onSettled: expect.any(Function) })
+    )
   })
 
   it("keeps the confirmation open and disables Apply while the update is in flight", async () => {
@@ -272,11 +279,18 @@ describe("TaskBulkActions actions combobox", () => {
     await user.click(screen.getByRole("button", { name: "Apply" }))
     expect(applyBulk).toHaveBeenCalledTimes(1)
 
+    // Settlement is delivered through the mutation callback, not an effect.
+    const onSettled = applyBulk.mock.calls[0]?.[1]?.onSettled as
+      | (() => void)
+      | undefined
+    expect(onSettled).toBeTypeOf("function")
+
     rerender(bulkUi(applyBulk, { isApplying: true }))
 
     expect(screen.getByRole("alertdialog")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled()
 
+    act(() => onSettled?.())
     rerender(bulkUi(applyBulk, { isApplying: false }))
 
     expect(screen.queryByRole("alertdialog")).toBeNull()
@@ -294,7 +308,10 @@ describe("TaskBulkActions actions combobox", () => {
     })
     await user.click(within(dialog).getByRole("button", { name: "Apply" }))
 
-    expect(applyBulk).toHaveBeenCalledWith({ dueDate: null })
+    expect(applyBulk).toHaveBeenCalledWith(
+      { dueDate: null },
+      expect.objectContaining({ onSettled: expect.any(Function) })
+    )
   })
 
   it("maps the None priority action to a null priority", async () => {
@@ -305,7 +322,10 @@ describe("TaskBulkActions actions combobox", () => {
     await chooseAction(user, "None")
     await user.click(screen.getByRole("button", { name: "Apply" }))
 
-    expect(applyBulk).toHaveBeenCalledWith({ priority: null })
+    expect(applyBulk).toHaveBeenCalledWith(
+      { priority: null },
+      expect.objectContaining({ onSettled: expect.any(Function) })
+    )
   })
 
   it("applies a named assignee", async () => {
@@ -316,7 +336,10 @@ describe("TaskBulkActions actions combobox", () => {
     await chooseAction(user, "Ada Admin")
     await user.click(screen.getByRole("button", { name: "Apply" }))
 
-    expect(applyBulk).toHaveBeenCalledWith({ assigneeId: "usr_admin" })
+    expect(applyBulk).toHaveBeenCalledWith(
+      { assigneeId: "usr_admin" },
+      expect.objectContaining({ onSettled: expect.any(Function) })
+    )
   })
 
   it("maps Unassigned to a null assignee", async () => {
@@ -327,6 +350,9 @@ describe("TaskBulkActions actions combobox", () => {
     await chooseAction(user, "Unassigned")
     await user.click(screen.getByRole("button", { name: "Apply" }))
 
-    expect(applyBulk).toHaveBeenCalledWith({ assigneeId: null })
+    expect(applyBulk).toHaveBeenCalledWith(
+      { assigneeId: null },
+      expect.objectContaining({ onSettled: expect.any(Function) })
+    )
   })
 })
