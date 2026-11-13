@@ -87,5 +87,5 @@ export function useTaskBulkActions({
     [selectedIds, bulkMutation, invalidate, onDone, t]
   )
 
-  return { applyBulk }
+  return { applyBulk, isApplying: bulkMutation.mutation.isPending }
 }
