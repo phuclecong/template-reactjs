@@ -139,17 +139,23 @@ test("selects a row and applies a bulk status update", async ({ page }) => {
   await login(page, "admin@example.com", "adminpass")
   await openTasks(page)
 
-  // Bulk actions are faded (disabled) until a selection is made.
-  await expect(
-    page.getByRole("button", { name: "Update status" })
-  ).toBeDisabled()
+  // Bulk actions are disabled until a selection is made.
+  const bulkActions = page.getByRole("combobox", { name: "Bulk actions" })
+  await expect(bulkActions).toBeDisabled()
 
   const row = page.getByRole("row").filter({ hasText: "Build the MSW mock" })
   await row.getByRole("checkbox").click()
   await expect(page.getByText("1 selected")).toBeVisible()
 
-  await page.getByRole("button", { name: "Update status" }).click()
-  await page.getByRole("menuitem", { name: "done" }).click()
+  await bulkActions.click()
+  await page.getByRole("option", { name: "done" }).click()
+
+  // Every discrete action is confirmed before it is applied.
+  const confirmation = page.getByRole("alertdialog", {
+    name: 'Apply "done" to 1 tasks?',
+  })
+  await expect(confirmation).toBeVisible()
+  await confirmation.getByRole("button", { name: "Apply" }).click()
 
   await expect(page.getByText("Updated 1 tasks")).toBeVisible()
 })
