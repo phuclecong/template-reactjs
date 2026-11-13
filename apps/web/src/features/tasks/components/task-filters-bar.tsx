@@ -1,7 +1,22 @@
 import { useTranslation } from "react-i18next"
 import { Button } from "@workspace/ui/components/button"
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChipRemove,
+  ComboboxChips,
+  ComboboxClear,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxIcon,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+} from "@workspace/ui/components/combobox"
 import { DateRangePicker } from "@workspace/ui/components/date-range-picker"
 import { Input } from "@workspace/ui/components/input"
+import { InputGroup } from "@workspace/ui/components/input-group"
 import { resolveLocale } from "@workspace/ui/lib/date"
 import {
   Select,
@@ -13,6 +28,8 @@ import {
 import {
   PRIORITY_OPTIONS,
   STATUS_OPTIONS,
+  joinFilterValues,
+  parseFilterValues,
   type TaskFilters,
   type UserOption,
 } from "@/features/tasks/utils"
@@ -34,6 +51,7 @@ export function TaskFiltersBar({
 }) {
   const { t, i18n } = useTranslation()
   const { status, priority, assignee, dueFrom, dueTo } = values
+  const statusValues = parseFilterValues(status)
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -44,22 +62,63 @@ export function TaskFiltersBar({
         placeholder={t("tasks.searchPlaceholder")}
         className="w-72"
       />
-      <Select
-        value={status}
-        onValueChange={(value) => onChange({ ...values, status: value ?? "" })}
+      <Combobox
+        multiple
+        items={STATUS_OPTIONS}
+        value={statusValues}
+        onValueChange={(next) =>
+          onChange({ ...values, status: joinFilterValues(next) })
+        }
+        onOpenChange={(open, details) => {
+          // Multi-select: picking a value must not close the popup, so several
+          // statuses can be chosen from one query.
+          if (!open && details.reason === "item-press") details.cancel()
+        }}
       >
-        <SelectTrigger aria-label={t("tasks.filters.status")}>
-          <SelectValue placeholder={t("tasks.filters.status")} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="">{t("tasks.filters.all")}</SelectItem>
-          {STATUS_OPTIONS.map((option) => (
-            <SelectItem key={option} value={option}>
-              {t(`tasks.status.${option}`)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+        <InputGroup className="h-auto min-h-8 w-56 flex-wrap items-center py-1">
+          <ComboboxValue>
+            {(selected: string[]) => (
+              <ComboboxChips className="min-w-0 flex-1">
+                {selected.map((value) => {
+                  const label = t(`tasks.status.${value}`)
+                  return (
+                    <ComboboxChip key={value} aria-label={label}>
+                      {label}
+                      <ComboboxChipRemove
+                        aria-label={t("combobox.removeChip", { value: label })}
+                      />
+                    </ComboboxChip>
+                  )
+                })}
+                <ComboboxInput
+                  aria-label={t("tasks.filters.status")}
+                  placeholder={
+                    selected.length > 0 ? "" : t("tasks.filters.all")
+                  }
+                  className="h-6 min-w-16 flex-1 border-0 bg-transparent px-1 py-0 shadow-none ring-0 focus-visible:ring-0 dark:bg-transparent"
+                />
+              </ComboboxChips>
+            )}
+          </ComboboxValue>
+          {statusValues.length > 0 && (
+            <ComboboxClear aria-label={t("common.clear")} />
+          )}
+          <ComboboxIcon
+            aria-hidden="true"
+            className="pointer-events-none mr-1.5"
+          />
+        </InputGroup>
+        <ComboboxContent>
+          <ComboboxEmpty>{t("combobox.noResults")}</ComboboxEmpty>
+          <ComboboxList>
+            {(option: string) => (
+              <ComboboxItem key={option} value={option}>
+                {t(`tasks.status.${option}`)}
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
 
       <Select
         value={priority}

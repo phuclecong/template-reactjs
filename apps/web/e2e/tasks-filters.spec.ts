@@ -32,7 +32,7 @@ async function showMonth(page: Page, year: string, month: string) {
   await firstMonth.getByLabel("Choose the Month").selectOption(month)
 }
 
-test("filters the table by status", async ({ page }) => {
+test("filters the table by several statuses", async ({ page }) => {
   await login(page, "admin@example.com", "adminpass")
   await openTasks(page)
 
@@ -40,11 +40,23 @@ test("filters the table by status", async ({ page }) => {
   await expect(page.getByText("Build the MSW mock")).toBeVisible()
 
   await page.getByLabel("Status").click()
-  await page.getByRole("option", { name: "done" }).click()
+  await page.getByRole("option", { name: "todo", exact: true }).click()
+  await page.getByRole("option", { name: "in-progress", exact: true }).click()
 
-  await expect(page).toHaveURL(/status=done/)
-  await expect(page.getByText("Author the OpenAPI contract")).toBeVisible()
-  await expect(page.getByText("Build the MSW mock")).toHaveCount(0)
+  // The URL keeps the selection comma-joined (URLSearchParams encodes it).
+  await expect(page).toHaveURL(/status=todo(?:%2C|,)in-progress/)
+  await expect(page.getByText("Draft the release notes #3")).toBeVisible()
+  await expect(page.getByText("Build the MSW mock")).toBeVisible()
+  await expect(page.getByText("Author the OpenAPI contract")).toHaveCount(0)
+  await expect(page.getByText("Refactor the auth provider #6")).toHaveCount(0)
+
+  // Removing a chip narrows the filter without clearing it entirely.
+  await page.getByRole("button", { name: "Remove todo" }).click()
+
+  await expect(page).toHaveURL(/status=in-progress/)
+  await expect(page).not.toHaveURL(/status=.*todo/)
+  await expect(page.getByText("Build the MSW mock")).toBeVisible()
+  await expect(page.getByText("Draft the release notes #3")).toHaveCount(0)
 })
 
 test("selects a row and applies a bulk status update", async ({ page }) => {
