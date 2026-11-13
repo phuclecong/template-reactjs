@@ -11,7 +11,12 @@
  * `.dark` to the root swaps in the token set below.
  */
 :root {
-  --radius: 0.2rem;
+  /*
+   * Radius is a token, not a component edit: registry `rounded-*` classes
+   * resolve to 0 so every surface keeps the template's square look.
+   * `rounded-full` is intentionally unaffected.
+   */
+  --radius: 0rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -101,10 +106,10 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-sm: 0rem;
+  --radius-md: 0rem;
+  --radius-lg: 0rem;
+  --radius-xl: 0rem;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -118,7 +123,158 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-2xl: 0rem;
+  --radius-3xl: 0rem;
+  --radius-4xl: 0rem;
 }
+
+/*
+ * Theme deviation layer (unlayered).
+ *
+ * Stock base-nova output is the source of truth (ADR-0009). The tokens above
+ * carry the palette and radius; this block restores the remaining template
+ * differences that tokens cannot express: control typography, focus-ring
+ * width, border tone, and compact density. It sits outside every cascade layer
+ * so it wins over Tailwind utilities, and it is keyed on `data-slot` attributes
+ * so registry updates never require touching a vendored file. Extend the
+ * grouped selector lists below instead of starting a new block.
+ */
+
+/* Control typography
+ * Stock base-nova controls are text-sm (inputs are text-base below md); the
+ * template's compact controls are text-xs. Covers Buttons, text fields,
+ * selects, comboboxes, input groups, dropdown-menu items, popovers,
+ * breadcrumbs, sidebar navigation, avatar group counts, and the calendar
+ * frame. Text-xs also sets the 1rem line-height the template relies on. */
+[data-slot="button"],
+[data-slot="input"],
+[data-slot="textarea"],
+[data-slot="select-trigger"],
+[data-slot="select-item"],
+[data-slot="combobox-input"],
+[data-slot="combobox-item"],
+[data-slot="combobox-empty"],
+[data-slot="combobox-chips"],
+[data-slot="input-group-addon"],
+[data-slot="input-group-text"],
+[data-slot="input-group-control"],
+[data-slot="dropdown-menu-item"],
+[data-slot="dropdown-menu-sub-trigger"],
+[data-slot="dropdown-menu-checkbox-item"],
+[data-slot="dropdown-menu-radio-item"],
+[data-slot="popover-content"],
+[data-slot="popover-header"],
+[data-slot="breadcrumb-list"],
+[data-slot="sidebar-group-content"],
+[data-slot="sidebar-menu-button"],
+[data-slot="sidebar-menu-sub-button"],
+[data-slot="avatar-group-count"],
+[data-slot="calendar"] {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+/* Control-label typography
+ * Stock Label is text-sm; the template labels are text-xs. FieldLabel and
+ * FieldTitle render through Label, so they need the field-label slot too.
+ * Line-height is left alone: `leading-none` and `leading-snug` already match
+ * stock. */
+[data-slot="label"],
+[data-slot="field-label"] {
+  font-size: 0.75rem;
+}
+
+/* Description typography
+ * Stock FieldDescription and PopoverDescription are text-sm; the template uses
+ * text-xs with the `relaxed` line-height. Covers the description-family text
+ * that sits beside controls inside fields and popovers. */
+[data-slot="field-description"],
+[data-slot="popover-description"] {
+  font-size: 0.75rem;
+  line-height: 1.625;
+}
+
+/* Field supporting text
+ * Stock FieldError and FieldSeparator are text-sm; the template uses text-xs.
+ * Kept separate from descriptions because the template gives those a relaxed
+ * line-height and this supporting text a normal one. */
+[data-slot="field-error"],
+[data-slot="field-separator"] {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+/* Field legend typography
+ * Stock renders the label variant at text-sm and the legend variant at
+ * text-base; the template uses text-xs and text-sm respectively. */
+[data-slot="field-legend"][data-variant="label"] {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+[data-slot="field-legend"][data-variant="legend"] {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+/* Sheet typography
+ * Stock SheetContent and SheetDescription are text-sm and SheetTitle is
+ * text-base; the template uses text-xs/relaxed content and a text-sm title. */
+[data-slot="sheet-content"],
+[data-slot="sheet-description"] {
+  font-size: 0.75rem;
+  line-height: 1.625;
+}
+
+[data-slot="sheet-title"] {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+/* Table density
+ * Stock Table and TableCaption are text-sm; the template's tables are text-xs.
+ * Both font-size and line-height are set because row density comes from the
+ * line box, not from cell padding. */
+[data-slot="table"],
+[data-slot="table-caption"] {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+/* Border tone
+ * Stock TableRow and the default Sidebar container inherit currentColor for
+ * their borders; the template uses a muted border (border-muted/90) that the
+ * palette tokens cannot express as a border-color. */
+[data-slot="table-row"],
+[data-slot="sidebar-container"] {
+  border-color: color-mix(in oklab, var(--muted) 90%, transparent);
+}
+
+/* Focus-ring width
+ * Stock base-nova uses a 3px ring (ring-3 / ring-[3px]); the template uses
+ * 1px. Override the Tailwind ring variable rather than `box-shadow` so ring
+ * colour (including ring-ring/50), offsets, and inset variants stay intact.
+ * Covers buttons, text fields, selects, combobox chips, checkboxes, input
+ * groups, field labels that own a focus ring, and calendar day cells.
+ * Surfaces with a 1px surface ring (popover/select/menu content) and the
+ * sidebar's 2px focus ring are intentionally untouched. */
+[data-slot="button"],
+[data-slot="input"],
+[data-slot="textarea"],
+[data-slot="select-trigger"],
+[data-slot="checkbox"],
+[data-slot="input-group"],
+[data-slot="combobox-chips"],
+[data-slot="field-label"],
+[data-slot="calendar"] [data-day] {
+  --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(1px + var(--tw-ring-offset-width))
+    var(--tw-ring-color, currentcolor);
+}
+
+/* Compact control height
+ * No height override is required today: the registry's control sizes already
+ * match the template's compact scale (button h-8/h-7/h-6, input and select
+ * h-8/h-7, sidebar menu h-8/h-7, calendar cells --spacing(7)). When a later
+ * registry default expands a control, add its data-slot to a height rule here
+ * rather than starting a new block. */
+
