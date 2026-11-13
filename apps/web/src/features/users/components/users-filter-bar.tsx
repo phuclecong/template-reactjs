@@ -3,16 +3,15 @@ import { useTranslation } from "react-i18next"
 import { Button } from "@workspace/ui/components/button"
 import {
   Combobox,
-  ComboboxClear,
   ComboboxContent,
   ComboboxEmpty,
-  ComboboxIcon,
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
 } from "@workspace/ui/components/combobox"
+import { InputGroupButton } from "@workspace/ui/components/input-group"
 import { Input } from "@workspace/ui/components/input"
-import { InputGroup } from "@workspace/ui/components/input-group"
+import { ChevronDownIcon, XIcon } from "lucide-react"
 import { ROLE_OPTIONS } from "@/features/users/utils"
 
 export function UsersFilterBar({
@@ -55,18 +54,28 @@ export function UsersFilterBar({
         value={selectedRole}
         onValueChange={(option) => onRoleChange(option?.value ?? "")}
       >
-        <InputGroup className="w-56">
-          <ComboboxInput
-            aria-label={t("users.filters.role")}
-            placeholder={t("users.filters.all")}
-            className="h-7 flex-1 border-0 bg-transparent px-2 shadow-none ring-0 focus-visible:ring-0 dark:bg-transparent"
-          />
-          <ComboboxClear aria-label={t("common.clear")} />
-          <ComboboxIcon
+        <ComboboxInput
+          aria-label={t("users.filters.role")}
+          placeholder={t("users.filters.all")}
+          showTrigger={false}
+          className="h-7 w-56"
+        >
+          {selectedRole ? (
+            <InputGroupButton
+              variant="ghost"
+              size="icon-xs"
+              aria-label={t("common.clear")}
+              className="mr-0.5"
+              onClick={() => onRoleChange("")}
+            >
+              <XIcon className="pointer-events-none" />
+            </InputGroupButton>
+          ) : null}
+          <ChevronDownIcon
             aria-hidden="true"
-            className="pointer-events-none mr-1.5"
+            className="pointer-events-none size-4 text-muted-foreground"
           />
-        </InputGroup>
+        </ComboboxInput>
         <ComboboxContent>
           <ComboboxEmpty>{t("combobox.noResults")}</ComboboxEmpty>
           <ComboboxList>
