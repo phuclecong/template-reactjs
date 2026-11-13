@@ -138,9 +138,12 @@ export const Single: Story = {
 
     await userEvent.click(input)
     await userEvent.type(input, "ban")
-    await userEvent.click(
+
+    await expect(
       within(document.body).getByRole("option", { name: "Banana" })
-    )
+    ).toBeVisible()
+
+    await userEvent.keyboard("{ArrowDown}{Enter}")
 
     await expect(input).toHaveValue("Banana")
   },
@@ -153,9 +156,8 @@ export const MultiWithChips: Story = {
     const input = canvas.getByRole("combobox", { name: "Fruit" })
 
     await userEvent.click(input)
-    await userEvent.click(
-      within(document.body).getByRole("option", { name: "Banana" })
-    )
+    await userEvent.type(input, "ban")
+    await userEvent.keyboard("{ArrowDown}{Enter}")
 
     await expect(
       canvas.getByRole("button", { name: "Remove Apple" })
@@ -190,9 +192,7 @@ export const Grouped: Story = {
       within(document.body).queryByRole("option", { name: "Apple" })
     ).not.toBeInTheDocument()
 
-    await userEvent.click(
-      within(document.body).getByRole("option", { name: "Carrot" })
-    )
+    await userEvent.keyboard("{ArrowDown}{Enter}")
 
     await expect(input).toHaveValue("Carrot")
   },
@@ -205,7 +205,6 @@ export const Disabled: Story = {
     const input = canvas.getByRole("combobox", { name: "Fruit" })
 
     await expect(input).toBeDisabled()
-    await userEvent.click(input)
     await expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
   },
 }
