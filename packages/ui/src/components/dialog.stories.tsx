@@ -1,5 +1,6 @@
 import { useState } from "react"
 import type { Meta, StoryObj } from "@storybook/react"
+import { expect, userEvent, waitFor, within } from "@storybook/test"
 
 import { Button } from "./button"
 import { Dialog } from "./dialog"
@@ -49,6 +50,37 @@ type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
   render: () => <DialogDemo title="Edit task" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const trigger = canvas.getByRole("button", { name: "Open dialog" })
+
+    await userEvent.click(trigger)
+
+    const dialog = await within(document.body).findByRole("dialog")
+    await expect(dialog).toHaveTextContent("Edit task")
+    await expect(
+      within(dialog).getByRole("button", { name: "Cancel" })
+    ).toBeVisible()
+
+    await userEvent.keyboard("{Escape}")
+    await waitFor(() =>
+      expect(
+        within(document.body).queryByRole("dialog")
+      ).not.toBeInTheDocument()
+    )
+
+    // The header close button is the other dismissal path.
+    await userEvent.click(trigger)
+    const reopened = await within(document.body).findByRole("dialog")
+    await userEvent.click(
+      within(reopened).getByRole("button", { name: "Close" })
+    )
+    await waitFor(() =>
+      expect(
+        within(document.body).queryByRole("dialog")
+      ).not.toBeInTheDocument()
+    )
+  },
 }
 
 export const WithDescription: Story = {

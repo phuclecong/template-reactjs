@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react"
+import { expect, userEvent, waitFor, within } from "@storybook/test"
 
 import { Button } from "./button"
 import {
@@ -34,4 +35,20 @@ export const Default: Story = {
       </SheetContent>
     </Sheet>
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const trigger = canvas.getByRole("button", { name: "Open sheet" })
+
+    await userEvent.click(trigger)
+
+    const sheet = await within(document.body).findByRole("dialog")
+    await expect(sheet).toHaveTextContent("Sheet title")
+
+    await userEvent.click(within(sheet).getByRole("button", { name: "Close" }))
+    await waitFor(() =>
+      expect(
+        within(document.body).queryByRole("dialog")
+      ).not.toBeInTheDocument()
+    )
+  },
 }
