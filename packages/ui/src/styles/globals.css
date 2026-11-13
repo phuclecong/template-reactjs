@@ -144,11 +144,14 @@
  * Stock base-nova controls are text-sm (inputs are text-base below md); the
  * template's compact controls are text-xs. Covers Buttons, text fields,
  * selects, comboboxes, input groups, dropdown-menu items, popovers,
- * breadcrumbs, sidebar navigation, avatar group counts, and the calendar
- * frame. Text-xs also sets the 1rem line-height the template relies on. The
- * input's file-selector button is included because stock sets its own
- * text-sm, which would otherwise escape the field's compact typography. */
+ * breadcrumbs, sidebar navigation, avatar group counts, the calendar frame,
+ * and pagination links. PaginationLink renders a Button as an `<a>` whose
+ * `data-slot` is its own, so it does not inherit the Button entry. Text-xs
+ * also sets the 1rem line-height the template relies on. The input's
+ * file-selector button is included because stock sets its own text-sm, which
+ * would otherwise escape the field's compact typography. */
 [data-slot="button"],
+[data-slot="pagination-link"],
 [data-slot="input"],
 [data-slot="input"]::file-selector-button,
 [data-slot="textarea"],
@@ -298,15 +301,28 @@
   border-color: color-mix(in oklab, var(--muted) 90%, transparent);
 }
 
+/* Pagination disabled state
+ * Registry PaginationPrevious/Next render an `<a>` through Button's non-native
+ * render path, so `:disabled` never matches and the stock `disabled:` styles
+ * do not apply. Callers mark an edge page with `aria-disabled` and omit its
+ * click handler; this restores the stock disabled treatment (non-interactive,
+ * half opacity) without editing the vendored component. */
+[data-slot="pagination-link"][aria-disabled="true"] {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
 /* Focus-ring width
  * Stock base-nova uses a 3px ring (ring-3 / ring-[3px]); the template uses
  * 1px. Override the Tailwind ring variable rather than `box-shadow` so ring
  * colour (including ring-ring/50), offsets, and inset variants stay intact.
- * Covers buttons, text fields, selects, combobox chips, checkboxes, input
- * groups, field labels that own a focus ring, and calendar day cells.
- * Surfaces with a 1px surface ring (popover/select/menu content) and the
- * sidebar's 2px focus ring are intentionally untouched. */
+ * Covers buttons, pagination links, text fields, selects, combobox chips,
+ * checkboxes, input groups, field labels that own a focus ring, and calendar
+ * day cells. PaginationLink renders an `<a>` with its own `data-slot`, so it
+ * needs its own entry. Surfaces with a 1px surface ring (popover/select/menu
+ * content) and the sidebar's 2px focus ring are intentionally untouched. */
 [data-slot="button"],
+[data-slot="pagination-link"],
 [data-slot="input"],
 [data-slot="textarea"],
 [data-slot="select-trigger"],

@@ -10,8 +10,8 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-  paginationItems,
 } from "./pagination"
+import { paginationItems } from "../lib/pagination"
 
 function PaginationDemo({
   pageCount = 5,
@@ -27,8 +27,11 @@ function PaginationDemo({
       <PaginationContent>
         <PaginationItem>
           <PaginationPrevious
-            disabled={page <= 1}
-            onClick={() => setPage((current) => current - 1)}
+            aria-disabled={page <= 1 || undefined}
+            tabIndex={page <= 1 ? -1 : undefined}
+            onClick={
+              page <= 1 ? undefined : () => setPage((current) => current - 1)
+            }
           />
         </PaginationItem>
         {paginationItems(page, pageCount).map((item, index) =>
@@ -50,8 +53,13 @@ function PaginationDemo({
         )}
         <PaginationItem>
           <PaginationNext
-            disabled={page >= pageCount}
-            onClick={() => setPage((current) => current + 1)}
+            aria-disabled={page >= pageCount || undefined}
+            tabIndex={page >= pageCount ? -1 : undefined}
+            onClick={
+              page >= pageCount
+                ? undefined
+                : () => setPage((current) => current + 1)
+            }
           />
         </PaginationItem>
       </PaginationContent>
@@ -75,8 +83,8 @@ export const Default: Story = {
     const canvas = within(canvasElement)
 
     await expect(
-      canvas.getByRole("button", { name: "Previous page" })
-    ).toBeDisabled()
+      canvas.getByRole("button", { name: "Go to previous page" })
+    ).toHaveAttribute("aria-disabled", "true")
     await expect(
       canvas.getByRole("button", { name: "Page 1" })
     ).toHaveAttribute("aria-current", "page")
@@ -89,7 +97,9 @@ export const Default: Story = {
       canvas.getByRole("button", { name: "Page 1" })
     ).not.toHaveAttribute("aria-current")
 
-    await userEvent.click(canvas.getByRole("button", { name: "Next page" }))
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Go to next page" })
+    )
     await expect(
       canvas.getByRole("button", { name: "Page 3" })
     ).toHaveAttribute("aria-current", "page")
@@ -110,8 +120,8 @@ export const WithEllipsis: Story = {
       canvas.getByRole("button", { name: "Page 20" })
     ).toHaveAttribute("aria-current", "page")
     await expect(
-      canvas.getByRole("button", { name: "Next page" })
-    ).toBeDisabled()
+      canvas.getByRole("button", { name: "Go to next page" })
+    ).toHaveAttribute("aria-disabled", "true")
   },
 }
 
@@ -121,10 +131,10 @@ export const SinglePage: Story = {
     const canvas = within(canvasElement)
 
     await expect(
-      canvas.getByRole("button", { name: "Previous page" })
-    ).toBeDisabled()
+      canvas.getByRole("button", { name: "Go to previous page" })
+    ).toHaveAttribute("aria-disabled", "true")
     await expect(
-      canvas.getByRole("button", { name: "Next page" })
-    ).toBeDisabled()
+      canvas.getByRole("button", { name: "Go to next page" })
+    ).toHaveAttribute("aria-disabled", "true")
   },
 }
