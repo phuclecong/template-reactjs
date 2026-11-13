@@ -67,6 +67,12 @@ export const Danger: Story = {
     const dialog = await within(document.body).findByRole("alertdialog")
     await expect(dialog).toHaveTextContent("Delete task")
 
+    // A forced decision cannot be dismissed with Escape.
+    await userEvent.keyboard("{Escape}")
+    await expect(
+      within(document.body).getByRole("alertdialog")
+    ).toBeVisible()
+
     await userEvent.click(
       within(dialog).getByRole("button", { name: "Cancel" })
     )

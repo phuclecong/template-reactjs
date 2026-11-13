@@ -3,7 +3,16 @@ import type { Meta, StoryObj } from "@storybook/react"
 import { expect, userEvent, waitFor, within } from "@storybook/test"
 
 import { Button } from "./button"
-import { Dialog } from "./dialog"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./dialog"
 
 function DialogDemo({
   title,
@@ -13,27 +22,29 @@ function DialogDemo({
   description?: string
 }) {
   const [open, setOpen] = useState(false)
+
   return (
-    <>
-      <Button onClick={() => setOpen(true)}>Open dialog</Button>
-      <Dialog
-        open={open}
-        onClose={() => setOpen(false)}
-        title={title}
-        description={description}
-      >
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button />}>Open dialog</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          {description !== undefined ? (
+            <DialogDescription>{description}</DialogDescription>
+          ) : null}
+        </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Dialog body content goes here. Focus is trapped while open; Escape and
-          the backdrop close it.
+          Dialog body content goes here. Focus is trapped while open; Escape, the
+          backdrop, and the close button all dismiss it.
         </p>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setOpen(false)}>
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" />}>
             Cancel
-          </Button>
+          </DialogClose>
           <Button onClick={() => setOpen(false)}>Confirm</Button>
-        </div>
-      </Dialog>
-    </>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -42,7 +53,6 @@ const meta = {
   component: Dialog,
   parameters: { layout: "centered" },
   tags: ["autodocs"],
-  args: { open: false, onClose: () => {}, title: "Dialog", children: null },
 } satisfies Meta<typeof Dialog>
 
 export default meta
@@ -62,6 +72,7 @@ export const Default: Story = {
       within(dialog).getByRole("button", { name: "Cancel" })
     ).toBeVisible()
 
+    // Escape is a safe dismissal path for a form/view dialog.
     await userEvent.keyboard("{Escape}")
     await waitFor(() =>
       expect(
