@@ -6,6 +6,7 @@ import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 
 import { Button } from "@workspace/ui/components/button"
 import { Calendar } from "@workspace/ui/components/calendar"
+import { FocusableCalendarDayButton } from "@workspace/ui/components/calendar-focus"
 import { Popover, PopoverContent } from "@workspace/ui/components/popover"
 import { Sheet, SheetContent, SheetTitle } from "@workspace/ui/components/sheet"
 import { useIsMobile } from "@workspace/ui/hooks/use-mobile"
@@ -355,6 +356,7 @@ export function DatePicker({
         captionLayout="dropdown"
         startMonth={monthBounds.startMonth}
         endMonth={monthBounds.endMonth}
+        components={{ DayButton: FocusableCalendarDayButton }}
         autoFocus
       />
       <div className="flex flex-col gap-2 border-t p-2">
