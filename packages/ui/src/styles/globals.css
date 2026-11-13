@@ -1,14 +1,14 @@
 @import "tailwindcss";
-@source "../../../apps/**/*.{ts,tsx}";
-@source "../../../components/**/*.{ts,tsx}";
+@source "../../../../apps/**/*.{ts,tsx}";
+@source "../../../../packages/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
 @custom-variant dark (&:is(.dark *));
 
 /*
  * The shadcn token base (Optimus Prime: blue primary + red accent over
- * zinc neutrals). Light is the single active mode; dark tokens are defined
- * so the deferred dark-mode toggle has no token work left.
+ * zinc neutrals). Dark mode ships via next-themes' class strategy: adding
+ * `.dark` to the root swaps in the token set below.
  */
 :root {
   --radius: 0.2rem;
