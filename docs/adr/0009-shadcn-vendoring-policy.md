@@ -33,9 +33,16 @@ survives as theme rather than as edits scattered through every file.
 - Primitives import `cn` from the `cn` package, because that is what the registry
   emits; `packages/ui/src/lib/utils.ts` stays as the configured alias and
   re-export.
-- Upgrades use `shadcn diff`; a local edit inside a vendored file is a bug, not a
+- Upgrades are reviewed with `shadcn add <item> --dry-run` (or `--diff`), which
+  the pinned CLI supports; a local edit inside a vendored file is a bug, not a
   customization.
-- Behaviour that the registry does not provide (SPA sidebar cookie restore) lives
-  at the app seam that composes the primitive, never inside it.
+- Two deliberate exceptions are excluded from the unedited check:
+  `hooks/use-mobile.ts` keeps the repo's coarse-pointer check (the CLI would
+  overwrite it with width-only `matchMedia`), and the repo-owned compositions
+  (`DatePicker`, `DateRangePicker`, `ConfirmDialog`, `calendar-focus.tsx`) are
+  maintained outside the vendored set.
+- Behaviour that the registry does not provide (SPA sidebar cookie restore, the
+  `paginationItems` window helper, the `toast` re-export) lives in a repo-owned
+  seam that composes the primitive, never inside it.
 - Density, radius, focus-ring width, and palette changes are CSS. Adding a
   component no longer requires restyling its file.
