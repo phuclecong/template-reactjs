@@ -10,6 +10,10 @@ export const en = {
     clear: "Clear",
     done: "Done",
   },
+  combobox: {
+    noResults: "No results found.",
+    removeChip: "Remove {{value}}",
+  },
   datePicker: {
     time: "Time",
     typedLabel: "Date and time",
@@ -93,9 +97,11 @@ export const en = {
       clear: "Clear filters",
     },
     bulk: {
-      updateStatus: "Update status",
-      updatePriority: "Update priority",
-      assign: "Assign",
+      actions: "Bulk actions",
+      searchActions: "Search actions",
+      apply: "Apply",
+      confirmTitle: 'Apply "{{action}}" to {{count}} tasks?',
+      confirmBody: "This will update {{count}} selected tasks.",
       none: "None",
       dueDate: "Due date",
       clearDueDate: "Clear due date",

@@ -82,6 +82,22 @@ type TaskFilterKey = "status" | "priority" | "assignee" | "dueFrom" | "dueTo"
 export type TaskFilters = Record<TaskFilterKey, string>
 
 /**
+ * Split a comma-joined URL filter value into trimmed, non-empty values.
+ * An empty value yields an empty list, which means "all values".
+ */
+export function parseFilterValues(value: string): string[] {
+  return value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
+/** Join selected values into the comma-joined value stored in the URL. */
+export function joinFilterValues(values: string[]): string {
+  return values.join(",")
+}
+
+/**
  * Convert the search query and URL filter values into the `CrudFilter[]` that
  * `@refinedev/core`'s `useList` understands. Empty values are skipped.
  *
@@ -92,16 +108,27 @@ export type TaskFilters = Record<TaskFilterKey, string>
 export function toCrudFilters(q: string, filters: TaskFilters): CrudFilter[] {
   const result: CrudFilter[] = []
   if (q) result.push({ field: "q", operator: "contains", value: q })
-  if (filters.status)
-    result.push({ field: "status", operator: "eq", value: filters.status })
-  if (filters.priority)
-    result.push({ field: "priority", operator: "eq", value: filters.priority })
-  if (filters.assignee)
-    result.push({
-      field: "assigneeId",
-      operator: "eq",
-      value: filters.assignee,
-    })
+  const statuses = parseFilterValues(filters.status)
+  const onlyStatus = statuses[0]
+  if (statuses.length > 1) {
+    result.push({ field: "status", operator: "in", value: statuses })
+  } else if (onlyStatus) {
+    result.push({ field: "status", operator: "eq", value: onlyStatus })
+  }
+  const priorities = parseFilterValues(filters.priority)
+  const onlyPriority = priorities[0]
+  if (priorities.length > 1) {
+    result.push({ field: "priority", operator: "in", value: priorities })
+  } else if (onlyPriority) {
+    result.push({ field: "priority", operator: "eq", value: onlyPriority })
+  }
+  const assignees = parseFilterValues(filters.assignee)
+  const onlyAssignee = assignees[0]
+  if (assignees.length > 1) {
+    result.push({ field: "assigneeId", operator: "in", value: assignees })
+  } else if (onlyAssignee) {
+    result.push({ field: "assigneeId", operator: "eq", value: onlyAssignee })
+  }
   if (dateOnlyToLocalDate(filters.dueFrom))
     result.push({
       field: "dueDate",

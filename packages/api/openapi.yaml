@@ -239,18 +239,36 @@ paths:
           description: Case-insensitive substring match on the title.
         - name: status
           in: query
+          style: form
+          explode: true
           schema:
-            $ref: "#/components/schemas/Status"
+            type: array
+            items:
+              $ref: "#/components/schemas/Status"
+          description: Repeat the parameter to match any of several statuses (OR).
         - name: priority
           in: query
+          style: form
+          explode: true
           schema:
-            type: string
-            enum: [low, medium, high]
+            type: array
+            items:
+              type: string
+              enum: [low, medium, high]
+          description: Repeat the parameter to match any of several priorities (OR).
         - name: assigneeId
           in: query
+          style: form
+          explode: true
           schema:
-            type: string
-          description: A user id, or the literal "unassigned" to match tasks with no assignee.
+            type: array
+            items:
+              type: string
+          description: >-
+            Repeat the parameter to match tasks assigned to any of several
+            users (OR). The literal "unassigned" matches tasks with no
+            assignee and can be combined with user ids.
+
         - name: dueDate_gte
           in: query
           schema:

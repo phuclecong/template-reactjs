@@ -633,10 +633,12 @@ export interface operations {
             query?: {
                 /** @description Case-insensitive substring match on the title. */
                 q?: string;
-                status?: components["schemas"]["Status"];
-                priority?: "low" | "medium" | "high";
-                /** @description A user id, or the literal "unassigned" to match tasks with no assignee. */
-                assigneeId?: string;
+                /** @description Repeat the parameter to match any of several statuses (OR). */
+                status?: components["schemas"]["Status"][];
+                /** @description Repeat the parameter to match any of several priorities (OR). */
+                priority?: ("low" | "medium" | "high")[];
+                /** @description Repeat the parameter to match tasks assigned to any of several users (OR). The literal "unassigned" matches tasks with no assignee and can be combined with user ids. */
+                assigneeId?: string[];
                 /** @description Inclusive lower bound on the due date as an ISO 8601 date-time. Date-only values are rejected. */
                 dueDate_gte?: string;
                 /** @description Inclusive upper bound on the due date as an ISO 8601 date-time. Date-only values are rejected. */

@@ -9,6 +9,10 @@ export const vi: Translation = {
     clear: "Xóa",
     done: "Xong",
   },
+  combobox: {
+    noResults: "Không tìm thấy kết quả.",
+    removeChip: "Xóa {{value}}",
+  },
   datePicker: {
     time: "Thời gian",
     typedLabel: "Ngày và giờ",
@@ -92,9 +96,11 @@ export const vi: Translation = {
       clear: "Xóa bộ lọc",
     },
     bulk: {
-      updateStatus: "Cập nhật trạng thái",
-      updatePriority: "Cập nhật mức ưu tiên",
-      assign: "Giao việc",
+      actions: "Hành động hàng loạt",
+      searchActions: "Tìm hành động",
+      apply: "Áp dụng",
+      confirmTitle: 'Áp dụng "{{action}}" cho {{count}} công việc?',
+      confirmBody: "Thao tác này sẽ cập nhật {{count}} công việc đã chọn.",
       none: "Không",
       dueDate: "Hạn chót",
       clearDueDate: "Xóa hạn chót",

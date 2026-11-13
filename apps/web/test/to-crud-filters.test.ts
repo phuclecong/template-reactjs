@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { toCrudFilters } from "@/features/tasks/utils"
+import {
+  joinFilterValues,
+  parseFilterValues,
+  toCrudFilters,
+} from "@/features/tasks/utils"
 
 const originalTimeZone = process.env.TZ
 
@@ -19,6 +23,31 @@ const emptyFilters = {
   dueTo: "",
 }
 
+describe("parseFilterValues", () => {
+  it("splits a comma-joined value into trimmed, non-empty values", () => {
+    expect(parseFilterValues("todo, in-progress ,, done")).toEqual([
+      "todo",
+      "in-progress",
+      "done",
+    ])
+  })
+
+  it("returns an empty list for an empty value", () => {
+    expect(parseFilterValues("")).toEqual([])
+    expect(parseFilterValues("  ,  ")).toEqual([])
+  })
+})
+
+describe("joinFilterValues", () => {
+  it("joins values with a comma", () => {
+    expect(joinFilterValues(["todo", "in-progress"])).toBe("todo,in-progress")
+  })
+
+  it("joins an empty list to an empty string", () => {
+    expect(joinFilterValues([])).toBe("")
+  })
+})
+
 describe("toCrudFilters", () => {
   it("returns an empty list when there is no query or filter", () => {
     expect(toCrudFilters("", emptyFilters)).toEqual([])
@@ -36,6 +65,54 @@ describe("toCrudFilters", () => {
     ).toEqual([
       { field: "status", operator: "eq", value: "done" },
       { field: "priority", operator: "eq", value: "high" },
+    ])
+  })
+
+  it("maps several statuses to an in filter", () => {
+    expect(
+      toCrudFilters("", {
+        ...emptyFilters,
+        status: "todo, in-progress,done",
+      })
+    ).toEqual([
+      {
+        field: "status",
+        operator: "in",
+        value: ["todo", "in-progress", "done"],
+      },
+    ])
+  })
+
+  it("ignores empty segments in the status value", () => {
+    expect(
+      toCrudFilters("", { ...emptyFilters, status: "done, ," })
+    ).toEqual([{ field: "status", operator: "eq", value: "done" }])
+  })
+
+  it("maps a single priority to an eq filter", () => {
+    expect(
+      toCrudFilters("", { ...emptyFilters, priority: "high" })
+    ).toEqual([{ field: "priority", operator: "eq", value: "high" }])
+  })
+
+  it("maps several priorities to an in filter", () => {
+    expect(
+      toCrudFilters("", { ...emptyFilters, priority: "low, high" })
+    ).toEqual([{ field: "priority", operator: "in", value: ["low", "high"] }])
+  })
+
+  it("maps several assignees to an in filter, keeping the unassigned sentinel", () => {
+    expect(
+      toCrudFilters("", {
+        ...emptyFilters,
+        assignee: "usr_admin,unassigned",
+      })
+    ).toEqual([
+      {
+        field: "assigneeId",
+        operator: "in",
+        value: ["usr_admin", "unassigned"],
+      },
     ])
   })
 

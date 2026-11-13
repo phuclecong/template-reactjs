@@ -32,7 +32,7 @@ async function showMonth(page: Page, year: string, month: string) {
   await firstMonth.getByLabel("Choose the Month").selectOption(month)
 }
 
-test("filters the table by status", async ({ page }) => {
+test("filters the table by several statuses", async ({ page }) => {
   await login(page, "admin@example.com", "adminpass")
   await openTasks(page)
 
@@ -40,28 +40,122 @@ test("filters the table by status", async ({ page }) => {
   await expect(page.getByText("Build the MSW mock")).toBeVisible()
 
   await page.getByLabel("Status").click()
-  await page.getByRole("option", { name: "done" }).click()
+  await page.getByRole("option", { name: "todo", exact: true }).click()
+  await page.getByRole("option", { name: "in-progress", exact: true }).click()
 
-  await expect(page).toHaveURL(/status=done/)
-  await expect(page.getByText("Author the OpenAPI contract")).toBeVisible()
-  await expect(page.getByText("Build the MSW mock")).toHaveCount(0)
+  // The URL keeps the selection comma-joined (URLSearchParams encodes it).
+  await expect(page).toHaveURL(/status=todo(?:%2C|,)in-progress/)
+  await expect(page.getByText("Draft the release notes #3")).toBeVisible()
+  await expect(page.getByText("Build the MSW mock")).toBeVisible()
+  await expect(page.getByText("Author the OpenAPI contract")).toHaveCount(0)
+  await expect(page.getByText("Refactor the auth provider #6")).toHaveCount(0)
+
+  // Removing a chip narrows the filter without clearing it entirely.
+  await page.getByRole("button", { name: "Remove todo" }).click()
+
+  await expect(page).toHaveURL(/status=in-progress/)
+  await expect(page).not.toHaveURL(/status=.*todo/)
+  await expect(page.getByText("Build the MSW mock")).toBeVisible()
+  await expect(page.getByText("Draft the release notes #3")).toHaveCount(0)
+})
+
+test("filters the table by several priorities", async ({ page }) => {
+  await login(page, "admin@example.com", "adminpass")
+  await openTasks(page)
+
+  await page.getByLabel("Priority").click()
+  await page.getByRole("option", { name: "low", exact: true }).click()
+  await page.getByRole("option", { name: "high", exact: true }).click()
+
+  // The URL keeps the selection comma-joined.
+  await expect(page).toHaveURL(/priority=low(?:%2C|,)high/)
+  // low and high rows remain; medium and no-priority rows disappear.
+  await expect(
+    page.getByText("Draft the release notes #3", { exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByText("Author the OpenAPI contract", { exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByText("Build the MSW mock", { exact: true })
+  ).toHaveCount(0)
+  await expect(
+    page.getByText("Refactor the auth provider #6", { exact: true })
+  ).toHaveCount(0)
+
+  // Removing a chip narrows the filter without clearing it entirely.
+  await page.getByRole("button", { name: "Remove low" }).click()
+
+  await expect(page).toHaveURL(/priority=high/)
+  await expect(page).not.toHaveURL(/priority=.*low/)
+  await expect(
+    page.getByText("Author the OpenAPI contract", { exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByText("Draft the release notes #3", { exact: true })
+  ).toHaveCount(0)
+})
+
+test("filters the table by several assignees including Unassigned", async ({
+  page,
+}) => {
+  await login(page, "admin@example.com", "adminpass")
+  await openTasks(page)
+
+  await page.getByLabel("Assignee").click()
+  await page.getByRole("option", { name: "Ada Admin" }).click()
+  await page.getByRole("option", { name: "Unassigned" }).click()
+
+  // The URL keeps the selection comma-joined, using ids and the sentinel.
+  await expect(page).toHaveURL(/assignee=usr_admin(?:%2C|,)unassigned/)
+  // Admin-owned and unassigned rows remain; member-owned rows disappear.
+  await expect(
+    page.getByText("Author the OpenAPI contract", { exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByText("Document the API contract #8", { exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByText("Build the MSW mock", { exact: true })
+  ).toHaveCount(0)
+  await expect(
+    page.getByText("Review the login flow #4", { exact: true })
+  ).toHaveCount(0)
+
+  // Removing the sentinel chip leaves only the named assignee.
+  await page.getByRole("button", { name: "Remove Unassigned" }).click()
+
+  await expect(page).toHaveURL(/assignee=usr_admin/)
+  await expect(page).not.toHaveURL(/assignee=.*unassigned/)
+  await expect(
+    page.getByText("Author the OpenAPI contract", { exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByText("Document the API contract #8", { exact: true })
+  ).toHaveCount(0)
 })
 
 test("selects a row and applies a bulk status update", async ({ page }) => {
   await login(page, "admin@example.com", "adminpass")
   await openTasks(page)
 
-  // Bulk actions are faded (disabled) until a selection is made.
-  await expect(
-    page.getByRole("button", { name: "Update status" })
-  ).toBeDisabled()
+  // Bulk actions are disabled until a selection is made.
+  const bulkActions = page.getByRole("combobox", { name: "Bulk actions" })
+  await expect(bulkActions).toBeDisabled()
 
   const row = page.getByRole("row").filter({ hasText: "Build the MSW mock" })
   await row.getByRole("checkbox").click()
   await expect(page.getByText("1 selected")).toBeVisible()
 
-  await page.getByRole("button", { name: "Update status" }).click()
-  await page.getByRole("menuitem", { name: "done" }).click()
+  await bulkActions.click()
+  await page.getByRole("option", { name: "done" }).click()
+
+  // Every discrete action is confirmed before it is applied.
+  const confirmation = page.getByRole("alertdialog", {
+    name: 'Apply "done" to 1 tasks?',
+  })
+  await expect(confirmation).toBeVisible()
+  await confirmation.getByRole("button", { name: "Apply" }).click()
 
   await expect(page.getByText("Updated 1 tasks")).toBeVisible()
 })

@@ -37,7 +37,7 @@ The relative urgency of a Task: `low`, `medium`, or `high`.
 _Avoid_: Severity, importance
 
 **Bulk action**:
-A single change applied to many Tasks at once, setting their Status, Priority, or Assignee.
+A single change applied to many Tasks at once, setting their Status, Priority, Assignee, or Due date.
 _Avoid_: Batch update, mass edit
 
 **Locale**:

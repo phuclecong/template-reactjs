@@ -23,6 +23,11 @@ type BulkUpdateResponse = {
   failed: { id: string; reason: string }[]
 }
 
+type ApplyBulkOptions = {
+  /** Runs once the mutation finishes, whether it succeeds or fails. */
+  onSettled?: () => void
+}
+
 /**
  * Write path for bulk task updates: apply a Status/Priority/Assignee patch to
  * the selected tasks via the tasks bulk endpoint, then invalidate the task
@@ -46,7 +51,7 @@ export function useTaskBulkActions({
   >({})
 
   const applyBulk = useCallback(
-    (patch: BulkPatch) => {
+    (patch: BulkPatch, options?: ApplyBulkOptions) => {
       if (selectedIds.length === 0) return
       bulkMutation.mutate(
         {
@@ -81,11 +86,12 @@ export function useTaskBulkActions({
             onDone(patch)
             void invalidate({ resource: "tasks", invalidates: ["list"] })
           },
+          onSettled: () => options?.onSettled?.(),
         }
       )
     },
     [selectedIds, bulkMutation, invalidate, onDone, t]
   )
 
-  return { applyBulk }
+  return { applyBulk, isApplying: bulkMutation.mutation.isPending }
 }

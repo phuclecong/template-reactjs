@@ -37,7 +37,7 @@ pnpm i
 pnpm dev
 ```
 
-2. Open the app at http://localhost:5174/
+2. Open the app at http://localhost:5173/
 
 3. Log in with a demo account
 
