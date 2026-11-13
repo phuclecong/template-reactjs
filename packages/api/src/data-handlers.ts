@@ -203,7 +203,9 @@ function listTasks(request: Request): Response {
 
   const url = new URL(request.url)
   const q = url.searchParams.get("q")?.trim().toLowerCase()
-  const statuses = url.searchParams.getAll("status")
+  const statuses = url.searchParams
+    .getAll("status")
+    .filter((value) => value !== "")
   const priorities = url.searchParams
     .getAll("priority")
     .filter((value) => value !== "")
@@ -221,6 +223,18 @@ function listTasks(request: Request): Response {
     return fail(
       "invalid_request",
       "priority must be one of: low, medium, high.",
+      400
+    )
+  }
+  const userIds = new Set(users.all().map((user) => user.id))
+  if (
+    assigneeIds.some(
+      (value) => value !== "unassigned" && !userIds.has(value)
+    )
+  ) {
+    return fail(
+      "invalid_request",
+      'assigneeId must be "unassigned" or an existing user id.',
       400
     )
   }

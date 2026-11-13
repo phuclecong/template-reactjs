@@ -348,6 +348,30 @@ describe("tasks", () => {
     expect(bothUsers.headers.get("x-total-count")).toBe("120")
   })
 
+  it("ignores an empty status parameter", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+
+    const res = await api("/api/tasks?status=", { token: accessToken })
+    expect(res.status).toBe(200)
+    expect(res.headers.get("x-total-count")).toBe("150")
+    const list = (await res.json()) as Array<{ status: string }>
+    expect(list).toHaveLength(150)
+  })
+
+  it("rejects an unknown assignee id with 400", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+
+    for (const path of [
+      "/api/tasks?assigneeId=usr_missing",
+      "/api/tasks?assigneeId=usr_admin&assigneeId=usr_missing",
+    ]) {
+      const res = await api(path, { token: accessToken })
+      expect(res.status).toBe(400)
+      const body = (await res.json()) as { code: string }
+      expect(body.code).toBe("invalid_request")
+    }
+  })
+
   it("rejects an invalid priority value with 400", async () => {
     const { accessToken } = await login("admin@example.com", "adminpass")
 
