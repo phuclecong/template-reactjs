@@ -115,7 +115,7 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
     q || status || priority || assignee || dueFrom || dueTo
   )
 
-  const { applyBulk } = useTaskBulkActions({
+  const { applyBulk, isApplying } = useTaskBulkActions({
     selectedIds,
     onDone: (patch) => {
       // An immediate Due-date set keeps the row selection and the picker open
@@ -230,6 +230,7 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
         selectedCount={selectedIds.length}
         users={users}
         applyBulk={applyBulk}
+        isApplying={isApplying}
         onCreate={formDialog.open}
       />
 

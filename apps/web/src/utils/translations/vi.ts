@@ -96,6 +96,10 @@ export const vi: Translation = {
       clear: "Xóa bộ lọc",
     },
     bulk: {
+      actions: "Hành động hàng loạt",
+      searchActions: "Tìm hành động",
+      apply: "Áp dụng",
+      confirmTitle: 'Áp dụng "{{action}}" cho {{count}} công việc?',
       updateStatus: "Cập nhật trạng thái",
       updatePriority: "Cập nhật mức ưu tiên",
       assign: "Giao việc",

@@ -97,6 +97,10 @@ export const en = {
       clear: "Clear filters",
     },
     bulk: {
+      actions: "Bulk actions",
+      searchActions: "Search actions",
+      apply: "Apply",
+      confirmTitle: 'Apply "{{action}}" to {{count}} tasks?',
       updateStatus: "Update status",
       updatePriority: "Update priority",
       assign: "Assign",
