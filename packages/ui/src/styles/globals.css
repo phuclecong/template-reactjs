@@ -197,6 +197,13 @@
   line-height: 1rem;
 }
 
+/* Sidebar group-label weight
+ * Stock base-nova renders sidebar section headings with font-medium; the
+ * template's compact navigation uses a regular-weight section label. */
+[data-slot="sidebar-group-label"] {
+  font-weight: 400;
+}
+
 /* Control-label typography
  * Stock Label is text-sm and font-medium; the template labels are text-xs and
  * normal weight. FieldLabel and FieldTitle render through Label, so they need
@@ -257,9 +264,12 @@
 
 /* Sheet typography
  * Stock SheetContent and SheetDescription are text-sm and SheetTitle is
- * text-base; the template uses text-xs/relaxed content and a text-sm title. */
+ * text-base; the template uses text-xs/relaxed content and a text-sm title.
+ * The sidebar's mobile drawer passes data-slot="sidebar" to SheetContent (to
+ * key its own layout), so the content font must also target that slot. */
 [data-slot="sheet-content"],
-[data-slot="sheet-description"] {
+[data-slot="sheet-description"],
+[data-slot="sidebar"][data-mobile="true"] {
   font-size: 0.75rem;
   line-height: 1.625;
 }
@@ -315,4 +325,43 @@
  * h-8/h-7, sidebar menu h-8/h-7, calendar cells --spacing(7)). When a later
  * registry default expands a control, add its data-slot to a height rule here
  * rather than starting a new block. */
+
+/* Dropdown-menu density
+ * Registry 4.23.0 tightened rows to py-1/px-1.5/gap-1.5, added popup padding
+ * (p-1), separator spacing (my-1), and a medium-weight group label. The
+ * template's menus keep the roomier py-2/px-2/gap-2 rows, flush popups, and a
+ * regular-weight label, so restore those metrics in the theme layer. Inset
+ * rows keep their registry pl-7 indent. */
+[data-slot="dropdown-menu-content"],
+[data-slot="dropdown-menu-sub-content"] {
+  padding: 0;
+}
+
+[data-slot="dropdown-menu-item"],
+[data-slot="dropdown-menu-sub-trigger"],
+[data-slot="dropdown-menu-checkbox-item"],
+[data-slot="dropdown-menu-radio-item"] {
+  padding-block: 0.5rem;
+  gap: 0.5rem;
+}
+
+[data-slot="dropdown-menu-label"] {
+  padding-block: 0.5rem;
+  font-weight: 400;
+}
+
+[data-slot="dropdown-menu-item"]:not([data-inset="true"]),
+[data-slot="dropdown-menu-sub-trigger"]:not([data-inset="true"]),
+[data-slot="dropdown-menu-label"]:not([data-inset="true"]) {
+  padding-inline: 0.5rem;
+}
+
+[data-slot="dropdown-menu-checkbox-item"]:not([data-inset="true"]),
+[data-slot="dropdown-menu-radio-item"]:not([data-inset="true"]) {
+  padding-left: 0.5rem;
+}
+
+[data-slot="dropdown-menu-separator"] {
+  margin-block: 0;
+}
 

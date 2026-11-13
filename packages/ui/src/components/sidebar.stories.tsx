@@ -54,7 +54,7 @@ export const Default: Story = {
         </Sidebar>
         <SidebarInset>
           <div className="flex items-center gap-2 p-2">
-            <SidebarTrigger label="Collapse sidebar" />
+            <SidebarTrigger />
             <span>Content</span>
           </div>
         </SidebarInset>
@@ -64,8 +64,9 @@ export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const sidebar = canvasElement.querySelector("[data-slot='sidebar']")
+    // Registry output labels the trigger with a fixed "Toggle Sidebar".
     const trigger = canvas.getByRole("button", {
-      name: "Collapse sidebar",
+      name: "Toggle Sidebar",
     })
 
     await expect(sidebar).toHaveAttribute("data-state", "expanded")
