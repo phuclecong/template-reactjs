@@ -76,10 +76,34 @@ export type TaskInput = ResolvedNullable<
 >
 
 /** Keys the task table reads from the URL query string. */
-type TaskFilterKey = "status" | "priority" | "assignee" | "dueFrom" | "dueTo"
+export const TASK_FILTER_KEYS = [
+  "status",
+  "priority",
+  "assignee",
+  "dueFrom",
+  "dueTo",
+] as const
+
+export type TaskFilterKey = (typeof TASK_FILTER_KEYS)[number]
 
 /** URL filter values for the task table. */
 export type TaskFilters = Record<TaskFilterKey, string>
+
+/**
+ * Every filter cleared. Derived from `TASK_FILTER_KEYS`, so adding a filter
+ * edits the key list once.
+ */
+export const EMPTY_TASK_FILTERS = Object.fromEntries(
+  TASK_FILTER_KEYS.map((key) => [key, ""])
+) as TaskFilters
+
+/**
+ * Compare two filter records by value, independent of object identity. Derived
+ * from the key list so every existing and future filter is compared.
+ */
+export function taskFiltersEqual(a: TaskFilters, b: TaskFilters): boolean {
+  return TASK_FILTER_KEYS.every((key) => a[key] === b[key])
+}
 
 /**
  * Split a comma-joined URL filter value into trimmed, non-empty values.

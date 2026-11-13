@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
+  EMPTY_TASK_FILTERS,
   joinFilterValues,
   parseFilterValues,
+  taskFiltersEqual,
   toCrudFilters,
 } from "@/features/tasks/utils"
 
@@ -45,6 +47,48 @@ describe("joinFilterValues", () => {
 
   it("joins an empty list to an empty string", () => {
     expect(joinFilterValues([])).toBe("")
+  })
+})
+
+describe("EMPTY_TASK_FILTERS", () => {
+  it("has every task filter key set to an empty string", () => {
+    expect(EMPTY_TASK_FILTERS).toEqual({
+      status: "",
+      priority: "",
+      assignee: "",
+      dueFrom: "",
+      dueTo: "",
+    })
+  })
+})
+
+describe("taskFiltersEqual", () => {
+  it("treats equal values as equal regardless of object identity", () => {
+    expect(
+      taskFiltersEqual({ ...EMPTY_TASK_FILTERS }, { ...EMPTY_TASK_FILTERS })
+    ).toBe(true)
+  })
+
+  it("detects a changed filter value", () => {
+    expect(
+      taskFiltersEqual(EMPTY_TASK_FILTERS, {
+        ...EMPTY_TASK_FILTERS,
+        priority: "high",
+      })
+    ).toBe(false)
+  })
+
+  it("compares every filter key", () => {
+    for (const key of Object.keys(EMPTY_TASK_FILTERS) as Array<
+      keyof typeof EMPTY_TASK_FILTERS
+    >) {
+      expect(
+        taskFiltersEqual(EMPTY_TASK_FILTERS, {
+          ...EMPTY_TASK_FILTERS,
+          [key]: "changed",
+        })
+      ).toBe(false)
+    }
   })
 })
 

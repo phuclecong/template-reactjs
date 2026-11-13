@@ -18,10 +18,12 @@ import { Input } from "@workspace/ui/components/input"
 import { ChevronDownIcon, XIcon } from "lucide-react"
 import { resolveLocale } from "@workspace/ui/lib/date"
 import {
+  EMPTY_TASK_FILTERS,
   PRIORITY_OPTIONS,
   STATUS_OPTIONS,
   joinFilterValues,
   parseFilterValues,
+  taskFiltersEqual,
   type TaskFilters,
   type UserOption,
 } from "@/features/tasks/utils"
@@ -136,17 +138,6 @@ function FilterCombobox({
   )
 }
 
-/** Compare two filter records by value, independent of object identity. */
-function sameFilters(a: TaskFilters, b: TaskFilters): boolean {
-  return (
-    a.status === b.status &&
-    a.priority === b.priority &&
-    a.assignee === b.assignee &&
-    a.dueFrom === b.dueFrom &&
-    a.dueTo === b.dueTo
-  )
-}
-
 export function TaskFiltersBar({
   searchValue,
   onSearchChange,
@@ -167,55 +158,51 @@ export function TaskFiltersBar({
   // The URL is the source of truth, but `navigate()` commits asynchronously.
   // Two option clicks can therefore land before the new `values` prop arrives,
   // and Base UI would compute the second selection from the stale committed
-  // value. Keep a synchronous optimistic draft (state + ref) so each change
-  // builds on the previous one, and pass the draft to the controls.
-  const [draft, setDraft] = useState<TaskFilters>(values)
-  const draftRef = useRef<TaskFilters>(values)
-  // The last value emitted upward whose URL echo has not arrived yet. While it
-  // is set, an incoming `values` prop may be an intermediate navigation echo,
-  // so the newer draft wins; once the URL matches, drop the marker.
-  const pendingRef = useRef<TaskFilters | null>(null)
+  // value. Keep a synchronous optimistic value (state + ref) so each change
+  // builds on the previous one, and pass it to the controls.
+  const [optimisticFilters, setOptimisticFilters] =
+    useState<TaskFilters>(values)
+  const optimisticFiltersRef = useRef<TaskFilters>(values)
+  // The last value committed upward whose URL echo has not arrived yet. While
+  // it is set, an incoming `values` prop may be an intermediate navigation
+  // echo, so the newer optimistic value wins; once the URL matches, drop the
+  // marker.
+  const unconfirmedFilters = useRef<TaskFilters | null>(null)
 
-  const setDraftValues = useCallback((next: TaskFilters) => {
-    draftRef.current = next
-    setDraft(next)
+  const updateOptimisticFilters = useCallback((next: TaskFilters) => {
+    optimisticFiltersRef.current = next
+    setOptimisticFilters(next)
   }, [])
 
-  const emit = useCallback(
+  const commitFilters = useCallback(
     (patch: Partial<TaskFilters>) => {
-      const next = { ...draftRef.current, ...patch }
-      pendingRef.current = next
-      setDraftValues(next)
+      const next = { ...optimisticFiltersRef.current, ...patch }
+      unconfirmedFilters.current = next
+      updateOptimisticFilters(next)
       onChange(next)
     },
-    [onChange, setDraftValues]
+    [onChange, updateOptimisticFilters]
   )
 
   useEffect(() => {
-    if (pendingRef.current) {
-      if (sameFilters(pendingRef.current, values)) {
-        pendingRef.current = null
-        setDraftValues(values)
+    if (unconfirmedFilters.current) {
+      if (taskFiltersEqual(unconfirmedFilters.current, values)) {
+        unconfirmedFilters.current = null
+        updateOptimisticFilters(values)
       }
       return
     }
     // No write in flight: the URL changed externally (back/forward, clear).
-    setDraftValues(values)
-  }, [values, setDraftValues])
+    updateOptimisticFilters(values)
+  }, [values, updateOptimisticFilters])
 
   const handleClear = useCallback(() => {
-    pendingRef.current = null
-    setDraftValues({
-      status: "",
-      priority: "",
-      assignee: "",
-      dueFrom: "",
-      dueTo: "",
-    })
+    unconfirmedFilters.current = null
+    updateOptimisticFilters({ ...EMPTY_TASK_FILTERS })
     onClear()
-  }, [onClear, setDraftValues])
+  }, [onClear, updateOptimisticFilters])
 
-  const { status, priority, assignee, dueFrom, dueTo } = draft
+  const { status, priority, assignee, dueFrom, dueTo } = optimisticFilters
   // Stable identities: Base UI re-syncs its selection when `items` changes, so
   // rebuilding these arrays/functions on every render can drop a rapid second
   // selection before the URL-driven `value` prop catches up.
@@ -256,7 +243,7 @@ export function TaskFiltersBar({
         items={STATUS_OPTIONS}
         labelFor={statusLabel}
         value={status}
-        onValueChange={(next) => emit({ status: next })}
+        onValueChange={(next) => commitFilters({ status: next })}
         ariaLabel={t("tasks.filters.status")}
         placeholder={t("tasks.filters.all")}
       />
@@ -265,7 +252,7 @@ export function TaskFiltersBar({
         items={PRIORITY_OPTIONS}
         labelFor={priorityLabel}
         value={priority}
-        onValueChange={(next) => emit({ priority: next })}
+        onValueChange={(next) => commitFilters({ priority: next })}
         ariaLabel={t("tasks.filters.priority")}
         placeholder={t("tasks.filters.all")}
       />
@@ -274,7 +261,7 @@ export function TaskFiltersBar({
         items={assigneeOptions}
         labelFor={assigneeLabel}
         value={assignee}
-        onValueChange={(next) => emit({ assignee: next })}
+        onValueChange={(next) => commitFilters({ assignee: next })}
         ariaLabel={t("tasks.filters.assignee")}
         placeholder={t("tasks.filters.all")}
       />
@@ -296,7 +283,7 @@ export function TaskFiltersBar({
         }}
         value={{ from: dueFrom, to: dueTo }}
         onChange={(next) =>
-          emit({
+          commitFilters({
             dueFrom: next.from,
             dueTo: next.to,
           })
