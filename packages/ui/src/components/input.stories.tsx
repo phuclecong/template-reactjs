@@ -21,6 +21,9 @@ export const Default: Story = {
     const canvas = within(canvasElement)
     const input = canvas.getByPlaceholderText("you@example.com")
 
+    await userEvent.click(input)
+    await expect(input).toHaveFocus()
+
     await userEvent.type(input, "paul@example.com")
     await expect(input).toHaveValue("paul@example.com")
   },
