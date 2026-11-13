@@ -19,7 +19,7 @@ Everything these skills build hangs off a **resource** (a task, a user, …). On
 | ------------- | --------------- | -------------------------------------------------------------------------------------------- |
 | The list      | `create-table`  | Server-paginated, sortable, filterable, URL-driven `DataTable`                               |
 | Create / edit | `create-form`   | react-hook-form + zod form, in a dialog or inline                                            |
-| Confirmations | `create-dialog` | A modal shell — dismissable `Dialog`, or `ConfirmDialog`/`AlertDialog` for a forced decision |
+| Confirmations | `create-dialog` | A modal shell — composable registry `Dialog` parts, or the repo-owned `ConfirmDialog` for a forced decision |
 
 So "add a users feature" is rarely one skill. It's a table (list), a form (create/edit), and a dialog or two (the form's shell + a delete confirmation). Say it plainly and the agent will pull in all three at the seams where they meet.
 
@@ -65,10 +65,12 @@ It adds a mock list handler in `packages/api/src/data-handlers.ts`, a `utils/` f
 
 ### `create-dialog`
 
-**Produces** a controlled modal driven by `useDialog` and one of two `@workspace/ui` primitives:
+**Produces** a controlled modal driven by `useDialog`, built from one of two `@workspace/ui` shapes:
 
-- `ConfirmDialog` (over `AlertDialog`) — a forced decision with no dismiss path. Use for destructive/irreversible actions like delete.
-- `Dialog` — dismissable (Escape, backdrop, close button). Use when backing out is harmless, e.g. a form the user can abandon.
+- `ConfirmDialog` — the repo-owned forced-choice composition over the registry `AlertDialog` parts. It keeps the same desktop API (`open`, `onClose`, `title`, `description`, `confirmLabel`, `cancelLabel`, `tone`, `loading`, `onConfirm`), renders `role="alertdialog"`, and has no dismiss path: Escape and outside clicks are rejected, and Cancel/Confirm are the only exits. Use it for destructive/irreversible actions like delete.
+- Composable `Dialog` parts — the registry's `Dialog` root plus `DialogTrigger`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter`, and `DialogClose`. The root is controlled (`open` / `onOpenChange`); Escape, the backdrop, and the header close button are safe dismissals. Use this when backing out is harmless, e.g. a form the user can abandon.
+
+The composable parts replace the old `{ open, onClose, title }` wrapper; there is no single import that takes a title/children anymore. Compose the parts instead of rendering raw modal markup.
 
 **Say things like:**
 
@@ -78,7 +80,7 @@ It adds a mock list handler in `packages/api/src/data-handlers.ts`, a `utils/` f
 
 **What the agent does** — holds `useDialog` in the parent (the table), wires a trigger button to `open(row)`, renders the shell, and keeps a confirmation's mutation at the call site. It keys mount-only content by `useDialog.version` so a reopened dialog re-reads its data.
 
-**Verify** — `pnpm --filter web typecheck` and `pnpm --filter web lint`. Check the dialog opens for the right row, and that a confirmation genuinely can't be dismissed by clicking outside.
+**Verify** — `pnpm --filter web typecheck` and `pnpm --filter web lint`. Check the dialog opens for the right row, that a dismissable dialog closes on Escape/the backdrop/Close, and that a confirmation genuinely can't be dismissed with Escape or an outside click.
 
 ## How they compose
 
