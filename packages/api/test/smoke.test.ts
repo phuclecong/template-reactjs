@@ -303,6 +303,88 @@ describe("tasks", () => {
     }
   })
 
+  it("filters by repeated priority values with OR semantics", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+
+    const res = await api("/api/tasks?priority=low&priority=high", {
+      token: accessToken,
+    })
+    expect(res.status).toBe(200)
+
+    const list = (await res.json()) as Array<{ priority: string }>
+    // low 37 + high 38 from the deterministic seed.
+    expect(res.headers.get("x-total-count")).toBe("75")
+    expect(list).toHaveLength(75)
+    expect(new Set(list.map((task) => task.priority))).toEqual(
+      new Set(["low", "high"])
+    )
+  })
+
+  it("filters by repeated assignees, treating unassigned as a missing assignee", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+
+    const withUnassigned = await api(
+      "/api/tasks?assigneeId=usr_admin&assigneeId=unassigned",
+      { token: accessToken }
+    )
+    expect(withUnassigned.status).toBe(200)
+    const mixed = (await withUnassigned.json()) as Array<{
+      assigneeId: string | null
+    }>
+    // usr_admin 60 + unassigned 30, no overlap.
+    expect(withUnassigned.headers.get("x-total-count")).toBe("90")
+    expect(mixed).toHaveLength(90)
+    for (const task of mixed) {
+      expect(task.assigneeId === null || task.assigneeId === "usr_admin").toBe(
+        true
+      )
+    }
+
+    const bothUsers = await api(
+      "/api/tasks?assigneeId=usr_admin&assigneeId=usr_member",
+      { token: accessToken }
+    )
+    expect(bothUsers.status).toBe(200)
+    expect(bothUsers.headers.get("x-total-count")).toBe("120")
+  })
+
+  it("rejects an invalid priority value with 400", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+
+    for (const path of [
+      "/api/tasks?priority=urgent",
+      "/api/tasks?priority=low&priority=urgent",
+    ]) {
+      const res = await api(path, { token: accessToken })
+      expect(res.status).toBe(400)
+      const body = (await res.json()) as { code: string }
+      expect(body.code).toBe("invalid_request")
+    }
+  })
+
+  it("combines repeated priority values with another filter using AND", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+
+    const res = await api(
+      "/api/tasks?priority=low&priority=high&status=todo",
+      { token: accessToken }
+    )
+    expect(res.status).toBe(200)
+
+    const list = (await res.json()) as Array<{
+      status: string
+      priority: string
+    }>
+    // In the seed, every todo task is low priority and every high-priority
+    // task is not todo, so only the 37 low/todo tasks match.
+    expect(res.headers.get("x-total-count")).toBe("37")
+    expect(list).toHaveLength(37)
+    for (const task of list) {
+      expect(task.status).toBe("todo")
+      expect(task.priority).toBe("low")
+    }
+  })
+
   it("combines repeated status values with another filter using AND", async () => {
     const { accessToken } = await login("admin@example.com", "adminpass")
 
