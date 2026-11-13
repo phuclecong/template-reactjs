@@ -25,11 +25,19 @@ afterEach(async () => {
   await i18n.changeLanguage("en")
 })
 
-function renderFilter(values: TaskFilters = emptyFilters) {
+const users = [
+  { id: "usr_admin", name: "Ada Admin" },
+  { id: "usr_member", name: "Mia Member" },
+]
+
+function renderFilter(
+  values: TaskFilters = emptyFilters,
+  filterUsers = users
+) {
   const props = {
     searchValue: "",
     onSearchChange: vi.fn(),
-    users: [],
+    users: filterUsers,
     onChange: vi.fn(),
     onClear: vi.fn(),
   }
@@ -58,7 +66,7 @@ function Harness({
         searchValue=""
         onSearchChange={() => {}}
         values={values}
-        users={[]}
+        users={users}
         onChange={(next) => {
           setValues(next)
           onChange(next)
@@ -171,5 +179,166 @@ describe("TaskFiltersBar status filter", () => {
     expect(
       await screen.findByRole("option", { name: "Việc cần làm" })
     ).toBeVisible()
+  })
+})
+
+describe("TaskFiltersBar priority filter", () => {
+  it("is a Priority combobox with a localized All placeholder and no All option", async () => {
+    const user = userEvent.setup()
+    renderFilter()
+
+    const input = screen.getByRole("combobox", { name: "Priority" })
+    expect(input).toHaveAttribute("placeholder", "All")
+
+    await user.click(input)
+
+    expect(await screen.findByRole("listbox")).toBeInTheDocument()
+    expect(screen.getByRole("option", { name: "low" })).toBeVisible()
+    expect(screen.getByRole("option", { name: "medium" })).toBeVisible()
+    expect(screen.getByRole("option", { name: "high" })).toBeVisible()
+    expect(
+      screen.queryByRole("option", { name: "All" })
+    ).not.toBeInTheDocument()
+  })
+
+  it("selects several priorities and emits the comma-joined value", async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(<Harness onChange={onChange} />)
+
+    const input = screen.getByRole("combobox", { name: "Priority" })
+    await user.click(input)
+    await user.click(await screen.findByRole("option", { name: "low" }))
+
+    // Multi-select keeps the popup open so another value can be picked.
+    expect(screen.getByRole("listbox")).toBeInTheDocument()
+
+    await user.click(screen.getByRole("option", { name: "high" }))
+
+    expect(onChange).toHaveBeenLastCalledWith({
+      ...emptyFilters,
+      priority: "low,high",
+    })
+    expect(screen.getByRole("button", { name: "Remove low" })).toBeVisible()
+    expect(screen.getByRole("button", { name: "Remove high" })).toBeVisible()
+  })
+
+  it("removes a single priority from its chip", async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(
+      <Harness
+        initial={{ ...emptyFilters, priority: "low,high" }}
+        onChange={onChange}
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "Remove low" }))
+
+    expect(onChange).toHaveBeenLastCalledWith({
+      ...emptyFilters,
+      priority: "high",
+    })
+    expect(
+      screen.queryByRole("button", { name: "Remove low" })
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Remove high" })).toBeVisible()
+  })
+
+  it("clears the priority field with the field clear control", async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(
+      <Harness
+        initial={{ ...emptyFilters, priority: "high" }}
+        onChange={onChange}
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "Clear", exact: true }))
+
+    expect(onChange).toHaveBeenLastCalledWith(emptyFilters)
+    expect(
+      screen.queryByRole("button", { name: "Remove high" })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole("combobox", { name: "Priority" })
+    ).toHaveAttribute("placeholder", "All")
+  })
+})
+
+describe("TaskFiltersBar assignee filter", () => {
+  it("is an Assignee combobox that shows names but emits ids", async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(<Harness onChange={onChange} />)
+
+    const input = screen.getByRole("combobox", { name: "Assignee" })
+    expect(input).toHaveAttribute("placeholder", "All")
+
+    await user.click(input)
+
+    expect(await screen.findByRole("listbox")).toBeInTheDocument()
+    expect(screen.getByRole("option", { name: "Ada Admin" })).toBeVisible()
+    expect(screen.getByRole("option", { name: "Unassigned" })).toBeVisible()
+    expect(
+      screen.queryByRole("option", { name: "All" })
+    ).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole("option", { name: "Ada Admin" }))
+    await user.click(screen.getByRole("option", { name: "Unassigned" }))
+
+    expect(onChange).toHaveBeenLastCalledWith({
+      ...emptyFilters,
+      assignee: "usr_admin,unassigned",
+    })
+    expect(
+      screen.getByRole("button", { name: "Remove Ada Admin" })
+    ).toBeVisible()
+    expect(
+      screen.getByRole("button", { name: "Remove Unassigned" })
+    ).toBeVisible()
+  })
+
+  it("removes a single assignee from its chip", async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(
+      <Harness
+        initial={{ ...emptyFilters, assignee: "usr_admin,unassigned" }}
+        onChange={onChange}
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "Remove Unassigned" }))
+
+    expect(onChange).toHaveBeenLastCalledWith({
+      ...emptyFilters,
+      assignee: "usr_admin",
+    })
+    expect(
+      screen.queryByRole("button", { name: "Remove Unassigned" })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole("button", { name: "Remove Ada Admin" })
+    ).toBeVisible()
+  })
+
+  it("clears the assignee field with the field clear control", async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(
+      <Harness
+        initial={{ ...emptyFilters, assignee: "usr_member" }}
+        onChange={onChange}
+      />
+    )
+
+    await user.click(screen.getByRole("button", { name: "Clear", exact: true }))
+
+    expect(onChange).toHaveBeenLastCalledWith(emptyFilters)
+    expect(
+      screen.getByRole("combobox", { name: "Assignee" })
+    ).toHaveAttribute("placeholder", "All")
   })
 })

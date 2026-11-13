@@ -204,12 +204,23 @@ function listTasks(request: Request): Response {
   const url = new URL(request.url)
   const q = url.searchParams.get("q")?.trim().toLowerCase()
   const statuses = url.searchParams.getAll("status")
-  const priority = url.searchParams.get("priority")
-  const assigneeId = url.searchParams.get("assigneeId")
+  const priorities = url.searchParams
+    .getAll("priority")
+    .filter((value) => value !== "")
+  const assigneeIds = url.searchParams
+    .getAll("assigneeId")
+    .filter((value) => value !== "")
   if (statuses.some((value) => !isStatus(value))) {
     return fail(
       "invalid_request",
       "status must be one of: todo, in-progress, done, blocked.",
+      400
+    )
+  }
+  if (priorities.some((value) => !isPriority(value))) {
+    return fail(
+      "invalid_request",
+      "priority must be one of: low, medium, high.",
       400
     )
   }
@@ -248,14 +259,18 @@ function listTasks(request: Request): Response {
     // OR within the field; other fields are ANDed below.
     items = items.filter((task) => statuses.includes(task.status))
   }
-  if (priority && isPriority(priority)) {
-    items = items.filter((task) => task.priority === priority)
+  if (priorities.length > 0) {
+    // OR within the field; other fields are ANDed.
+    items = items.filter(
+      (task) => task.priority != null && priorities.includes(task.priority)
+    )
   }
-  if (assigneeId) {
+  if (assigneeIds.length > 0) {
+    const includeUnassigned = assigneeIds.includes("unassigned")
     items = items.filter((task) =>
-      assigneeId === "unassigned"
-        ? task.assigneeId == null
-        : task.assigneeId === assigneeId
+      task.assigneeId == null
+        ? includeUnassigned
+        : assigneeIds.includes(task.assigneeId)
     )
   }
   if (dueDateGteMs != null) {

@@ -59,6 +59,82 @@ test("filters the table by several statuses", async ({ page }) => {
   await expect(page.getByText("Draft the release notes #3")).toHaveCount(0)
 })
 
+test("filters the table by several priorities", async ({ page }) => {
+  await login(page, "admin@example.com", "adminpass")
+  await openTasks(page)
+
+  await page.getByLabel("Priority").click()
+  await page.getByRole("option", { name: "low", exact: true }).click()
+  await page.getByRole("option", { name: "high", exact: true }).click()
+
+  // The URL keeps the selection comma-joined.
+  await expect(page).toHaveURL(/priority=low(?:%2C|,)high/)
+  // low and high rows remain; medium and no-priority rows disappear.
+  await expect(
+    page.getByText("Draft the release notes #3", { exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByText("Author the OpenAPI contract", { exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByText("Build the MSW mock", { exact: true })
+  ).toHaveCount(0)
+  await expect(
+    page.getByText("Refactor the auth provider #6", { exact: true })
+  ).toHaveCount(0)
+
+  // Removing a chip narrows the filter without clearing it entirely.
+  await page.getByRole("button", { name: "Remove low" }).click()
+
+  await expect(page).toHaveURL(/priority=high/)
+  await expect(page).not.toHaveURL(/priority=.*low/)
+  await expect(
+    page.getByText("Author the OpenAPI contract", { exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByText("Draft the release notes #3", { exact: true })
+  ).toHaveCount(0)
+})
+
+test("filters the table by several assignees including Unassigned", async ({
+  page,
+}) => {
+  await login(page, "admin@example.com", "adminpass")
+  await openTasks(page)
+
+  await page.getByLabel("Assignee").click()
+  await page.getByRole("option", { name: "Ada Admin" }).click()
+  await page.getByRole("option", { name: "Unassigned" }).click()
+
+  // The URL keeps the selection comma-joined, using ids and the sentinel.
+  await expect(page).toHaveURL(/assignee=usr_admin(?:%2C|,)unassigned/)
+  // Admin-owned and unassigned rows remain; member-owned rows disappear.
+  await expect(
+    page.getByText("Author the OpenAPI contract", { exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByText("Document the API contract #8", { exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByText("Build the MSW mock", { exact: true })
+  ).toHaveCount(0)
+  await expect(
+    page.getByText("Review the login flow #4", { exact: true })
+  ).toHaveCount(0)
+
+  // Removing the sentinel chip leaves only the named assignee.
+  await page.getByRole("button", { name: "Remove Unassigned" }).click()
+
+  await expect(page).toHaveURL(/assignee=usr_admin/)
+  await expect(page).not.toHaveURL(/assignee=.*unassigned/)
+  await expect(
+    page.getByText("Author the OpenAPI contract", { exact: true })
+  ).toBeVisible()
+  await expect(
+    page.getByText("Document the API contract #8", { exact: true })
+  ).toHaveCount(0)
+})
+
 test("selects a row and applies a bulk status update", async ({ page }) => {
   await login(page, "admin@example.com", "adminpass")
   await openTasks(page)
