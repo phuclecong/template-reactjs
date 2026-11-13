@@ -28,6 +28,82 @@ import {
   type UserOption,
 } from "@/features/tasks/utils"
 
+/**
+ * One multi-select chip field. The URL-facing value is a comma-joined string;
+ * the lookup and change are passed through so each filter keeps its own label
+ * source and `TaskFilters` key.
+ */
+function FilterCombobox({
+  items,
+  labelFor,
+  value,
+  onValueChange,
+  ariaLabel,
+  placeholder,
+}: {
+  items: readonly string[]
+  labelFor: (value: string) => string
+  value: string
+  onValueChange: (value: string) => void
+  ariaLabel: string
+  placeholder: string
+}) {
+  const { t } = useTranslation()
+  const selectedValues = parseFilterValues(value)
+
+  return (
+    <Combobox
+      multiple
+      items={items}
+      itemToStringLabel={labelFor}
+      value={selectedValues}
+      onValueChange={(next) => onValueChange(joinFilterValues(next))}
+      onOpenChange={(open, details) => {
+        // Multi-select: picking a value must not close the popup, so several
+        // values can be chosen from one query.
+        if (!open && details.reason === "item-press") details.cancel()
+      }}
+    >
+      <InputGroup className="h-auto min-h-8 w-56 flex-wrap items-center py-1">
+        <ComboboxValue>
+          {(selected: string[]) => (
+            <ComboboxChips className="min-w-0 flex-1">
+              {selected.map((selectedValue) => {
+                const label = labelFor(selectedValue)
+                return (
+                  <ComboboxChip key={selectedValue} aria-label={label}>
+                    {label}
+                    <ComboboxChipRemove
+                      aria-label={t("combobox.removeChip", { value: label })}
+                    />
+                  </ComboboxChip>
+                )
+              })}
+              <ComboboxInput
+                aria-label={ariaLabel}
+                placeholder={selected.length > 0 ? "" : placeholder}
+                className="h-6 min-w-16 flex-1 border-0 bg-transparent px-1 py-0 shadow-none ring-0 focus-visible:ring-0 dark:bg-transparent"
+              />
+            </ComboboxChips>
+          )}
+        </ComboboxValue>
+        <ComboboxClear aria-label={t("common.clear")} />
+        <ComboboxIcon aria-hidden="true" className="pointer-events-none mr-1.5" />
+      </InputGroup>
+      <ComboboxContent>
+        <ComboboxEmpty>{t("combobox.noResults")}</ComboboxEmpty>
+        <ComboboxList>
+          {(option: string) => (
+            <ComboboxItem key={option} value={option}>
+              {labelFor(option)}
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  )
+}
+
 export function TaskFiltersBar({
   searchValue,
   onSearchChange,
@@ -45,9 +121,6 @@ export function TaskFiltersBar({
 }) {
   const { t, i18n } = useTranslation()
   const { status, priority, assignee, dueFrom, dueTo } = values
-  const statusValues = parseFilterValues(status)
-  const priorityValues = parseFilterValues(priority)
-  const assigneeValues = parseFilterValues(assignee)
   // Stable identities: Base UI re-syncs its selection when `items` changes, so
   // rebuilding these arrays/functions on every render can drop a rapid second
   // selection before the URL-driven `value` prop catches up.
@@ -55,12 +128,24 @@ export function TaskFiltersBar({
     () => [...users.map((user) => user.id), "unassigned"],
     [users]
   )
+  const userNameById = useMemo(
+    () => new Map(users.map((user) => [user.id, user.name])),
+    [users]
+  )
+  const statusLabel = useCallback(
+    (value: string) => t(`tasks.status.${value}`),
+    [t]
+  )
+  const priorityLabel = useCallback(
+    (value: string) => t(`tasks.priority.${value}`),
+    [t]
+  )
   const assigneeLabel = useCallback(
     (id: string) =>
       id === "unassigned"
         ? t("tasks.unassigned")
-        : users.find((user) => user.id === id)?.name ?? id,
-    [users, t]
+        : (userNameById.get(id) ?? id),
+    [userNameById, t]
   )
 
   return (
@@ -72,180 +157,32 @@ export function TaskFiltersBar({
         placeholder={t("tasks.searchPlaceholder")}
         className="w-72"
       />
-      <Combobox
-        multiple
+      <FilterCombobox
         items={STATUS_OPTIONS}
-        value={statusValues}
-        onValueChange={(next) =>
-          onChange({ ...values, status: joinFilterValues(next) })
-        }
-        onOpenChange={(open, details) => {
-          // Multi-select: picking a value must not close the popup, so several
-          // statuses can be chosen from one query.
-          if (!open && details.reason === "item-press") details.cancel()
-        }}
-      >
-        <InputGroup className="h-auto min-h-8 w-56 flex-wrap items-center py-1">
-          <ComboboxValue>
-            {(selected: string[]) => (
-              <ComboboxChips className="min-w-0 flex-1">
-                {selected.map((value) => {
-                  const label = t(`tasks.status.${value}`)
-                  return (
-                    <ComboboxChip key={value} aria-label={label}>
-                      {label}
-                      <ComboboxChipRemove
-                        aria-label={t("combobox.removeChip", { value: label })}
-                      />
-                    </ComboboxChip>
-                  )
-                })}
-                <ComboboxInput
-                  aria-label={t("tasks.filters.status")}
-                  placeholder={
-                    selected.length > 0 ? "" : t("tasks.filters.all")
-                  }
-                  className="h-6 min-w-16 flex-1 border-0 bg-transparent px-1 py-0 shadow-none ring-0 focus-visible:ring-0 dark:bg-transparent"
-                />
-              </ComboboxChips>
-            )}
-          </ComboboxValue>
-          {statusValues.length > 0 && (
-            <ComboboxClear aria-label={t("common.clear")} />
-          )}
-          <ComboboxIcon
-            aria-hidden="true"
-            className="pointer-events-none mr-1.5"
-          />
-        </InputGroup>
-        <ComboboxContent>
-          <ComboboxEmpty>{t("combobox.noResults")}</ComboboxEmpty>
-          <ComboboxList>
-            {(option: string) => (
-              <ComboboxItem key={option} value={option}>
-                {t(`tasks.status.${option}`)}
-              </ComboboxItem>
-            )}
-          </ComboboxList>
-        </ComboboxContent>
-      </Combobox>
+        labelFor={statusLabel}
+        value={status}
+        onValueChange={(next) => onChange({ ...values, status: next })}
+        ariaLabel={t("tasks.filters.status")}
+        placeholder={t("tasks.filters.all")}
+      />
 
-      <Combobox
-        multiple
+      <FilterCombobox
         items={PRIORITY_OPTIONS}
-        value={priorityValues}
-        onValueChange={(next) =>
-          onChange({ ...values, priority: joinFilterValues(next) })
-        }
-        onOpenChange={(open, details) => {
-          // Multi-select: picking a value must not close the popup, so several
-          // priorities can be chosen from one query.
-          if (!open && details.reason === "item-press") details.cancel()
-        }}
-      >
-        <InputGroup className="h-auto min-h-8 w-56 flex-wrap items-center py-1">
-          <ComboboxValue>
-            {(selected: string[]) => (
-              <ComboboxChips className="min-w-0 flex-1">
-                {selected.map((value) => {
-                  const label = t(`tasks.priority.${value}`)
-                  return (
-                    <ComboboxChip key={value} aria-label={label}>
-                      {label}
-                      <ComboboxChipRemove
-                        aria-label={t("combobox.removeChip", { value: label })}
-                      />
-                    </ComboboxChip>
-                  )
-                })}
-                <ComboboxInput
-                  aria-label={t("tasks.filters.priority")}
-                  placeholder={
-                    selected.length > 0 ? "" : t("tasks.filters.all")
-                  }
-                  className="h-6 min-w-16 flex-1 border-0 bg-transparent px-1 py-0 shadow-none ring-0 focus-visible:ring-0 dark:bg-transparent"
-                />
-              </ComboboxChips>
-            )}
-          </ComboboxValue>
-          {priorityValues.length > 0 && (
-            <ComboboxClear aria-label={t("common.clear")} />
-          )}
-          <ComboboxIcon
-            aria-hidden="true"
-            className="pointer-events-none mr-1.5"
-          />
-        </InputGroup>
-        <ComboboxContent>
-          <ComboboxEmpty>{t("combobox.noResults")}</ComboboxEmpty>
-          <ComboboxList>
-            {(option: string) => (
-              <ComboboxItem key={option} value={option}>
-                {t(`tasks.priority.${option}`)}
-              </ComboboxItem>
-            )}
-          </ComboboxList>
-        </ComboboxContent>
-      </Combobox>
+        labelFor={priorityLabel}
+        value={priority}
+        onValueChange={(next) => onChange({ ...values, priority: next })}
+        ariaLabel={t("tasks.filters.priority")}
+        placeholder={t("tasks.filters.all")}
+      />
 
-      <Combobox
-        multiple
+      <FilterCombobox
         items={assigneeOptions}
-        itemToStringLabel={assigneeLabel}
-        value={assigneeValues}
-        onValueChange={(next) =>
-          onChange({ ...values, assignee: joinFilterValues(next) })
-        }
-        onOpenChange={(open, details) => {
-          // Multi-select: picking a value must not close the popup, so several
-          // assignees can be chosen from one query.
-          if (!open && details.reason === "item-press") details.cancel()
-        }}
-      >
-        <InputGroup className="h-auto min-h-8 w-56 flex-wrap items-center py-1">
-          <ComboboxValue>
-            {(selected: string[]) => (
-              <ComboboxChips className="min-w-0 flex-1">
-                {selected.map((value) => {
-                  const label = assigneeLabel(value)
-                  return (
-                    <ComboboxChip key={value} aria-label={label}>
-                      {label}
-                      <ComboboxChipRemove
-                        aria-label={t("combobox.removeChip", { value: label })}
-                      />
-                    </ComboboxChip>
-                  )
-                })}
-                <ComboboxInput
-                  aria-label={t("tasks.filters.assignee")}
-                  placeholder={
-                    selected.length > 0 ? "" : t("tasks.filters.all")
-                  }
-                  className="h-6 min-w-16 flex-1 border-0 bg-transparent px-1 py-0 shadow-none ring-0 focus-visible:ring-0 dark:bg-transparent"
-                />
-              </ComboboxChips>
-            )}
-          </ComboboxValue>
-          {assigneeValues.length > 0 && (
-            <ComboboxClear aria-label={t("common.clear")} />
-          )}
-          <ComboboxIcon
-            aria-hidden="true"
-            className="pointer-events-none mr-1.5"
-          />
-        </InputGroup>
-        <ComboboxContent>
-          <ComboboxEmpty>{t("combobox.noResults")}</ComboboxEmpty>
-          <ComboboxList>
-            {(option: string) => (
-              <ComboboxItem key={option} value={option}>
-                {assigneeLabel(option)}
-              </ComboboxItem>
-            )}
-          </ComboboxList>
-        </ComboboxContent>
-      </Combobox>
+        labelFor={assigneeLabel}
+        value={assignee}
+        onValueChange={(next) => onChange({ ...values, assignee: next })}
+        ariaLabel={t("tasks.filters.assignee")}
+        placeholder={t("tasks.filters.all")}
+      />
 
       <DateRangePicker
         id="tasks-due-date-filter"

@@ -78,6 +78,14 @@ function Harness({
 }
 
 describe("TaskFiltersBar status filter", () => {
+  it("has no field clear control when nothing is selected", () => {
+    renderFilter()
+
+    expect(
+      screen.queryByRole("button", { name: "Clear", exact: true })
+    ).toBeNull()
+  })
+
   it("is a Status combobox with a localized All placeholder and no All option", async () => {
     const user = userEvent.setup()
     renderFilter()
