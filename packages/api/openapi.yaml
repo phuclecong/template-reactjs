@@ -239,8 +239,13 @@ paths:
           description: Case-insensitive substring match on the title.
         - name: status
           in: query
+          style: form
+          explode: true
           schema:
-            $ref: "#/components/schemas/Status"
+            type: array
+            items:
+              $ref: "#/components/schemas/Status"
+          description: Repeat the parameter to match any of several statuses (OR).
         - name: priority
           in: query
           schema:

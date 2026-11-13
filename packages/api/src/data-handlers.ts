@@ -203,9 +203,16 @@ function listTasks(request: Request): Response {
 
   const url = new URL(request.url)
   const q = url.searchParams.get("q")?.trim().toLowerCase()
-  const status = url.searchParams.get("status")
+  const statuses = url.searchParams.getAll("status")
   const priority = url.searchParams.get("priority")
   const assigneeId = url.searchParams.get("assigneeId")
+  if (statuses.some((value) => !isStatus(value))) {
+    return fail(
+      "invalid_request",
+      "status must be one of: todo, in-progress, done, blocked.",
+      400
+    )
+  }
   const dueDateGte = parseDueDateBound(url.searchParams.get("dueDate_gte"))
   if (!dueDateGte.valid) {
     return fail(
@@ -237,8 +244,9 @@ function listTasks(request: Request): Response {
   if (q) {
     items = items.filter((task) => task.title.toLowerCase().includes(q))
   }
-  if (status && isStatus(status)) {
-    items = items.filter((task) => task.status === status)
+  if (statuses.length > 0) {
+    // OR within the field; other fields are ANDed below.
+    items = items.filter((task) => statuses.includes(task.status))
   }
   if (priority && isPriority(priority)) {
     items = items.filter((task) => task.priority === priority)

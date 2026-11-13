@@ -633,7 +633,8 @@ export interface operations {
             query?: {
                 /** @description Case-insensitive substring match on the title. */
                 q?: string;
-                status?: components["schemas"]["Status"];
+                /** @description Repeat the parameter to match any of several statuses (OR). */
+                status?: components["schemas"]["Status"][];
                 priority?: "low" | "medium" | "high";
                 /** @description A user id, or the literal "unassigned" to match tasks with no assignee. */
                 assigneeId?: string;
