@@ -1,6 +1,7 @@
-import { lazy, Suspense } from "react"
+import type { ReactNode } from "react"
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
 
+import { RetryableLazy } from "@/components/retryable-lazy"
 import { ThemeProvider } from "@/components/theme-provider"
 import {
   AuthPageSkeleton,
@@ -10,16 +11,31 @@ import {
 import { Providers } from "@/providers"
 import { ProtectedRoute, RedirectIfAuthed } from "@/routes/protected-route"
 import { DashboardLayout } from "@/routes/dashboard-layout"
-import { routeLoaders } from "@/routes/route-loaders"
+import { routeLoaders, type RoutePath } from "@/routes/route-loaders"
 
 // Route views are split out of the entry chunk. `routeLoaders` is also used by
-// sidebar/breadcrumb intent prefetching, so both paths share one import. The
-// guards, shell, providers, and this component stay eager.
-const LoginPage = lazy(routeLoaders["/login"])
-const RegisterPage = lazy(routeLoaders["/register"])
-const TasksPage = lazy(routeLoaders["/dashboard/tasks"])
-const UsersPage = lazy(routeLoaders["/dashboard/users"])
-const SettingsPage = lazy(routeLoaders["/dashboard/settings"])
+// sidebar/breadcrumb intent prefetching, so both paths share one import. Each
+// route owns a chunk error boundary so a failed import offers a retry instead
+// of blanking the shell. The guards, shell, providers, and this component stay
+// eager.
+function LazyRoute({
+  path,
+  fallback,
+}: {
+  path: RoutePath
+  fallback: ReactNode
+}) {
+  return (
+    <RetryableLazy
+      // A route change reuses this component position; the key makes React
+      // mount a fresh lazy component instead of keeping the previous route.
+      key={path}
+      loader={routeLoaders[path]}
+      props={{}}
+      fallback={fallback}
+    />
+  )
+}
 
 export function App() {
   return (
@@ -32,17 +48,13 @@ export function App() {
               <Route
                 path="/login"
                 element={
-                  <Suspense fallback={<AuthPageSkeleton />}>
-                    <LoginPage />
-                  </Suspense>
+                  <LazyRoute path="/login" fallback={<AuthPageSkeleton />} />
                 }
               />
               <Route
                 path="/register"
                 element={
-                  <Suspense fallback={<AuthPageSkeleton />}>
-                    <RegisterPage />
-                  </Suspense>
+                  <LazyRoute path="/register" fallback={<AuthPageSkeleton />} />
                 }
               />
             </Route>
@@ -55,25 +67,28 @@ export function App() {
                 <Route
                   path="tasks"
                   element={
-                    <Suspense fallback={<TablePageSkeleton kind="tasks" />}>
-                      <TasksPage />
-                    </Suspense>
+                    <LazyRoute
+                      path="/dashboard/tasks"
+                      fallback={<TablePageSkeleton kind="tasks" />}
+                    />
                   }
                 />
                 <Route
                   path="users"
                   element={
-                    <Suspense fallback={<TablePageSkeleton kind="users" />}>
-                      <UsersPage />
-                    </Suspense>
+                    <LazyRoute
+                      path="/dashboard/users"
+                      fallback={<TablePageSkeleton kind="users" />}
+                    />
                   }
                 />
                 <Route
                   path="settings"
                   element={
-                    <Suspense fallback={<SettingsPageSkeleton />}>
-                      <SettingsPage />
-                    </Suspense>
+                    <LazyRoute
+                      path="/dashboard/settings"
+                      fallback={<SettingsPageSkeleton />}
+                    />
                   }
                 />
               </Route>

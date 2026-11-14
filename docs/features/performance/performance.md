@@ -15,15 +15,15 @@ The work is measured on the **production build**. The audit previously cited as 
 
 The discarded report (`localhost-dashboard-tasks_2026-11-14_18-33-45.json`) is a Chrome DevTools Lighthouse run against `http://localhost:5173/dashboard/tasks` — the Vite **dev server**. The trace shows 196 requests, `@vite/client` and react-refresh in the dependency tree, and 10,780 KiB of unminified JavaScript (`unminified-javascript` alone estimated 4,229 KiB of savings). It is kept locally and gitignored; it is not a baseline.
 
-| Signal                 | Dev-server audit (2026-11-14)                       | Production build (2026-11-14)                              |
-| ---------------------- | --------------------------------------------------- | ---------------------------------------------------------- |
-| Entry                  | `http://localhost:5173/dashboard/tasks`             | `apps/web/dist`, served by `vite preview`                  |
-| JS requests            | 196, unminified modules                             | 1 chunk                                                    |
-| JS transfer            | 10,780 KiB total (unminified)                       | 1.72 MB raw / 560 kB gzip over the wire                    |
-| CSS                    | Served through the module graph                     | 91.4 kB raw / 14.9 kB gzip over the wire                   |
-| Performance score      | 0.55                                                | 1.00 `/login`; 0.74 `/dashboard/tasks`                     |
-| FCP / LCP              | 5.8 s / 11.1 s                                      | 904 ms / 904 ms; 3,780 ms / 4,059 ms                       |
-| TBT / CLS              | 20 ms / 0                                           | 59 ms / 0; 290 ms / 0                                      |
+| Signal            | Dev-server audit (2026-11-14)           | Production build (2026-11-14)             |
+| ----------------- | --------------------------------------- | ----------------------------------------- |
+| Entry             | `http://localhost:5173/dashboard/tasks` | `apps/web/dist`, served by `vite preview` |
+| JS requests       | 196, unminified modules                 | 1 chunk                                   |
+| JS transfer       | 10,780 KiB total (unminified)           | 1.72 MB raw / 560 kB gzip over the wire   |
+| CSS               | Served through the module graph         | 91.4 kB raw / 14.9 kB gzip over the wire  |
+| Performance score | 0.55                                    | 1.00 `/login`; 0.74 `/dashboard/tasks`    |
+| FCP / LCP         | 5.8 s / 11.1 s                          | 904 ms / 904 ms; 3,780 ms / 4,059 ms      |
+| TBT / CLS         | 20 ms / 0                               | 59 ms / 0; 290 ms / 0                     |
 
 The 0.55 score and 11.1 s LCP describe Vite's module graph, not what a user downloads. Auditing the dev server is never evidence (ADR-0010).
 
@@ -31,9 +31,9 @@ The 0.55 score and 11.1 s LCP describe Vite's module graph, not what a user down
 
 Recorded 2026-11-14 from `pnpm perf` on the pre-optimization build: `vite build`, served by `vite preview`, Lighthouse mobile (simulated Slow 4G, 4× CPU), three cold runs per route, medians shown. These are the **pre-optimization** numbers the byte budgets were seeded from (work item 6.5 ratchets them lower). The `/dashboard/tasks` timing floor is not yet green: the initial LHCI gate requires score ≥ 0.85 and LCP ≤ 3.5 s, and the gap is what work items 6.2–6.4 address.
 
-| Route              | JS transfer | CSS transfer | FCP     | LCP     | TBT    | CLS   | Score |
-| ------------------ | ----------- | ------------ | ------- | ------- | ------ | ----- | ----- |
-| `/login`           | 560,228 B   | 14,875 B     | 904 ms  | 904 ms  | 59 ms  | 0.000 | 1.00  |
+| Route              | JS transfer | CSS transfer | FCP      | LCP      | TBT    | CLS   | Score |
+| ------------------ | ----------- | ------------ | -------- | -------- | ------ | ----- | ----- |
+| `/login`           | 560,228 B   | 14,875 B     | 904 ms   | 904 ms   | 59 ms  | 0.000 | 1.00  |
 | `/dashboard/tasks` | 560,228 B   | 14,875 B     | 3,780 ms | 4,059 ms | 290 ms | 0.000 | 0.74  |
 
 The byte figures are Lighthouse's `network-requests` `transferSize` (compressed bytes plus headers), summed for `Script` and `Stylesheet`; they match the current `apps/web/perf-budgets.json` ceilings exactly. The dev-server report above remains discarded evidence — it is never recorded as a baseline.
@@ -105,10 +105,10 @@ Replace the startup `MswGate` with one shared worker promise created on the firs
 
 Recorded with `pnpm perf` on the `ticket/30-msw-off-critical-path` mock build, three cold runs per route, medians shown:
 
-| Route              | JS transfer | CSS transfer | Change vs §2              |
-| ------------------ | ----------- | ------------ | ------------------------- |
-| `/login`           | 408,529 B   | 14,875 B     | JS −151,699 B (−27.1%)    |
-| `/dashboard/tasks` | 561,864 B   | 14,875 B     | JS +1,636 B (+0.3%)       |
+| Route              | JS transfer | CSS transfer | Change vs §2           |
+| ------------------ | ----------- | ------------ | ---------------------- |
+| `/login`           | 408,529 B   | 14,875 B     | JS −151,699 B (−27.1%) |
+| `/dashboard/tasks` | 561,864 B   | 14,875 B     | JS +1,636 B (+0.3%)    |
 
 - The entry chunk drops from 564.7 kB gzip to 411.4 kB gzip. `msw/browser`, the handlers, and the auth service now live in a 154.5 kB gzip `msw-*.js` dynamic chunk that `index.html` neither references nor preloads. The mock collections and seed stay in the entry because route modules import the shared zod schemas; moving them would not change the tasks-route total.
 - In a real-backend build (`VITE_API_URL=http://example.test/api`) the manifest has one static entry only: no dynamic worker/handlers chunk and no preload.
@@ -130,9 +130,9 @@ Recorded with `pnpm perf` on the `ticket/30-msw-off-critical-path` mock build, t
 
 Recorded with `pnpm perf` on the merged `ticket/31-route-splitting` mock build, three cold runs per route, medians shown:
 
-| Route              | JS transfer | CSS transfer | FCP    | LCP     | TBT    | CLS   | Score |
-| ------------------ | ----------- | ------------ | ------ | ------- | ------ | ----- | ----- |
-| `/login`           | 299,759 B   | 14,875 B     | 905 ms | 905 ms  | 4 ms   | 0.000 | 1.00  |
+| Route              | JS transfer | CSS transfer | FCP    | LCP      | TBT    | CLS   | Score |
+| ------------------ | ----------- | ------------ | ------ | -------- | ------ | ----- | ----- |
+| `/login`           | 299,759 B   | 14,875 B     | 905 ms | 905 ms   | 4 ms   | 0.000 | 1.00  |
 | `/dashboard/tasks` | 494,993 B   | 14,875 B     | 906 ms | 4,316 ms | 233 ms | 0.000 | 0.82  |
 
 - Both byte budgets pass. `/login` falls 260,469 B (−46.5%) against the §2 baseline; `/dashboard/tasks` falls 65,235 B (−11.6%) as measured. CSS is unchanged from the baseline because the skeletons use inline dimensions rather than new utility classes.
@@ -150,6 +150,28 @@ Lazy-load the task form dialog, delete dialog, and bulk actions; prefetch them o
 - Overlays load their content on demand and open correctly.
 - A simulated chunk 404 shows a retry action and never a blank route.
 - Tasks-route initial bytes meet the budget; if not, the calendar split is applied and measured.
+
+**Measured result (work item 6.4, 2026-11-14)**
+
+The form and delete dialogs stay in one deferred `task-dialogs` module; the bulk-actions popup (combobox content, `DatePicker`, confirmation dialog) moved to a deferred `task-bulk-actions-content` module. The persistent bulk toolbar — selection count, bulk-actions trigger, and **New task** — remains eager, so first paint keeps its triggers. `TaskActionsCell` keeps stable intent callbacks, so its memo is not invalidated. Every overlay chunk is prefetched on pointer enter, focus, or pointer down of its trigger; nothing is requested at startup or while idle, and a prefetch failure is swallowed (the rendered overlay owns the retry/reload path).
+
+`lazyWithRetry` retries a failed import once. On repeated failure it marks `sessionStorage` and performs one full reload; after that marker exists, a still-missing chunk rejects to the error boundary instead of reloading in a loop. `ChunkErrorBoundary` is a dependency-free class component that renders the translated `error.*` copy and a **Try again** button; retrying creates a fresh `React.lazy` identity because React caches a loader's rejection.
+
+| Measurement                                     | Before 6.4                  | After 6.4                            | Change                  |
+| ----------------------------------------------- | --------------------------- | ------------------------------------ | ----------------------- |
+| Honest build-level tasks initial JS (gzip body) | 565,006 B                   | 548,004 B                            | −17,002 B (−3.0%)       |
+| `pnpm perf` tasks JS transfer (median)          | 494,993 B                   | 553,873 B                            | +58,880 B               |
+| `pnpm perf` tasks CSS transfer (median)         | 14,875 B                    | 14,884 B → 14,875 B                  | 0 B after the fix below |
+| Budget                                          | 560,228 B JS / 14,875 B CSS | 548,004 B honest / 553,873 B harness | Both bytes budgets pass |
+
+- The honest figure is computed from `dist/.vite/manifest.json` plus per-file gzip: entry closure + `src/routes/tasks.tsx` closure + the request-time `src/utils/msw.ts` closure, the chunks requested before any user interaction. The harness number is larger here because it includes response headers; it is used as the conservative value. Both are below the 560,228 B ceiling.
+- The 6.3 harness median (494,993 B) is known to under-measure the authenticated route (service-worker-masked dynamic chunk bodies). The apparent +58,880 B is measurement variance between runs, not new code: the honest build-level figure falls by 17,002 B. This ticket does not modify the harness (#33 owns that fix).
+- The harness is not evidence of true initial bytes: the login step registers the service worker before Lighthouse opens the audited tab, so route chunks can be reported as header-only transfers. 6.4 does not change the harness; the honest build-level figure is the decision input and #33 owns the measurement fix/re-seed.
+- The first harness run after the split reported CSS 14,884 B, 9 B over the ceiling. The cause was a Tailwind candidate extracted from the word "grow" in a code comment, which emitted an otherwise-unused `.grow` rule. Rewording the comment makes the stylesheet byte-identical to the 6.3 build (91,428 raw, 14,404 gzip), so the transfer returns to the 14,875 B baseline. No budget file was changed.
+- **Calendar split: not applied.** The tasks route is under budget before it. `@workspace/ui/lib/date` remains in the initial tasks closure because the table formats Due date and the filters use `DateRangePicker`; deferring `DatePicker` alone cannot remove `date-fns`/day-picker locale code. Splitting calendar internals would not reduce the measured initial bytes.
+- Overlay chunks are deferred: `task-dialogs` (2,360 B gzip) and `task-bulk-actions-content` (815 B gzip), plus their still-deferred dependency slices. The marginal open-time cost is paid only when a trigger is used.
+- A Playwright spec intercepts the Settings route module and answers 404: the shell stays mounted, the translated alert and **Try again** appear, and retrying after the interception stops recovers the Settings heading. Boundary/`RetryableLazy` unit tests cover overlay failure, the one-retry contract, no unhandled rejection, and fresh-attempt recovery.
+- The `/dashboard/tasks` Lighthouse timing gate remains red (LCP 4,617 ms, score 0.81), the pre-existing gap recorded in §2; CLS is 0.000, TBT is 144 ms, and the byte budgets pass.
 
 ### 6.5 Verification and ratchet
 

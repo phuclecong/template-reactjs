@@ -1,48 +1,24 @@
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Button } from "@workspace/ui/components/button"
+import { Combobox, ComboboxTrigger } from "@workspace/ui/components/combobox"
+import { RetryableLazy } from "@/components/retryable-lazy"
 import {
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxGroup,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxLabel,
-  ComboboxList,
-  ComboboxTrigger,
-} from "@workspace/ui/components/combobox"
-import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
-import { DatePicker } from "@workspace/ui/components/date-picker"
-import { resolveLocale } from "@workspace/ui/lib/date"
+  taskOverlayLoaders,
+  prefetchTaskOverlay,
+} from "@/features/tasks/components/task-overlay-loaders"
+import type {
+  BulkActionGroup,
+  BulkActionItem,
+  BulkPatch,
+  PendingBulkAction,
+} from "@/features/tasks/components/task-bulk-actions-content"
 import {
   PRIORITY_OPTIONS,
   STATUS_OPTIONS,
   formValueToDueDate,
-  type TaskPriority,
-  type TaskStatus,
   type UserOption,
 } from "@/features/tasks/utils"
-
-type BulkPatch = {
-  status?: TaskStatus
-  priority?: TaskPriority | null
-  assigneeId?: string | null
-  dueDate?: string | null
-}
-
-type BulkActionItem = {
-  id: string
-  label: string
-  /** The group heading, carried on the item so search can match it. */
-  groupLabel: string
-  patch: BulkPatch
-}
-
-type BulkActionGroup = {
-  value: string
-  items: BulkActionItem[]
-}
 
 /**
  * Base UI's default collator matcher searches each item's label. Feeding it the
@@ -68,15 +44,19 @@ export function TaskBulkActions({
   isApplying: boolean
   onCreate: () => void
 }) {
-  const { t, i18n } = useTranslation()
-  const locale = resolveLocale(i18n.language)
+  const { t } = useTranslation()
   const [dueDate, setDueDate] = useState("")
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState("")
-  const [pendingAction, setPendingAction] = useState<{
-    item: BulkActionItem
-    count: number
-  } | null>(null)
+  const [contentMounted, setContentMounted] = useState(false)
+  const [pendingAction, setPendingAction] = useState<PendingBulkAction>(null)
+
+  const prefetchBulk = useCallback(() => {
+    void prefetchTaskOverlay("bulk")
+  }, [])
+  const prefetchForm = useCallback(() => {
+    void prefetchTaskOverlay("form")
+  }, [])
 
   const groups = useMemo<BulkActionGroup[]>(() => {
     const statusLabel = t("tasks.filters.status")
@@ -144,6 +124,7 @@ export function TaskBulkActions({
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen)
+    if (nextOpen) setContentMounted(true)
     if (!nextOpen) setSearch("")
   }
 
@@ -205,88 +186,44 @@ export function TaskBulkActions({
             }
             disabled={!hasSelection}
             aria-label={t("tasks.bulk.actions")}
+            onPointerEnter={prefetchBulk}
+            onFocus={prefetchBulk}
+            onPointerDown={prefetchBulk}
           >
             {t("tasks.bulk.actions")}
           </ComboboxTrigger>
-          <ComboboxContent>
-            <div className="p-1">
-              <ComboboxInput
-                aria-label={t("tasks.bulk.searchActions")}
-                placeholder={t("tasks.bulk.searchActions")}
-                showTrigger={false}
-              />
-            </div>
-            <ComboboxEmpty>{t("combobox.noResults")}</ComboboxEmpty>
-            <ComboboxList>
-              {(group: BulkActionGroup) => (
-                <ComboboxGroup key={group.value} items={group.items}>
-                  <ComboboxLabel className="mt-2 border-t border-border px-1 py-1.5 text-xs font-bold text-muted-foreground">
-                    {group.value}
-                  </ComboboxLabel>
-                  {group.items.map((item) => (
-                    <ComboboxItem key={item.id} value={item}>
-                      {item.label}
-                    </ComboboxItem>
-                  ))}
-                </ComboboxGroup>
-              )}
-            </ComboboxList>
-            <DatePicker
-              aria-label={t("tasks.bulk.setDueDate")}
-              value={dueDate}
-              // Keep the picked value as a draft; `Done` resolves it through the
-              // same confirmation flow as the other bulk actions, and closing
-              // the picker discards the draft.
-              onChange={(value) => {
-                if (!value) return
 
-                setDueDate(value)
+          {contentMounted ? (
+            <RetryableLazy
+              loader={taskOverlayLoaders.bulk}
+              props={{
+                dueDate,
+                onDueDateChange: setDueDate,
+                onDueDateDone: (value) => handleSelect(dueDateAction(value)),
+                onDueDateOpenChange: (nextOpen) => {
+                  if (!nextOpen) setDueDate("")
+                },
+                disabled: !hasSelection,
+                pendingAction,
+                isApplying,
+                onCancel: handleCancel,
+                onConfirm: handleConfirm,
               }}
-              onDone={(value) => {
-                if (!value) return
-
-                handleSelect(dueDateAction(value))
-              }}
-              onOpenChange={(open) => {
-                if (!open) setDueDate("")
-              }}
-              disabled={!hasSelection}
-              locale={locale}
-              placeholder={t("tasks.bulk.setDueDate")}
-              labels={{
-                clear: t("common.clear"),
-                done: t("common.done"),
-                time: t("datePicker.time"),
-                typedEntryLabel: t("datePicker.typedLabel"),
-                typedEntryHint: t("datePicker.typedHint"),
-                typedEntryError: t("datePicker.typedError"),
-              }}
-              className="w-44"
             />
-          </ComboboxContent>
+          ) : null}
         </Combobox>
 
-        <Button type="button" onClick={() => onCreate()} size="sm">
+        <Button
+          type="button"
+          onClick={() => onCreate()}
+          onPointerEnter={prefetchForm}
+          onFocus={prefetchForm}
+          onPointerDown={prefetchForm}
+          size="sm"
+        >
           {t("tasks.new")}
         </Button>
       </div>
-
-      <ConfirmDialog
-        open={pendingAction !== null}
-        onClose={handleCancel}
-        title={t("tasks.bulk.confirmTitle", {
-          action: pendingAction?.item.label ?? "",
-          count: pendingAction?.count ?? 0,
-        })}
-        description={t("tasks.bulk.confirmBody", {
-          count: pendingAction?.count ?? 0,
-        })}
-        confirmLabel={t("tasks.bulk.apply")}
-        cancelLabel={t("common.cancel")}
-        tone="default"
-        loading={isApplying}
-        onConfirm={handleConfirm}
-      />
     </div>
   )
 }
