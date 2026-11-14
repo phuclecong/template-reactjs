@@ -17,6 +17,12 @@ const SCRIPT = "Script"
 const STYLESHEET = "Stylesheet"
 const LHR_FILE = /^lhr-.*\.json$/
 
+// A script or stylesheet that transfers at most this many bytes cannot carry a
+// real response body. In practice it means a service worker answered the
+// request and Lighthouse only counted the headers, so the byte budget would be
+// compared against an under-measurement.
+const HEADER_ONLY_TRANSFER_LIMIT = 100
+
 const TIMING_AUDITS = [
   ["first-contentful-paint", "fcpMs"],
   ["largest-contentful-paint", "lcpMs"],
@@ -48,6 +54,45 @@ export function sumTransferBytes(report, resourceType) {
     const bytes = Number(item.transferSize)
     return Number.isFinite(bytes) ? total + bytes : total
   }, 0)
+}
+
+/**
+ * Scripts and stylesheets that reported a header-only `transferSize`.
+ *
+ * A warm service worker in the audited profile answers subresource requests
+ * itself, so Chrome attributes no body bytes to them (`transferSize: 179` was
+ * observed for dynamically imported route chunks). Auditing such a report
+ * would compare the budget against a fabricated, much smaller download.
+ */
+export function findMaskedResources(report) {
+  const items = report?.audits?.["network-requests"]?.details?.items
+  if (!Array.isArray(items)) return []
+
+  return items.filter((item) => {
+    if (item?.resourceType !== SCRIPT && item?.resourceType !== STYLESHEET) {
+      return false
+    }
+    const bytes = Number(item?.transferSize)
+    return Number.isFinite(bytes) && bytes <= HEADER_ONLY_TRANSFER_LIMIT
+  })
+}
+
+/**
+ * Rejects a report that cannot be trusted as a byte measurement.
+ * The login step must never register a service worker or navigate the app.
+ */
+export function assertNoMaskedResources(report) {
+  const masked = findMaskedResources(report)
+  if (!masked.length) return
+
+  const resources = masked
+    .map((item) => `${item.url} (${item.transferSize} B)`)
+    .join(", ")
+  throw new Error(
+    `Possible service-worker masking / under-measurement in ${reportUrl(report) ?? "<unknown>"}: ` +
+      `${resources} reported Script/Stylesheet transferSize <= ${HEADER_ONLY_TRANSFER_LIMIT} B. ` +
+      "The audited tab must start with no service worker; fix the login step before trusting this budget."
+  )
 }
 
 /** Median of a non-empty numeric sample. Even samples average the middle pair. */
@@ -95,6 +140,8 @@ export function summarizeReports(reports) {
       `Reports must share the same route: ${[...urls].join(", ")}`
     )
   }
+
+  for (const report of reports) assertNoMaskedResources(report)
 
   const url = [...urls][0]
   const medians = Object.fromEntries(

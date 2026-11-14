@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs"
 import { describe, expect, it } from "vitest"
 
 import {
+  assertNoMaskedResources,
   compareToBudgets,
   median,
   routeFromUrl,
@@ -33,6 +34,50 @@ describe("sumTransferBytes", () => {
 
   it("returns zero when the report has no network requests", () => {
     expect(sumTransferBytes({ audits: {} }, "Script")).toBe(0)
+  })
+})
+
+describe("service-worker masking guard", () => {
+  const masked = loadFixture("lhr-tasks-masked.json")
+
+  it("fails when a Script reports a header-only transferSize", () => {
+    expect(() => assertNoMaskedResources(masked)).toThrow(
+      /service-worker masking.*under-measurement/i
+    )
+  })
+
+  it("fails when a Stylesheet reports a header-only transferSize", () => {
+    const report = {
+      requestedUrl: "http://localhost:4173/login",
+      audits: {
+        "network-requests": {
+          details: {
+            items: [
+              {
+                url: "http://localhost:4173/assets/index.css",
+                resourceType: "Stylesheet",
+                transferSize: 100,
+              },
+            ],
+          },
+        },
+      },
+    }
+
+    expect(() => assertNoMaskedResources(report)).toThrow(
+      /service-worker masking.*under-measurement/i
+    )
+  })
+
+  it("accepts the honest reports whose scripts carry response bodies", () => {
+    expect(() => assertNoMaskedResources(loginRuns[0])).not.toThrow()
+    expect(() => assertNoMaskedResources(tasksRuns[0])).not.toThrow()
+  })
+
+  it("blocks a summary built from a masked run", () => {
+    expect(() => summarizeReports([masked])).toThrow(
+      /service-worker masking.*under-measurement/i
+    )
   })
 })
 
