@@ -12,9 +12,12 @@ Default five canonical roles: `needs-triage`, `needs-info`, `ready-for-agent`, `
 
 Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
-### Commit message:
+### Commit message or PR generation:
 
-Do not add `Co-Authored-By: Claude Code <noreply@anthropic.com>`
+Do not add:
+
+- `Co-Authored-By: Claude Code <noreply@anthropic.com>`
+- Generated with Claude Code
 
 ### Final step: do not auto commit or push code to git
 
