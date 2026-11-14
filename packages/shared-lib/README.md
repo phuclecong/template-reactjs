@@ -8,7 +8,7 @@ and must never import from `apps/web`.
 
 | Module       | Import                             | What it is                                                                   |
 | ------------ | ---------------------------------- | ---------------------------------------------------------------------------- |
-| `components` | `@workspace/shared-lib/components` | `DataTable` shell and `FilterCombobox` (with its `FilterOption` type)        |
+| `components` | `@workspace/shared-lib/components` | Server-paginated `DataTable` shell and `FilterCombobox` (with its `FilterOption` type) |
 | `hooks`      | `@workspace/shared-lib/hooks`      | `useTableState` URL-driven table state                                       |
 | `utils`      | `@workspace/shared-lib/utils`      | Small shared utilities (`debounce`, `parseFilterValues` / `joinFilterValues`) |
 
