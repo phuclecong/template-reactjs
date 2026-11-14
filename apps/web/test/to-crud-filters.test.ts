@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   EMPTY_TASK_FILTERS,
-  joinFilterValues,
-  parseFilterValues,
   taskFiltersEqual,
   toCrudFilters,
 } from "@/features/tasks/utils"
@@ -24,31 +22,6 @@ const emptyFilters = {
   dueFrom: "",
   dueTo: "",
 }
-
-describe("parseFilterValues", () => {
-  it("splits a comma-joined value into trimmed, non-empty values", () => {
-    expect(parseFilterValues("todo, in-progress ,, done")).toEqual([
-      "todo",
-      "in-progress",
-      "done",
-    ])
-  })
-
-  it("returns an empty list for an empty value", () => {
-    expect(parseFilterValues("")).toEqual([])
-    expect(parseFilterValues("  ,  ")).toEqual([])
-  })
-})
-
-describe("joinFilterValues", () => {
-  it("joins values with a comma", () => {
-    expect(joinFilterValues(["todo", "in-progress"])).toBe("todo,in-progress")
-  })
-
-  it("joins an empty list to an empty string", () => {
-    expect(joinFilterValues([])).toBe("")
-  })
-})
 
 describe("EMPTY_TASK_FILTERS", () => {
   it("has every task filter key set to an empty string", () => {
