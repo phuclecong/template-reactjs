@@ -1,23 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Button } from "@workspace/ui/components/button"
-import {
-  Combobox,
-  ComboboxChip,
-  ComboboxChips,
-  ComboboxChipsInput,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxItem,
-  ComboboxList,
-  ComboboxValue,
-  useComboboxAnchor,
-} from "@workspace/ui/components/combobox"
 import { DateRangePicker } from "@workspace/ui/components/date-range-picker"
 import { Input } from "@workspace/ui/components/input"
-import { XIcon } from "lucide-react"
 import { resolveLocale } from "@workspace/ui/lib/date"
-import { joinFilterValues, parseFilterValues } from "@workspace/shared-lib/utils"
+import {
+  FilterCombobox,
+  type FilterOption,
+} from "@workspace/shared-lib/components"
 import {
   EMPTY_TASK_FILTERS,
   PRIORITY_OPTIONS,
@@ -26,100 +16,6 @@ import {
   type TaskFilters,
   type UserOption,
 } from "@/features/tasks/utils"
-
-/**
- * One multi-select chip field. The URL-facing value is a comma-joined string;
- * the lookup and change are passed through so each filter keeps its own label
- * source and `TaskFilters` key.
- */
-function FilterCombobox({
-  items,
-  labelFor,
-  value,
-  onValueChange,
-  ariaLabel,
-  placeholder,
-}: {
-  items: readonly string[]
-  labelFor: (value: string) => string
-  value: string
-  onValueChange: (value: string) => void
-  ariaLabel: string
-  placeholder: string
-}) {
-  const { t } = useTranslation()
-  const selectedValues = parseFilterValues(value)
-  const anchor = useComboboxAnchor()
-
-  // The registry chip exposes removal through `showRemove`, whose internal
-  // control is icon-only. Compose a labelled Button so the mouse affordance
-  // keeps its accessible name; the chip itself still handles Backspace and
-  // Delete, and Left/Right Arrow moves focus between chips.
-  const removeValue = (selected: string[], removed: string) =>
-    onValueChange(
-      joinFilterValues(selected.filter((candidate) => candidate !== removed))
-    )
-
-  return (
-    <Combobox
-      multiple
-      items={items}
-      itemToStringLabel={labelFor}
-      value={selectedValues}
-      onValueChange={(next) => onValueChange(joinFilterValues(next))}
-      onOpenChange={(open, details) => {
-        // Multi-select: picking a value must not close the popup, so several
-        // values can be chosen from one query.
-        if (!open && details.reason === "item-press") details.cancel()
-      }}
-    >
-      <ComboboxChips ref={anchor} className="w-56">
-        <ComboboxValue>
-          {(selected: string[]) => (
-            <>
-              {selected.map((selectedValue) => {
-                const label = labelFor(selectedValue)
-                return (
-                  <ComboboxChip
-                    key={selectedValue}
-                    aria-label={label}
-                    showRemove={false}
-                  >
-                    {label}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-xs"
-                      aria-label={t("combobox.removeChip", { value: label })}
-                      className="-ml-1 opacity-50 hover:opacity-100"
-                      onClick={() => removeValue(selected, selectedValue)}
-                    >
-                      <XIcon className="pointer-events-none" />
-                    </Button>
-                  </ComboboxChip>
-                )
-              })}
-              <ComboboxChipsInput
-                aria-label={ariaLabel}
-                placeholder={selected.length > 0 ? "" : placeholder}
-              />
-            </>
-          )}
-        </ComboboxValue>
-      </ComboboxChips>
-      <ComboboxContent anchor={anchor}>
-        <ComboboxEmpty>{t("combobox.noResults")}</ComboboxEmpty>
-        <ComboboxList>
-          {(option: string) => (
-            <ComboboxItem key={option} value={option}>
-              {labelFor(option)}
-            </ComboboxItem>
-          )}
-        </ComboboxList>
-      </ComboboxContent>
-    </Combobox>
-  )
-}
 
 export function TaskFiltersBar({
   searchValue,
@@ -187,30 +83,30 @@ export function TaskFiltersBar({
 
   const { status, priority, assignee, dueFrom, dueTo } = optimisticFilters
   // Stable identities: Base UI re-syncs its selection when `items` changes, so
-  // rebuilding these arrays/functions on every render can drop a rapid second
-  // selection before the URL-driven `value` prop catches up.
-  const assigneeOptions = useMemo(
-    () => [...users.map((user) => user.id), "unassigned"],
-    [users]
-  )
-  const userNameById = useMemo(
-    () => new Map(users.map((user) => [user.id, user.name])),
-    [users]
-  )
-  const statusLabel = useCallback(
-    (value: string) => t(`tasks.status.${value}`),
+  // rebuilding these arrays on every render can drop a rapid second selection
+  // before the URL-driven `value` prop catches up.
+  const statusOptions = useMemo<FilterOption[]>(
+    () =>
+      STATUS_OPTIONS.map((value) => ({
+        value,
+        label: t(`tasks.status.${value}`),
+      })),
     [t]
   )
-  const priorityLabel = useCallback(
-    (value: string) => t(`tasks.priority.${value}`),
+  const priorityOptions = useMemo<FilterOption[]>(
+    () =>
+      PRIORITY_OPTIONS.map((value) => ({
+        value,
+        label: t(`tasks.priority.${value}`),
+      })),
     [t]
   )
-  const assigneeLabel = useCallback(
-    (id: string) =>
-      id === "unassigned"
-        ? t("tasks.unassigned")
-        : (userNameById.get(id) ?? id),
-    [userNameById, t]
+  const assigneeOptions = useMemo<FilterOption[]>(
+    () => [
+      ...users.map((user) => ({ value: user.id, label: user.name })),
+      { value: "unassigned", label: t("tasks.unassigned") },
+    ],
+    [users, t]
   )
 
   return (
@@ -223,30 +119,33 @@ export function TaskFiltersBar({
         className="w-72"
       />
       <FilterCombobox
-        items={STATUS_OPTIONS}
-        labelFor={statusLabel}
+        multiple
+        options={statusOptions}
         value={status}
         onValueChange={(next) => commitFilters({ status: next })}
         ariaLabel={t("tasks.filters.status")}
-        placeholder={t("tasks.filters.all")}
+        placeholder={t("tasks.filters.status")}
+        className="w-56"
       />
 
       <FilterCombobox
-        items={PRIORITY_OPTIONS}
-        labelFor={priorityLabel}
+        multiple
+        options={priorityOptions}
         value={priority}
         onValueChange={(next) => commitFilters({ priority: next })}
         ariaLabel={t("tasks.filters.priority")}
-        placeholder={t("tasks.filters.all")}
+        placeholder={t("tasks.filters.priority")}
+        className="w-56"
       />
 
       <FilterCombobox
-        items={assigneeOptions}
-        labelFor={assigneeLabel}
+        multiple
+        options={assigneeOptions}
         value={assignee}
         onValueChange={(next) => commitFilters({ assignee: next })}
         ariaLabel={t("tasks.filters.assignee")}
-        placeholder={t("tasks.filters.all")}
+        placeholder={t("tasks.filters.assignee")}
+        className="w-56"
       />
 
       <DateRangePicker
