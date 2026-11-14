@@ -12,24 +12,34 @@ The stack is fixed — every form is `react-hook-form` + `zodResolver` (zod) ren
 
 ## Steps
 
-1. **Schema + form** — build the zod schema in `useMemo(..., [t])` so validation messages localize; reuse the API contract schemas in `@workspace/api/collections` for enum fields (`taskStatusSchema`, `taskPrioritySchema`). Create the form with `useForm<z.infer<typeof schema>>({ resolver: zodResolver(schema), defaultValues })`, importing option lists and types from the feature's `utils`. *Done when* it typechecks.
+1. **Discovery — analyze, then interview** — settle the form's shape before touching code. Read `docs/agents/domain.md`, `GLOSSARY.md`, the ADRs touching this entity, the API contract schemas in `@workspace/api/collections`, and the closest example (`TaskFormDialog`, `login-form`, or `ChangePasswordForm`). Call the Skill tool twice, for "grilling" and "domain-modeling": facts come from the repo (schemas, existing forms, payload types), decisions come from the user, asked in rounds with a recommended answer. Reuse anything already settled earlier in the session; ask only what this skill still needs. Settle:
+   - the entity and whether the form creates, edits, or both;
+   - each field's type, required/optional status, and nullable ↔ `""` mapping;
+   - which enum fields reuse the contract schemas;
+   - the shape (dialog or inline) and, for edit, how `defaultValues` are read;
+   - the mutation path: resource (`useCreate`/`useUpdate`), auth, or custom endpoint;
+   - validation messages, permissions, and the translation keys.
+   Record resolved terms in `GLOSSARY.md` and consequential, hard-to-reverse trade-offs as ADRs as they land.
+   *Done when* every item above is settled or explicitly deferred, the user confirms a shared understanding, and implementation has not started.
 
-2. **Fields** — one `Controller` per field; each renders `<Field data-invalid={fieldState.invalid}>` wrapping `<FieldLabel htmlFor={id}>`, the input primitive with `aria-invalid={fieldState.invalid}`, and `<FieldError errors={[fieldState.error]} />`. Spread `{...field}` onto `Input`/`Textarea`; wire `Select` with `value={field.value}` + `onValueChange={field.onChange}`. *Done when* it typechecks.
+2. **Schema + form** — build the zod schema in `useMemo(..., [t])` so validation messages localize; reuse the API contract schemas in `@workspace/api/collections` for enum fields (`taskStatusSchema`, `taskPrioritySchema`). Create the form with `useForm<z.infer<typeof schema>>({ resolver: zodResolver(schema), defaultValues })`, importing option lists and types from the feature's `utils`. *Done when* it typechecks.
 
-3. **Container** —
+3. **Fields** — one `Controller` per field; each renders `<Field data-invalid={fieldState.invalid}>` wrapping `<FieldLabel htmlFor={id}>`, the input primitive with `aria-invalid={fieldState.invalid}`, and `<FieldError errors={[fieldState.error]} />`. Spread `{...field}` onto `Input`/`Textarea`; wire `Select` with `value={field.value}` + `onValueChange={field.onChange}`. *Done when* it typechecks.
+
+4. **Container** —
    - **Dialog** (create/edit): mount the form in a `Dialog` shell driven by `useDialog` (see the create-dialog skill), keyed by `version` so `defaultValues` re-reads on reopen. Convert between form values and the payload with `toFormValues(row)` / `toPayload(values)`.
    - **Inline**: render the `<form>` directly in the page/section.
    *Done when* it typechecks and lints clean.
 
-4. **Submit** — one of:
+5. **Submit** — one of:
    - **Resource** (`useCreate` / `useUpdate`): mutate with `{ resource, values, invalidates: ["resourceAll"], successNotification, errorNotification }` and `{ onSuccess: onClose }` (dialog) or `form.reset()` (inline); `useUpdate` also passes `id`.
    - **Auth** (`useLogin` / `useRegister`): mutate with `onSuccess: result => result.success ? window.location.assign(result.redirectTo ?? "/dashboard") : setError(result.error)`, and `onError: setError`.
    - **Custom endpoint** (`useCustomMutation`): `useCustomMutation<TData, HttpError, TPayload>({})`, mutate with `{ url, method, values, ...notifications }`.
    Disable the submit button while pending — `.mutation.isPending` (resource/custom) or `isPending` (auth). *Done when* it typechecks and the mutation matches the example's notification + invalidation + `onSuccess` wiring.
 
-5. **Translations** — add the section to `apps/web/src/utils/translations/en.ts` and `vi.ts`. `vi` is typed `Translation = typeof en`, so both dictionaries must share every key; drift fails typecheck. *Done when* it typechecks.
+6. **Translations** — add the section to `apps/web/src/utils/translations/en.ts` and `vi.ts`. `vi` is typed `Translation = typeof en`, so both dictionaries must share every key; drift fails typecheck. *Done when* it typechecks.
 
-6. **Verify** — `pnpm --filter web typecheck`, `pnpm --filter web lint`, and confirm every rule in **Conventions** holds. If the form has a Playwright spec, run `pnpm --filter web test:e2e`.
+7. **Verify** — `pnpm --filter web typecheck`, `pnpm --filter web lint`, and confirm every rule in **Conventions** holds. If the form has a Playwright spec, run `pnpm --filter web test:e2e`.
 
 ## Conventions
 

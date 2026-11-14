@@ -14,20 +14,30 @@ A dialog that holds a **form** spans two skills: this one for the shell, the cre
 
 ## Steps
 
-1. **State** — hold `useDialog<T>()` in the parent component that renders the trigger; the row's edit/delete button calls `open(row)`. `open()` with no argument is create mode (`data` stays `null`); `close()` clears `data`. *Done when* it typechecks.
+1. **Discovery — analyze, then interview** — settle the dialog's shape before touching code. Read `docs/agents/domain.md`, `GLOSSARY.md`, the ADRs touching this interaction, and the closest example (`DeleteTaskDialog`, `TaskFormDialog`, or the inline confirmation in `users-table`). Call the Skill tool twice, for "grilling" and "domain-modeling": facts come from the repo (existing dialogs, mutations, trigger sites), decisions come from the user, asked in rounds with a recommended answer. Reuse anything already settled earlier in the session; ask only what this skill still needs. Settle:
+   - the trigger and the parent that owns `useDialog`;
+   - whether the dialog is dismissable (`Dialog`) or a forced choice (`ConfirmDialog`);
+   - the content: a form, a view, or confirmation copy, and whether it spans the create-form skill;
+   - what opens it (create versus a row-specific edit/delete) and what remounts on reopen;
+   - who owns the mutation and when the dialog closes;
+   - the translation keys.
+   Record resolved terms in `GLOSSARY.md` and consequential, hard-to-reverse trade-offs as ADRs as they land.
+   *Done when* every item above is settled or explicitly deferred, the user confirms a shared understanding, and implementation has not started.
 
-2. **Shell** —
+2. **State** — hold `useDialog<T>()` in the parent component that renders the trigger; the row's edit/delete button calls `open(row)`. `open()` with no argument is create mode (`data` stays `null`); `close()` clears `data`. *Done when* it typechecks.
+
+3. **Shell** —
    - **Confirmation** (destructive or irreversible): `ConfirmDialog` with `open`, `onClose`, `title`, `description`, `confirmLabel`, `cancelLabel`, `tone` (`"danger"` default), `loading`, `onConfirm`. It composes the registry `AlertDialog` parts and forces an explicit choice: there is no close button, outside clicks are ignored, and the composition cancels Escape in `onOpenChange` because Base UI still dispatches it. Cancel calls `onClose`; Confirm calls `onConfirm` and is disabled while `loading` (the caller closes when the mutation settles). Use the `AlertDialog*` parts directly only for a custom confirm layout, and keep the same Escape/outside rejection.
    - **Dismissable** (a form or view the user can back out of): compose the registry parts — controlled `<Dialog open onOpenChange>`, `<DialogContent>`, `<DialogHeader>` with `<DialogTitle>` (and optional `<DialogDescription>`), the body, and `<DialogFooter>` with `<DialogClose>`/actions. Escape, the backdrop, and the header close button all report `onOpenChange(false)`. There is no single `{ open, onClose, title }` wrapper anymore.
    *Done when* it typechecks and lints clean.
 
-3. **Content** — a **form** goes inside the shell (create-form skill). A **confirmation** keeps its mutation at the call site — `useDelete<TRecord>({})` mutated with `{ resource, id, invalidates: ["resourceAll"], successNotification, errorNotification }` and `{ onSuccess: close }` — either inline in the parent or in a `<Resource>DeleteDialog` wrapper. *Done when* it typechecks and the delete round-trips against the mock API.
+4. **Content** — a **form** goes inside the shell (create-form skill). A **confirmation** keeps its mutation at the call site — `useDelete<TRecord>({})` mutated with `{ resource, id, invalidates: ["resourceAll"], successNotification, errorNotification }` and `{ onSuccess: close }` — either inline in the parent or in a `<Resource>DeleteDialog` wrapper. *Done when* it typechecks and the delete round-trips against the mock API.
 
-4. **Remount on reopen** — pass `key={version}` from `useDialog` to content whose state is read only on mount (a form's `defaultValues`), so reopening for a different row re-reads it. *Done when* reopening for a second row shows that row's data.
+5. **Remount on reopen** — pass `key={version}` from `useDialog` to content whose state is read only on mount (a form's `defaultValues`), so reopening for a different row re-reads it. *Done when* reopening for a second row shows that row's data.
 
-5. **Translations** — add the section to `apps/web/src/utils/translations/en.ts` and `vi.ts`. `vi` is typed `Translation = typeof en`, so both dictionaries must share every key; drift fails typecheck. *Done when* it typechecks.
+6. **Translations** — add the section to `apps/web/src/utils/translations/en.ts` and `vi.ts`. `vi` is typed `Translation = typeof en`, so both dictionaries must share every key; drift fails typecheck. *Done when* it typechecks.
 
-6. **Verify** — `pnpm --filter web typecheck`, `pnpm --filter web lint`, and confirm every rule in **Conventions** holds. If the dialog has a Playwright spec, run `pnpm --filter web test:e2e`.
+7. **Verify** — `pnpm --filter web typecheck`, `pnpm --filter web lint`, and confirm every rule in **Conventions** holds. If the dialog has a Playwright spec, run `pnpm --filter web test:e2e`.
 
 ## Conventions
 

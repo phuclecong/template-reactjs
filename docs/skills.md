@@ -23,11 +23,24 @@ Everything these skills build hangs off a **resource** (a task, a user, …). On
 
 So "add a users feature" is rarely one skill. It's a table (list), a form (create/edit), and a dialog or two (the form's shell + a delete confirmation). Say it plainly and the agent will pull in all three at the seams where they meet.
 
+## Every skill starts with discovery
+
+All three skills open the same way: **analyze, then interview**, before any code is written.
+
+- **Analyze** — the agent reads `GLOSSARY.md`, the ADRs that touch the area, `docs/agents/domain.md`, and the closest example folder. Repo facts are its job, not yours.
+- **Interview** — it calls the `grilling` and `domain-modeling` skills and asks the decisions in rounds. Each question carries a recommended answer, so "yes" accepts it; it only asks what it cannot look up.
+- **Record** — resolved terms land in `GLOSSARY.md`, and a hard-to-reverse, surprising trade-off becomes an ADR.
+- **Gate** — the step ends when the frontier is empty and you confirm a shared understanding. Implementation starts after that confirmation, never before.
+
+This is the `/grill-with-docs` interview folded into each CRUD skill, so you do not run it separately. A small rework reaches an empty frontier quickly; a new resource takes several rounds.
+
 ## What each skill does
 
 ### `create-table`
 
 **Produces** a `DataTable` + `useTableState` from `@workspace/shared-lib`, wired server-side: sorting, filtering, and pagination all go through the mock API and live in the URL.
+
+**Before it builds** — settles the resource and route, columns and their source fields, the sortable whitelist, filter-key↔backend mapping, selection and bulk-editable fields, and per-row permissions.
 
 **Say things like:**
 
@@ -47,6 +60,8 @@ It adds a mock list handler in `packages/api/src/data-handlers.ts`, a `utils/` f
 ### `create-form`
 
 **Produces** a `react-hook-form` + `zodResolver` form rendered through the `Field` / `FieldLabel` / `FieldError` primitives from `@workspace/ui`.
+
+**Before it builds** — settles create vs edit, each field's type and nullability, which enums reuse contract schemas, dialog vs inline, and the mutation path.
 
 **Say things like:**
 
@@ -71,6 +86,8 @@ It adds a mock list handler in `packages/api/src/data-handlers.ts`, a `utils/` f
 - Composable `Dialog` parts — the registry's `Dialog` root plus `DialogTrigger`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter`, and `DialogClose`. The root is controlled (`open` / `onOpenChange`); Escape, the backdrop, and the header close button are safe dismissals. Use this when backing out is harmless, e.g. a form the user can abandon.
 
 The composable parts replace the old `{ open, onClose, title }` wrapper; there is no single import that takes a title/children anymore. Compose the parts instead of rendering raw modal markup.
+
+**Before it builds** — settles the trigger and parent state owner, dismissable vs forced-choice, the content and whether it spans `create-form`, reopen behaviour, and mutation ownership.
 
 **Say things like:**
 
@@ -98,17 +115,18 @@ The shortest reliable way to ask for a new resource is to describe it, not the p
 
 The agent will:
 
-1. `create-table` the list (handler, filter bar, view, route).
-2. `create-dialog` the two shells (the form's `Dialog`, the delete `ConfirmDialog`).
-3. `create-form` the fields inside the form shell.
-4. Add `en`/`vi` translations throughout.
-5. Run typecheck, lint, and API tests and hand you the result.
+1. Run discovery for the table, dialog, and form: analyze the repo, interview you, and confirm the shared understanding.
+2. `create-table` the list (handler, filter bar, view, route).
+3. `create-dialog` the two shells (the form's `Dialog`, the delete `ConfirmDialog`).
+4. `create-form` the fields inside the form shell.
+5. Add `en`/`vi` translations throughout.
+6. Run typecheck, lint, and API tests and hand you the result.
 
-You bring the domain facts (field names, which are required, what's filterable); the agent brings the fixed stack and the closest example to copy.
+You bring the domain facts (field names, which are required, what's filterable); discovery is where they get pinned down before code starts. The agent brings the fixed stack and the closest example to copy.
 
 ## Tips
 
-- **Name the resource and its fields.** "A `projects` table with a `status` filter" beats "a table." The agent maps your fields to schemas and filters; the less it has to guess, the fewer follow-up questions.
+- **Name the resource and its fields.** "A `projects` table with a `status` filter" beats "a table." Anything you leave vague, the discovery interview will ask about before building.
 - **Say which shape you want** when it matters: dialog vs. inline form, dismissable vs. forced-choice dialog.
 - **Trust the copy, not invention** — every skill points the agent at a closest example folder. If you want a different behavior than the example, say so explicitly.
 - **Expect the verification commands** — typecheck, lint, API tests, and a Playwright spec if the resource has one. Red on any of them is a real failure to report, not noise.
