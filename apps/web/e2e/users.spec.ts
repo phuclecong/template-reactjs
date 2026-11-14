@@ -44,7 +44,7 @@ test("filters users by role and clears the filter", async ({ page }) => {
     name: "Role",
     exact: true,
   })
-  await expect(roleInput).toHaveAttribute("placeholder", "All")
+  await expect(roleInput).toHaveAttribute("placeholder", "Role")
 
   await roleInput.click()
   await roleInput.fill("mem")

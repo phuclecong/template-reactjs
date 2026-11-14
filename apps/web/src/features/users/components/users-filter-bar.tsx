@@ -1,16 +1,7 @@
 import { useMemo } from "react"
 import { useTranslation } from "react-i18next"
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-} from "@workspace/ui/components/combobox"
-import { InputGroupButton } from "@workspace/ui/components/input-group"
+import { FilterCombobox } from "@workspace/shared-lib/components"
 import { Input } from "@workspace/ui/components/input"
-import { XIcon } from "lucide-react"
 import { ROLE_OPTIONS } from "@/features/users/utils"
 
 export function UsersFilterBar({
@@ -34,8 +25,6 @@ export function UsersFilterBar({
       })),
     [t]
   )
-  const selectedRole =
-    roleOptions.find((option) => option.value === role) ?? null
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -46,41 +35,15 @@ export function UsersFilterBar({
         placeholder={t("users.searchPlaceholder")}
         className="w-72"
       />
-      <Combobox
-        items={roleOptions}
-        value={selectedRole}
-        onValueChange={(option) => onRoleChange(option?.value ?? "")}
-      >
-        <ComboboxInput
-          aria-label={t("users.filters.role")}
-          placeholder={t("users.filters.all")}
-          className="h-7 w-56"
-          showTrigger={false}
-        >
-          {selectedRole ? (
-            <InputGroupButton
-              variant="ghost"
-              size="icon-xs"
-              aria-label={t("common.clear")}
-              className="mr-0.5"
-              onClick={() => onRoleChange("")}
-            >
-              <XIcon className="pointer-events-none" />
-            </InputGroupButton>
-          ) : null}
-        </ComboboxInput>
-
-        <ComboboxContent>
-          <ComboboxEmpty>{t("combobox.noResults")}</ComboboxEmpty>
-          <ComboboxList>
-            {(option: { value: string; label: string }) => (
-              <ComboboxItem key={option.value} value={option}>
-                {option.label}
-              </ComboboxItem>
-            )}
-          </ComboboxList>
-        </ComboboxContent>
-      </Combobox>
+      <FilterCombobox
+        multiple={false}
+        options={roleOptions}
+        value={role}
+        onValueChange={onRoleChange}
+        ariaLabel={t("users.filters.role")}
+        placeholder={t("users.filters.role")}
+        className="h-7 w-56"
+      />
     </div>
   )
 }
