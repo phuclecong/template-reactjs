@@ -37,12 +37,15 @@ function renderFilter(
 }
 
 describe("UsersFilterBar role filter", () => {
-  it("is a searchable Role combobox with an All placeholder and no All option", async () => {
+  it("is a searchable Role combobox with a Role placeholder and no All option", async () => {
     const user = userEvent.setup()
     renderFilter()
 
     const input = screen.getByRole("combobox", { name: "Role" })
-    expect(input).toHaveAttribute("placeholder", "All")
+    expect(input).toHaveAttribute("placeholder", "Role")
+    expect(
+      screen.queryByRole("button", { name: "Clear" })
+    ).not.toBeInTheDocument()
 
     await user.click(input)
 
@@ -89,7 +92,7 @@ describe("UsersFilterBar role filter", () => {
     renderFilter()
 
     const input = screen.getByRole("combobox", { name: "Vai trò" })
-    expect(input).toHaveAttribute("placeholder", "Tất cả")
+    expect(input).toHaveAttribute("placeholder", "Vai trò")
 
     await user.click(input)
 
