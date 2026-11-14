@@ -1,6 +1,6 @@
 # Tabular data paginates; lists are not virtualized
 
-Task and User tables fetch one page at a time (10–100 rows, URL-driven `page`/`pageSize`) and render only that page; virtualization is deliberately not used. Pagination already bounds the DOM and preserves the search/filter/sort URL contract, while virtualizing a paginated table would add scroll-position and row-measurement complexity for no measurable benefit on 151 seeded tasks.
+Task and User tables fetch one page at a time (10–100 rows, URL-driven `page`/`pageSize`) and render only that page; virtualization is deliberately not used. Pagination already bounds the DOM and preserves the search/filter/sort URL contract, while virtualizing a paginated table would add scroll-position and row-measurement complexity for no measurable benefit on 150 seeded tasks.
 
 ## Considered Options
 
