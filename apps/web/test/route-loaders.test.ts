@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const loads = vi.hoisted(() => ({
   login: 0,
@@ -7,6 +7,9 @@ const loads = vi.hoisted(() => ({
   users: 0,
   settings: 0,
 }))
+
+const ensureMockWorker = vi.hoisted(() => vi.fn(async () => {}))
+vi.mock("@/utils/mock-worker", () => ({ ensureMockWorker }))
 
 function page() {
   return () => null
@@ -36,6 +39,10 @@ vi.mock("@/routes/settings", () => {
 import { prefetchRoute, routeLoaders } from "@/routes/route-loaders"
 
 describe("route loaders", () => {
+  beforeEach(() => {
+    ensureMockWorker.mockClear()
+  })
+
   it("does not import a route module merely by importing the loader map", () => {
     expect(loads).toEqual({
       login: 0,
@@ -44,6 +51,7 @@ describe("route loaders", () => {
       users: 0,
       settings: 0,
     })
+    expect(ensureMockWorker).not.toHaveBeenCalled()
   })
 
   it("loads only the prefetched route", async () => {
@@ -54,6 +62,18 @@ describe("route loaders", () => {
     expect(loads.settings).toBe(0)
     expect(loads.login).toBe(0)
     expect(loads.register).toBe(0)
+  })
+
+  it("starts the mock worker alongside the authenticated tasks route", async () => {
+    await prefetchRoute("/dashboard/tasks")
+
+    expect(ensureMockWorker).toHaveBeenCalledTimes(1)
+  })
+
+  it("never starts the mock worker for the anonymous login route", async () => {
+    await prefetchRoute("/login")
+
+    expect(ensureMockWorker).not.toHaveBeenCalled()
   })
 
   it("wraps each named route export as the default component lazy expects", async () => {

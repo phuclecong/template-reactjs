@@ -1,5 +1,7 @@
 import type { ComponentType } from "react"
 
+import { ensureMockWorker } from "@/utils/mock-worker"
+
 type RouteModule = { default: ComponentType }
 
 /**
@@ -20,10 +22,19 @@ export const routeLoaders = {
     import("@/routes/register").then((module) => ({
       default: module.RegisterPage,
     })),
-  "/dashboard/tasks": () =>
-    import("@/routes/tasks").then((module) => ({
+  "/dashboard/tasks": () => {
+    // The tasks route needs the mock worker for its first list query. Start
+    // that download alongside the route chunk instead of waiting for render,
+    // so the request-time worker bytes overlap the route's own loading. This
+    // loader runs only when an authenticated user renders or intentionally
+    // prefetches the route — never at app startup and never on `/login`. In a
+    // real-backend build `ensureMockWorker` resolves without importing
+    // anything. The request still awaits the same shared promise.
+    void ensureMockWorker()
+    return import("@/routes/tasks").then((module) => ({
       default: module.TasksPage,
-    })),
+    }))
+  },
   "/dashboard/users": () =>
     import("@/routes/users").then((module) => ({
       default: module.UsersPage,
