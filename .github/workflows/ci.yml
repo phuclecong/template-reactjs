@@ -83,3 +83,37 @@ jobs:
 
       - name: End-to-end tests
         run: pnpm --filter web test:e2e
+
+  perf:
+    name: perf (lighthouse mobile)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm --filter web exec playwright install --with-deps chromium
+
+      - name: Resolve Chromium path
+        id: chromium
+        run: |
+          echo "path=$(pnpm --filter web exec node -e 'console.log(require("@playwright/test").chromium.executablePath())')" >> "$GITHUB_OUTPUT"
+
+      - name: Performance harness (production build, mock API)
+        env:
+          CHROME_PATH: ${{ steps.chromium.outputs.path }}
+        run: pnpm perf
