@@ -51,6 +51,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Build both modes and verify no MSW chunk in real-backend build
+        run: pnpm --filter web verify:real-build
+
       - name: Install Storybook test browser
         run: pnpm --filter @workspace/ui exec playwright install --with-deps chromium
 

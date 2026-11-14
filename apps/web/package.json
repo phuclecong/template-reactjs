@@ -15,7 +15,8 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "perf": "node scripts/perf/run.mjs"
+    "perf": "node scripts/perf/run.mjs",
+    "verify:real-build": "node scripts/perf/verify-real-build.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^7.0.2",
