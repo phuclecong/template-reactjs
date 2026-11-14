@@ -13,6 +13,8 @@
  * once per run instead of `numberOfRuns: 3` in a single invocation, because a
  * single invocation reuses one browser across its runs. One URL per invocation
  * also prevents the `/login` audit from warming the cache for `/dashboard/tasks`.
+ * `scripts/perf/login.cjs` only injects the session into the audited target;
+ * it never loads the app, registers the service worker, or seeds localStorage.
  */
 module.exports = {
   ci: {
@@ -48,9 +50,10 @@ module.exports = {
           deviceScaleFactor: 1.75,
           disabled: false,
         },
-        // The dashboard route needs the login step's localStorage tokens.
-        // Coldness comes from a fresh browser per collect invocation, not from
-        // Lighthouse's storage reset.
+        // The dashboard route needs the sessionStorage value the login step
+        // injects with `evaluateOnNewDocument`. Coldness still comes from a
+        // fresh browser profile per collect invocation: no localStorage seed,
+        // no service worker, and no warmed `/api` cache before the audit.
         disableStorageReset: true,
         onlyCategories: ["performance"],
       },
