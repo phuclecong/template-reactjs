@@ -8,6 +8,7 @@ import {
   type TaskStatus,
   type UserRecord,
 } from "@workspace/api/schemas"
+import { parseFilterValues } from "@workspace/shared-lib/utils"
 import {
   dateOnlyToLocalDate,
   localEndOfDayUtcInstant,
@@ -103,22 +104,6 @@ export const EMPTY_TASK_FILTERS = Object.fromEntries(
  */
 export function taskFiltersEqual(a: TaskFilters, b: TaskFilters): boolean {
   return TASK_FILTER_KEYS.every((key) => a[key] === b[key])
-}
-
-/**
- * Split a comma-joined URL filter value into trimmed, non-empty values.
- * An empty value yields an empty list, which means "all values".
- */
-export function parseFilterValues(value: string): string[] {
-  return value
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean)
-}
-
-/** Join selected values into the comma-joined value stored in the URL. */
-export function joinFilterValues(values: string[]): string {
-  return values.join(",")
 }
 
 /**

@@ -17,12 +17,11 @@ import { DateRangePicker } from "@workspace/ui/components/date-range-picker"
 import { Input } from "@workspace/ui/components/input"
 import { XIcon } from "lucide-react"
 import { resolveLocale } from "@workspace/ui/lib/date"
+import { joinFilterValues, parseFilterValues } from "@workspace/shared-lib/utils"
 import {
   EMPTY_TASK_FILTERS,
   PRIORITY_OPTIONS,
   STATUS_OPTIONS,
-  joinFilterValues,
-  parseFilterValues,
   taskFiltersEqual,
   type TaskFilters,
   type UserOption,
