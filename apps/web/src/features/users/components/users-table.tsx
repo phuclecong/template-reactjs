@@ -8,7 +8,7 @@ import {
   type HttpError,
 } from "@refinedev/core"
 import type { ColumnDef } from "@tanstack/react-table"
-import type { Role } from "@workspace/api/collections"
+import type { Role } from "@workspace/api/schemas"
 import { DataTable } from "@workspace/shared-lib/components"
 import { useDialog, useTableState } from "@workspace/shared-lib/hooks"
 import { Button } from "@workspace/ui/components/button"

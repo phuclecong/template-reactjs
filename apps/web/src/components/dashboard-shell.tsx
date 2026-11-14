@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Link, useLocation } from "react-router-dom"
+import { useLocation } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import {
   Breadcrumb,
@@ -17,6 +17,7 @@ import {
 import { TooltipProvider } from "@workspace/ui/components/tooltip"
 
 import { AppSidebar } from "@/components/app-sidebar"
+import { IntentLink } from "@/components/intent-link"
 import type { DashboardUser } from "@/providers/auth-provider"
 
 /**
@@ -99,7 +100,7 @@ export function DashboardShell({
                       {crumb.isCurrent ? (
                         <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
                       ) : (
-                        <BreadcrumbLink render={<Link to={crumb.href} />}>
+                        <BreadcrumbLink render={<IntentLink to={crumb.href} />}>
                           {crumb.label}
                         </BreadcrumbLink>
                       )}

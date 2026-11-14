@@ -1,5 +1,6 @@
 import * as React from "react"
-import { Link, useLocation } from "react-router-dom"
+import { useLocation } from "react-router-dom"
+import { IntentLink } from "@/components/intent-link"
 import { useTranslation } from "react-i18next"
 import { useLogout } from "@refinedev/core"
 import {
@@ -106,7 +107,9 @@ export function AppSidebar({
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton render={<Link to="/dashboard/tasks" />}>
+            <SidebarMenuButton
+              render={<IntentLink to="/dashboard/tasks" />}
+            >
               <LayoutDashboardIcon />
               <span className="truncate">{t("shell.title")}</span>
             </SidebarMenuButton>
@@ -138,7 +141,7 @@ export function AppSidebar({
                         <SidebarMenuButton
                           isActive={pathname === item.url}
                           tooltip={t(item.labelKey)}
-                          render={<Link to={item.url} />}
+                          render={<IntentLink to={item.url} />}
                         >
                           <item.icon />
                           <span>{t(item.labelKey)}</span>
