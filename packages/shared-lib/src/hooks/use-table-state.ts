@@ -11,8 +11,10 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import type { OnChangeFn, SortingState } from "@tanstack/react-table"
 import type { CrudSort } from "@refinedev/core"
 import { debounce } from "../utils"
+import { DEFAULT_PAGE_SIZE } from "./table-defaults"
 
-const DEFAULT_PAGE_SIZE = 30
+export { DEFAULT_PAGE_SIZE } from "./table-defaults"
+
 const SEARCH_DEBOUNCE_MS = 300
 
 type SortOrder = "asc" | "desc"

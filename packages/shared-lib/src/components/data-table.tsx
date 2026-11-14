@@ -35,6 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from "@workspace/ui/components/table"
+import { TableSkeleton } from "./table-skeleton"
 
 const PAGE_SIZE_OPTIONS = [10, 30, 50, 100]
 
@@ -101,10 +102,21 @@ export function DataTable<T>({
   const isFirstPage = pagination.page <= 1
   const isLastPage = pagination.page >= pagination.pageCount
 
+  // Headers exist even before data arrives, so their sizes reserve exactly the
+  // layout the real table will use. The placeholder renders no table semantics
+  // (see `TableSkeleton`).
+  const columnWidths = (table.getHeaderGroups()[0]?.headers ?? []).map(
+    (header) => header.getSize()
+  )
+
   return (
     <>
       {isLoading ? (
-        <p className="text-muted-foreground">{loadingLabel}</p>
+        <TableSkeleton
+          columnWidths={columnWidths}
+          rowCount={pagination.pageSize}
+          label={loadingLabel ?? t("common.loading")}
+        />
       ) : data.length === 0 ? (
         <p className="text-muted-foreground">{emptyLabel}</p>
       ) : (

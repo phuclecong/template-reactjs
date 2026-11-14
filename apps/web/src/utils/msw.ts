@@ -4,12 +4,14 @@ import { seedDb, tasks, users } from "@workspace/api/collections"
 
 /**
  * Boots the in-browser MSW worker that serves the mock API for client-side
- * data fetching (ADR-0001, ADR-0005). Seeded once; repeated calls return the
- * same promise so StrictMode double-effects don't re-register the worker.
- */
-let workerPromise: Promise<void> | null = null
-
-/**
+ * data fetching (ADR-0001, ADR-0005).
+ *
+ * This module is reachable only through the dynamic import in
+ * `@/utils/mock-worker`: it pulls `msw/browser`, the handlers, and the
+ * collections, so it must never be statically imported from the entry path.
+ * The caller owns the single shared promise; this function just performs the
+ * first start.
+ *
  * Seeds the mock store on first visit. The collections hydrate from
  * localStorage via the `persist()` extension on construction, so we only seed
  * when the store is still empty — never clobbering persisted records (e.g. a
@@ -21,14 +23,9 @@ async function seedOnce(): Promise<void> {
   }
 }
 
-export function startMockWorker(): Promise<void> {
-  if (typeof window === "undefined") return Promise.resolve()
-  if (!workerPromise) {
-    workerPromise = (async () => {
-      await seedOnce()
-      const worker = setupWorker(...dataHandlers)
-      await worker.start({ onUnhandledFrame: "bypass" })
-    })()
-  }
-  return workerPromise
+export async function startMockWorker(): Promise<void> {
+  if (typeof window === "undefined") return
+  await seedOnce()
+  const worker = setupWorker(...dataHandlers)
+  await worker.start({ onUnhandledFrame: "bypass" })
 }

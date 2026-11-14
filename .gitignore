@@ -47,3 +47,8 @@ lerna-debug.log*
 test-results
 playwright-report
 playwright/.cache
+
+# performance reports (local evidence only, never committed)
+docs/features/performance/*.json
+docs/features/performance/*.html
+.lighthouseci/

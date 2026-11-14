@@ -8,6 +8,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import i18n from "@/utils/i18n"
 import { TaskBulkActions } from "@/features/tasks/components/task-bulk-actions"
 
+const prefetchTaskOverlay = vi.hoisted(() => vi.fn(() => Promise.resolve()))
+
+vi.mock(
+  "@/features/tasks/components/task-overlay-loaders",
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import("@/features/tasks/components/task-overlay-loaders")
+      >()
+    return { ...actual, prefetchTaskOverlay }
+  }
+)
+
 const originalTimeZone = process.env.TZ
 
 const USERS = [
@@ -20,6 +33,7 @@ type BulkProps = Partial<ComponentProps<typeof TaskBulkActions>>
 beforeEach(async () => {
   process.env.TZ = "UTC"
   await i18n.changeLanguage("en")
+  prefetchTaskOverlay.mockClear()
 })
 
 afterEach(() => {
@@ -75,6 +89,42 @@ async function openDueDatePicker(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("combobox", { name: "Bulk actions" }))
   await user.click(await screen.findByRole("button", { name: "Set due date" }))
 }
+
+describe("TaskBulkActions intent prefetch", () => {
+  it("prefetches nothing merely by rendering the toolbar", () => {
+    renderBulk(vi.fn())
+
+    expect(prefetchTaskOverlay).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ["pointer enter", "pointerEnter"],
+    ["keyboard focus", "focus"],
+    ["pointer down", "pointerDown"],
+  ] as const)(
+    "prefetches the bulk overlay on %s of its trigger",
+    (_, event) => {
+      renderBulk(vi.fn())
+
+      fireEvent[event](screen.getByRole("combobox", { name: "Bulk actions" }))
+
+      expect(prefetchTaskOverlay).toHaveBeenCalledWith("bulk")
+    }
+  )
+
+  it("prefetches the form overlay on intent over New task", () => {
+    const onCreate = vi.fn()
+    renderBulk(vi.fn(), { onCreate })
+
+    const newTask = screen.getByRole("button", { name: "New task" })
+    fireEvent.pointerEnter(newTask)
+    fireEvent.focus(newTask)
+    fireEvent.pointerDown(newTask)
+
+    expect(prefetchTaskOverlay).toHaveBeenCalledWith("form")
+    expect(onCreate).not.toHaveBeenCalled()
+  })
+})
 
 describe("TaskBulkActions Due date", () => {
   it("drafts the selected date and applies it only after confirmation", async () => {

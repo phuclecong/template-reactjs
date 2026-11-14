@@ -9,7 +9,7 @@ import {
 import {
   taskPrioritySchema,
   taskStatusSchema,
-} from "@workspace/api/collections"
+} from "@workspace/api/schemas"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"

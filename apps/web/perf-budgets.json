@@ -1,0 +1,10 @@
+{
+  "/login": {
+    "jsBytes": 315333,
+    "cssBytes": 14875
+  },
+  "/dashboard/tasks": {
+    "jsBytes": 560228,
+    "cssBytes": 14875
+  }
+}

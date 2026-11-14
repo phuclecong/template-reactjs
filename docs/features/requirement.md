@@ -1,6 +1,6 @@
 - Pages:
   - User: authentication, login, register, role...
-  - Tasks: table, search with suggestion, ensure performance optimization with: vitualization, memorization, debouncing when search input
+  - Tasks: table, debounced search with suggestions, server-side pagination, and memoization where profiling shows cost
   - Setting: theme, language, update password
 - Architecture and UI:
   - Build scalable component systems and a reusable UI architecture
@@ -20,7 +20,7 @@
 - Strategies:
   - Integration with the backend (API contracts, data fetching)
   - Localization and internationalization: language support and currency formatting
-  - Performance optimization and scalability: code splitting, lazy loading, image optimization, virtualization, memorization
+  - Performance optimization and scalability: code splitting, lazy loading, pagination for tabular data, profile-driven memoization, and production performance budgets
   - Security: authentication, authorization, and data protection
   - Testing and quality assurance: unit, integration, and end-to-end tests, test coverage, code quality metrics, and CI/CD pipelines practices
   - Performance monitoring and error handling: error boundaries, logging, and user feedback

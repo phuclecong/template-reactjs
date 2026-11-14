@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react"
+import { memo, useCallback, useMemo } from "react"
 import { useTranslation } from "react-i18next"
 import type { ColumnDef } from "@tanstack/react-table"
 import { Button } from "@workspace/ui/components/button"
@@ -6,16 +6,19 @@ import { Checkbox } from "@workspace/ui/components/checkbox"
 import { formatDateTime, resolveLocale } from "@workspace/ui/lib/date"
 import { DataTable } from "@workspace/shared-lib/components"
 import { useDialog, useTableState } from "@workspace/shared-lib/hooks"
+import { RetryableLazy } from "@/components/retryable-lazy"
 import { TaskBulkActions } from "@/features/tasks/components/task-bulk-actions"
 import { TaskFiltersBar } from "@/features/tasks/components/task-filters-bar"
 import {
-  DeleteTaskDialog,
-  TaskFormDialog,
-} from "@/features/tasks/components/task-dialogs"
+  prefetchTaskOverlay,
+  taskOverlayLoaders,
+} from "@/features/tasks/components/task-overlay-loaders"
 import { useTaskBulkActions } from "@/features/tasks/hooks/use-task-bulk-actions"
 import { useTasks } from "@/features/tasks/hooks/use-tasks"
-import type { CurrentUser } from "@/features/users/utils"
 import { toCrudFilters, type TaskRow } from "@/features/tasks/utils"
+import { TASK_COLUMN_WIDTHS } from "@/features/tasks/utils/column-widths"
+import type { CurrentUser } from "@/features/users/utils"
+import { useIntentPrefetch } from "@/hooks/use-intent-prefetch"
 
 const FILTER_KEYS = [
   "status",
@@ -26,10 +29,12 @@ const FILTER_KEYS = [
 ] as const
 
 /**
- * Memoized actions cell. `task` (the row object) and `onEdit`/`onDelete`
- * (stable `useCallback`s) are referentially stable across renders, so
- * `React.memo` skips re-rendering these buttons when the table re-renders
- * for selection or pagination changes.
+ * Memoized actions cell. `task` (the row object) and
+ * `onEdit`/`onDelete`/`onPrefetchEdit`/`onPrefetchDelete` (stable
+ * `useCallback`s) are referentially stable across renders, so `React.memo`
+ * skips re-rendering these buttons when the table re-renders for selection or
+ * pagination changes. `useIntentPrefetch` keeps the spreadable handlers stable
+ * for the same reason.
  */
 const TaskActionsCell = memo(function TaskActionsCell({
   task,
@@ -37,13 +42,20 @@ const TaskActionsCell = memo(function TaskActionsCell({
   deleteLabel,
   onEdit,
   onDelete,
+  onPrefetchEdit,
+  onPrefetchDelete,
 }: {
   task: TaskRow
   editLabel: string
   deleteLabel: string
   onEdit: (task: TaskRow) => void
   onDelete: (task: TaskRow) => void
+  onPrefetchEdit: () => void
+  onPrefetchDelete: () => void
 }) {
+  const editIntentHandlers = useIntentPrefetch(onPrefetchEdit)
+  const deleteIntentHandlers = useIntentPrefetch(onPrefetchDelete)
+
   return (
     <div className="flex items-center gap-1">
       <Button
@@ -52,6 +64,7 @@ const TaskActionsCell = memo(function TaskActionsCell({
         size="xs"
         disabled={!task.canModify}
         onClick={() => onEdit(task)}
+        {...editIntentHandlers}
       >
         {editLabel}
       </Button>
@@ -61,6 +74,7 @@ const TaskActionsCell = memo(function TaskActionsCell({
         size="xs"
         disabled={!task.canModify}
         onClick={() => onDelete(task)}
+        {...deleteIntentHandlers}
       >
         {deleteLabel}
       </Button>
@@ -122,11 +136,19 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
     },
   })
 
+  // Stable so `TaskActionsCell`'s memo is not invalidated by table renders.
+  const prefetchFormOverlay = useCallback(() => {
+    void prefetchTaskOverlay("form")
+  }, [])
+  const prefetchDeleteOverlay = useCallback(() => {
+    void prefetchTaskOverlay("delete")
+  }, [])
+
   const columns = useMemo<ColumnDef<TaskRow>[]>(
     () => [
       {
         id: "select",
-        size: 36,
+        size: TASK_COLUMN_WIDTHS.select,
         enableSorting: false,
         header: ({ table }) => (
           <Checkbox
@@ -153,17 +175,21 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
           />
         ),
       },
-      { accessorKey: "title", header: t("tasks.columns.title"), size: 360 },
+      {
+        accessorKey: "title",
+        header: t("tasks.columns.title"),
+        size: TASK_COLUMN_WIDTHS.title,
+      },
       {
         accessorKey: "status",
         header: t("tasks.columns.status"),
-        size: 120,
+        size: TASK_COLUMN_WIDTHS.status,
         cell: ({ row }) => t(`tasks.status.${row.original.status}`),
       },
       {
         accessorKey: "priority",
         header: t("tasks.columns.priority"),
-        size: 120,
+        size: TASK_COLUMN_WIDTHS.priority,
         cell: ({ row }) =>
           row.original.priority
             ? t(`tasks.priority.${row.original.priority}`)
@@ -172,13 +198,13 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
       {
         accessorKey: "assigneeName",
         header: t("tasks.columns.assignee"),
-        size: 180,
+        size: TASK_COLUMN_WIDTHS.assignee,
         enableSorting: false,
       },
       {
         accessorKey: "dueDate",
         header: t("tasks.columns.dueDate"),
-        size: 200,
+        size: TASK_COLUMN_WIDTHS.dueDate,
         cell: ({ row }) =>
           row.original.dueDate
             ? formatDateTime(row.original.dueDate, locale)
@@ -187,7 +213,7 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
       {
         id: "actions",
         header: t("tasks.columns.actions"),
-        size: 140,
+        size: TASK_COLUMN_WIDTHS.actions,
         enableSorting: false,
         cell: ({ row }) => (
           <TaskActionsCell
@@ -196,11 +222,20 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
             deleteLabel={t("common.delete")}
             onEdit={formDialog.open}
             onDelete={deleteDialog.open}
+            onPrefetchEdit={prefetchFormOverlay}
+            onPrefetchDelete={prefetchDeleteOverlay}
           />
         ),
       },
     ],
-    [formDialog.open, deleteDialog.open, t, locale]
+    [
+      formDialog.open,
+      deleteDialog.open,
+      prefetchFormOverlay,
+      prefetchDeleteOverlay,
+      t,
+      locale,
+    ]
   )
 
   return (
@@ -256,18 +291,28 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
         }}
       />
 
-      <TaskFormDialog
-        key={formDialog.version}
-        open={formDialog.isOpen}
-        task={formDialog.data}
-        users={users}
-        onClose={formDialog.close}
-      />
-      <DeleteTaskDialog
-        open={deleteDialog.isOpen}
-        task={deleteDialog.data}
-        onClose={deleteDialog.close}
-      />
+      {formDialog.isOpen ? (
+        <RetryableLazy
+          key={formDialog.version}
+          loader={taskOverlayLoaders.form}
+          props={{
+            open: formDialog.isOpen,
+            task: formDialog.data,
+            users,
+            onClose: formDialog.close,
+          }}
+        />
+      ) : null}
+      {deleteDialog.isOpen ? (
+        <RetryableLazy
+          loader={taskOverlayLoaders.delete}
+          props={{
+            open: deleteDialog.isOpen,
+            task: deleteDialog.data,
+            onClose: deleteDialog.close,
+          }}
+        />
+      ) : null}
     </div>
   )
 }

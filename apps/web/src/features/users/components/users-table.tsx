@@ -8,7 +8,7 @@ import {
   type HttpError,
 } from "@refinedev/core"
 import type { ColumnDef } from "@tanstack/react-table"
-import type { Role } from "@workspace/api/collections"
+import type { Role } from "@workspace/api/schemas"
 import { DataTable } from "@workspace/shared-lib/components"
 import { useDialog, useTableState } from "@workspace/shared-lib/hooks"
 import { Button } from "@workspace/ui/components/button"
@@ -22,6 +22,7 @@ import {
 } from "@workspace/ui/components/select"
 import { UsersFilterBar } from "@/features/users/components/users-filter-bar"
 import { ROLE_OPTIONS, toUserCrudFilters } from "@/features/users/utils"
+import { USER_COLUMN_WIDTHS } from "@/features/users/utils/column-widths"
 import type { CurrentUser, UserRow } from "@/features/users/utils"
 import { apiUrl } from "@/utils/api-url"
 import { describeError } from "@/utils/http-error"
@@ -121,12 +122,20 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
 
   const columns = useMemo<ColumnDef<UserRow>[]>(() => {
     const cols: ColumnDef<UserRow>[] = [
-      { accessorKey: "name", header: t("users.columns.name"), size: 220 },
-      { accessorKey: "email", header: t("users.columns.email"), size: 300 },
+      {
+        accessorKey: "name",
+        header: t("users.columns.name"),
+        size: USER_COLUMN_WIDTHS.name,
+      },
+      {
+        accessorKey: "email",
+        header: t("users.columns.email"),
+        size: USER_COLUMN_WIDTHS.email,
+      },
       {
         accessorKey: "role",
         header: t("users.columns.role"),
-        size: 160,
+        size: USER_COLUMN_WIDTHS.role,
         cell: ({ row }) =>
           isAdmin ? (
             <Select
@@ -156,7 +165,7 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
       cols.push({
         id: "actions",
         header: t("users.columns.actions"),
-        size: 100,
+        size: USER_COLUMN_WIDTHS.actions,
         enableSorting: false,
         cell: ({ row }) => (
           <Button

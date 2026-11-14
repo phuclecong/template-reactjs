@@ -1,5 +1,5 @@
 import type { CrudFilter } from "@refinedev/core"
-import { roleSchema, type UserRecord } from "@workspace/api/collections"
+import { roleSchema, type UserRecord } from "@workspace/api/schemas"
 
 /** All User Roles in display order, derived from the API contract. */
 export const ROLE_OPTIONS = roleSchema.options
