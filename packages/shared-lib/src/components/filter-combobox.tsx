@@ -14,7 +14,6 @@ import {
   ComboboxValue,
   useComboboxAnchor,
 } from "@workspace/ui/components/combobox"
-import { InputGroupButton } from "@workspace/ui/components/input-group"
 import { XIcon } from "lucide-react"
 import { joinFilterValues, parseFilterValues } from "../utils"
 
@@ -172,7 +171,6 @@ function SingleSelectFilterCombobox({
   placeholder,
   className,
 }: FilterComboboxSharedProps) {
-  const { t } = useTranslation()
   const selectedOption = useMemo(
     () => options.find((option) => option.value === value) ?? null,
     [options, value]
