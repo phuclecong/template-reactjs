@@ -7,7 +7,7 @@ import {
   type TaskRecord,
   type TaskStatus,
   type UserRecord,
-} from "@workspace/api/collections"
+} from "@workspace/api/schemas"
 import {
   dateOnlyToLocalDate,
   localEndOfDayUtcInstant,
