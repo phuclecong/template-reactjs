@@ -19,6 +19,8 @@ export default defineConfig({
     // pnpm monorepo: `@workspace/ui` and `@workspace/shared-lib` are linked via
     // symlink and each declares its own `react`/`react-dom`. Force a single
     // instance so hooks dispatch against one React (avoids "invalid hook call").
-    dedupe: ["react", "react-dom"],
+    // `react-i18next` is deduped too so linked packages share one provider
+    // context instead of resolving a second copy with no initialized instance.
+    dedupe: ["react", "react-dom", "react-i18next"],
   },
 })

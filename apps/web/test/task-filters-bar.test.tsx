@@ -99,6 +99,26 @@ function DelayedHarness({
   )
 }
 
+describe("TaskFiltersBar clear filters", () => {
+  it("calls onClear when the Clear filters button is clicked", async () => {
+    const user = userEvent.setup()
+    const props = renderFilter({
+      status: "todo,in-progress",
+      priority: "low,high",
+      assignee: "usr_admin,unassigned",
+      dueFrom: "2026-01-01",
+      dueTo: "2026-01-31",
+    })
+
+    const clearButton = screen.getByRole("button", { name: "Clear filters" })
+    expect(clearButton).toBeVisible()
+
+    await user.click(clearButton)
+
+    expect(props.onClear).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe("TaskFiltersBar status filter", () => {
   it("has no field clear control when nothing is selected", () => {
     renderFilter()
@@ -108,12 +128,12 @@ describe("TaskFiltersBar status filter", () => {
     ).toBeNull()
   })
 
-  it("is a Status combobox with a localized All placeholder and no All option", async () => {
+  it("is a Status combobox with a localized Status placeholder and no All option", async () => {
     const user = userEvent.setup()
     renderFilter()
 
     const input = screen.getByRole("combobox", { name: "Status" })
-    expect(input).toHaveAttribute("placeholder", "All")
+    expect(input).toHaveAttribute("placeholder", "Status")
 
     await user.click(input)
 
@@ -200,7 +220,7 @@ describe("TaskFiltersBar status filter", () => {
     renderFilter()
 
     const input = screen.getByRole("combobox", { name: "Trạng thái" })
-    expect(input).toHaveAttribute("placeholder", "Tất cả")
+    expect(input).toHaveAttribute("placeholder", "Trạng thái")
 
     await user.click(input)
 
@@ -211,12 +231,12 @@ describe("TaskFiltersBar status filter", () => {
 })
 
 describe("TaskFiltersBar priority filter", () => {
-  it("is a Priority combobox with a localized All placeholder and no All option", async () => {
+  it("is a Priority combobox with a localized Priority placeholder and no All option", async () => {
     const user = userEvent.setup()
     renderFilter()
 
     const input = screen.getByRole("combobox", { name: "Priority" })
-    expect(input).toHaveAttribute("placeholder", "All")
+    expect(input).toHaveAttribute("placeholder", "Priority")
 
     await user.click(input)
 
@@ -281,7 +301,7 @@ describe("TaskFiltersBar assignee filter", () => {
     render(<Harness onChange={onChange} />)
 
     const input = screen.getByRole("combobox", { name: "Assignee" })
-    expect(input).toHaveAttribute("placeholder", "All")
+    expect(input).toHaveAttribute("placeholder", "Assignee")
 
     await user.click(input)
 

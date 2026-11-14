@@ -91,8 +91,14 @@ export function AppSidebar({
 }: React.ComponentProps<typeof Sidebar> & { user: AppSidebarUser }) {
   const { t } = useTranslation()
   const { pathname } = useLocation()
-  const { state } = useSidebar()
+  const { state, isMobile, setOpenMobile } = useSidebar()
   const { mutate: logout, isPending } = useLogout()
+
+  // The mobile sidebar renders as an overlay sheet, so following a link should
+  // dismiss it rather than leave it covering the destination page.
+  const handleNavigate = () => {
+    if (isMobile) setOpenMobile(false)
+  }
 
   const handleLogout = () => {
     logout(undefined, {
@@ -108,7 +114,9 @@ export function AppSidebar({
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              render={<IntentLink to="/dashboard/tasks" />}
+              render={
+                <IntentLink to="/dashboard/tasks" onClick={handleNavigate} />
+              }
             >
               <LayoutDashboardIcon />
               <span className="truncate">{t("shell.title")}</span>
@@ -141,7 +149,12 @@ export function AppSidebar({
                         <SidebarMenuButton
                           isActive={pathname === item.url}
                           tooltip={t(item.labelKey)}
-                          render={<IntentLink to={item.url} />}
+                          render={
+                            <IntentLink
+                              to={item.url}
+                              onClick={handleNavigate}
+                            />
+                          }
                         >
                           <item.icon />
                           <span>{t(item.labelKey)}</span>
@@ -161,7 +174,7 @@ export function AppSidebar({
             <DropdownMenu>
               <DropdownMenuTrigger render={<SidebarMenuButton size="lg" />}>
                 <UsersIcon />
-                <div className="grid flex-1 text-left leading-tight">
+                <div className="ml-2 grid flex-1 text-left leading-tight">
                   <span className="truncate text-sm">{user.name}</span>
                   <span className="truncate text-xs text-muted-foreground">
                     {user.role}

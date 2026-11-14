@@ -3,22 +3,17 @@ import type { ComponentProps } from "react"
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { I18nextProvider } from "react-i18next"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import i18n from "@/utils/i18n"
 import { UsersFilterBar } from "@/features/users/components/users-filter-bar"
 
-beforeEach(async () => {
-  await i18n.changeLanguage("en")
-})
-
-afterEach(async () => {
-  await i18n.changeLanguage("en")
-})
-
-function renderFilter(
-  overrides: Partial<ComponentProps<typeof UsersFilterBar>> = {}
+async function renderFilter(
+  overrides: Partial<ComponentProps<typeof UsersFilterBar>> = {},
+  language = "en"
 ) {
+  await i18n.changeLanguage(language)
+
   const props = {
     searchValue: "",
     onSearchChange: vi.fn(),
@@ -36,13 +31,26 @@ function renderFilter(
   return props
 }
 
+/** The registry keeps the clear control internal; its `data-slot` is the
+ * contract the theme and consumers can target. */
+function getClearControl() {
+  const clear = document.querySelector<HTMLButtonElement>(
+    '[data-slot="combobox-clear"]'
+  )
+  if (!clear) throw new Error("Combobox clear control not found")
+  return clear
+}
+
 describe("UsersFilterBar role filter", () => {
-  it("is a searchable Role combobox with an All placeholder and no All option", async () => {
+  it("is a searchable Role combobox with a Role placeholder and no All option", async () => {
     const user = userEvent.setup()
-    renderFilter()
+    await renderFilter()
 
     const input = screen.getByRole("combobox", { name: "Role" })
-    expect(input).toHaveAttribute("placeholder", "All")
+    expect(input).toHaveAttribute("placeholder", "Role")
+    expect(
+      document.querySelector('[data-slot="combobox-clear"]')
+    ).not.toBeInTheDocument()
 
     await user.click(input)
 
@@ -56,7 +64,7 @@ describe("UsersFilterBar role filter", () => {
 
   it("filters the options and emits the chosen role", async () => {
     const user = userEvent.setup()
-    const props = renderFilter()
+    const props = await renderFilter()
 
     const input = screen.getByRole("combobox", { name: "Role" })
     await user.click(input)
@@ -74,22 +82,22 @@ describe("UsersFilterBar role filter", () => {
 
   it("shows the selected role and clears it", async () => {
     const user = userEvent.setup()
-    const props = renderFilter({ role: "admin" })
+    const props = await renderFilter({ role: "admin" })
 
-    expect(screen.getByRole("combobox", { name: "Role" })).toHaveValue("admin")
+    const input = screen.getByRole("combobox", { name: "Role" })
+    expect(input).toHaveValue("admin")
 
-    await user.click(screen.getByRole("button", { name: "Clear" }))
+    await user.click(getClearControl())
 
     expect(props.onRoleChange).toHaveBeenCalledWith("")
   })
 
   it("localizes the placeholder and the role labels", async () => {
     const user = userEvent.setup()
-    await i18n.changeLanguage("vi")
-    renderFilter()
+    await renderFilter({}, "vi")
 
     const input = screen.getByRole("combobox", { name: "Vai trò" })
-    expect(input).toHaveAttribute("placeholder", "Tất cả")
+    expect(input).toHaveAttribute("placeholder", "Vai trò")
 
     await user.click(input)
 
