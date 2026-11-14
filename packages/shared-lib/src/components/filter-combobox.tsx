@@ -43,7 +43,10 @@ const optionValueEquals = (option: FilterOption, selected: FilterOption) =>
 
 // Unknown values (for example a deleted User id still in the URL) fall back to
 // their raw value so their chips stay visible and removable.
-const fallbackOption = (value: string): FilterOption => ({ value, label: value })
+const fallbackOption = (value: string): FilterOption => ({
+  value,
+  label: value,
+})
 
 type FilterComboboxContentProps = {
   /** Forwarded to `ComboboxContent`; multi-select anchors the popup to its chips. */
@@ -188,22 +191,9 @@ function SingleSelectFilterCombobox({
         aria-label={ariaLabel}
         placeholder={placeholder}
         className={className}
-        showTrigger={false}
-      >
-        {selectedOption ? (
-          <InputGroupButton
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            aria-label={t("common.clear")}
-            className="mr-0.5"
-            onClick={() => onValueChange("")}
-          >
-            <XIcon className="pointer-events-none" />
-          </InputGroupButton>
-        ) : null}
-      </ComboboxInput>
-
+        showTrigger={true}
+        showClear={true}
+      />
       <FilterComboboxContent />
     </Combobox>
   )
