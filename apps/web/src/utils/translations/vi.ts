@@ -90,7 +90,6 @@ export const vi: Translation = {
         last7Days: "7 ngày qua",
         thisMonth: "Tháng này",
       },
-      all: "Tất cả",
       clear: "Xóa bộ lọc",
     },
     bulk: {
@@ -163,7 +162,6 @@ export const vi: Translation = {
     emptyNoMatch: "Không có người dùng nào khớp với tìm kiếm hoặc bộ lọc.",
     filters: {
       role: "Vai trò",
-      all: "Tất cả",
     },
     columns: {
       name: "Tên",

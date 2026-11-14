@@ -91,7 +91,6 @@ export const en = {
         last7Days: "Last 7 days",
         thisMonth: "This month",
       },
-      all: "All",
       clear: "Clear filters",
     },
     bulk: {
@@ -163,7 +162,6 @@ export const en = {
     emptyNoMatch: "No users match your search or filters.",
     filters: {
       role: "Role",
-      all: "All",
     },
     columns: {
       name: "Name",
