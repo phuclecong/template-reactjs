@@ -116,7 +116,7 @@ export function TaskFiltersBar({
         value={searchValue}
         onChange={(event) => onSearchChange(event.target.value)}
         placeholder={t("tasks.searchPlaceholder")}
-        className="w-72"
+        className="w-56"
       />
       <FilterCombobox
         multiple

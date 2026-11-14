@@ -3,17 +3,20 @@ import { useTranslation } from "react-i18next"
 import { FilterCombobox } from "@workspace/shared-lib/components"
 import { Input } from "@workspace/ui/components/input"
 import { ROLE_OPTIONS } from "@/features/users/utils"
+import { Button } from "@workspace/ui/components/button"
 
 export function UsersFilterBar({
   searchValue,
   onSearchChange,
   role,
   onRoleChange,
+  onClear,
 }: {
   searchValue: string
   onSearchChange: (value: string) => void
   role: string
   onRoleChange: (role: string) => void
+  onClear: () => void
 }) {
   const { t } = useTranslation()
 
@@ -33,7 +36,7 @@ export function UsersFilterBar({
         value={searchValue}
         onChange={(event) => onSearchChange(event.target.value)}
         placeholder={t("users.searchPlaceholder")}
-        className="w-72"
+        className="w-56"
       />
       <FilterCombobox
         multiple={false}
@@ -44,6 +47,9 @@ export function UsersFilterBar({
         placeholder={t("users.filters.role")}
         className="h-7 w-56"
       />
+      <Button type="button" variant="ghost" size="sm" onClick={onClear}>
+        {t("tasks.filters.clear")}
+      </Button>
     </div>
   )
 }

@@ -248,6 +248,7 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
         onChange={(next) => updateParams({ ...next, page: "" })}
         onClear={() =>
           updateParams({
+            q: "",
             status: "",
             priority: "",
             assignee: "",
