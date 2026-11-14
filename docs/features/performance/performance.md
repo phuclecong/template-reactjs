@@ -101,6 +101,20 @@ Replace the startup `MswGate` with one shared worker promise created on the firs
 - A `VITE_API_URL` build's manifest contains no mock worker/handlers chunk.
 - `/login` initial JS bytes fall relative to the §2 baseline.
 
+**Measured result (work item 6.2, 2026-11-14)**
+
+Recorded with `pnpm perf` on the `ticket/30-msw-off-critical-path` mock build, three cold runs per route, medians shown:
+
+| Route              | JS transfer | CSS transfer | Change vs §2              |
+| ------------------ | ----------- | ------------ | ------------------------- |
+| `/login`           | 408,529 B   | 14,875 B     | JS −151,699 B (−27.1%)    |
+| `/dashboard/tasks` | 561,864 B   | 14,875 B     | JS +1,636 B (+0.3%)       |
+
+- The entry chunk drops from 564.7 kB gzip to 411.4 kB gzip. `msw/browser`, the handlers, and the auth service now live in a 154.5 kB gzip `msw-*.js` dynamic chunk that `index.html` neither references nor preloads. The mock collections and seed stay in the entry because route modules import the shared zod schemas; moving them would not change the tasks-route total.
+- In a real-backend build (`VITE_API_URL=http://example.test/api`) the manifest has one static entry only: no dynamic worker/handlers chunk and no preload.
+- Cold `/login` renders and accepts input without requesting `mockServiceWorker.js`; the worker starts on the first request (login submit or a list query), and the submit button stays pending through that wait.
+- `/dashboard/tasks` still needs the worker at request time, so its total is the entry plus the worker chunk. The split costs one extra response and an independent compression stream, which is the +1,636 B and puts the route 0.29% over its current 560,228 B ceiling. The `/login` byte budget passes with 151,699 B of headroom; the tasks-route ceiling is left for the post-6.3 re-seed (6.5) rather than ratcheted here.
+
 ### 6.3 Route-level splitting and loading states
 
 `React.lazy` the five route views; keep `App`, the providers, and `DashboardLayout` eager. Add page-shaped `Suspense` fallbacks, a neutral auth skeleton (no identity, no task data), and a table skeleton while data loads. Prefetch a route chunk on link hover/focus/pointerdown only.
