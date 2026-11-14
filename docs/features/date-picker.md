@@ -26,15 +26,15 @@ All Due date fields currently rely on the browser's built-in date input (`<Input
 3. The popover contains a calendar with month/year dropdown captions, a time control, and a free-text date/time entry field.
 4. Picking a date preserves the currently selected time. A value created from empty defaults to 00:00 in the user's local timezone.
 5. Free-text entry accepts a typed date and time, parsed with the project's date library in the selected Locale (date-fns `P p`). Values outside `min`/`max` are rejected. Invalid text shows an inline error and does not emit a value.
-6. Changes apply immediately. The popover stays open after a date pick so the user can adjust the time, and closes on `Done`, `Esc`, or an outside click. Clicking the selected day does nothing; clearing is explicit.
+6. Changes are emitted immediately through `onChange`. The popover stays open after a date pick so the user can adjust the time, and closes on `Done`, `Esc`, or an outside click. Clicking the selected day does nothing; clearing is explicit.
 7. The component emits a UTC instant (ISO 8601 with `Z`) through `onChange`; empty is `""`/`undefined` at call-site boundaries.
 8. `min` and `max` are UTC instants, inclusive. The calendar's year dropdown bounds derive from `min`/`max` when provided; the default month is the selected value (else today), clamped into those bounds.
-9. The picker preserves `value`, `onChange`, `onOpenChange`, `name`, `min`, `max`, `disabled`, `required`, `id`, `onBlur`, locale, a `labels` object (Clear, Done, Time, typed-entry label/hint/error), and validation state. `name` renders a hidden input carrying the UTC instant. `onOpenChange` lets a call site that keeps a local draft, such as the bulk action, reset it when the picker closes.
+9. The picker preserves `value`, `onChange`, `onDone`, `onOpenChange`, `name`, `min`, `max`, `disabled`, `required`, `id`, `onBlur`, locale, a `labels` object (Clear, Done, Time, typed-entry label/hint/error), and validation state. `name` renders a hidden input carrying the UTC instant. `onOpenChange` lets a call site that keeps a local draft, such as the bulk action, reset it when the picker closes. `onDone` receives the committed UTC instant (or `null` when empty or invalid) when `Done` is pressed, after any typed-entry draft is resolved; it is the value a batching call site should apply.
 10. The component exposes an accessible name via `label`/`aria-label`, announces the selected value, and supports keyboard-only operation: focusable trigger, arrow-key calendar navigation, `Enter`/`Space` to select, `Esc` to close, and keyboard access to the time and typed-entry controls.
 11. Existing form validation messages and error states continue to render alongside the picker.
 12. The component renders correctly in light and dark themes and respects the project's design tokens.
 
-The bulk set-due-date control applies every valid change immediately, keeps the popover open so the time can be adjusted, and resets when the popover closes. The separate Clear due date action is unchanged.
+The bulk set-due-date control keeps a local draft of the picked value: `onChange` updates that draft and never applies it. Pressing `Done` calls `onDone` with the committed value, and the call site applies it through the same confirmation dialog as the other bulk actions. Closing the popover without `Done` discards the draft. The separate Clear due date action is unchanged.
 
 ### Date range picker
 

@@ -183,7 +183,6 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
         onSearchChange={onSearchChange}
         role={role}
         onRoleChange={(value) => updateParams({ role: value, page: "" })}
-        onClear={() => updateParams({ role: "", page: "" })}
       />
 
       <DataTable

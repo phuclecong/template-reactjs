@@ -168,18 +168,24 @@ test("applies a Due datetime through the bulk action", async ({ page }) => {
   await row.getByRole("checkbox").click()
   await expect(page.getByText("1 selected")).toBeVisible()
 
+  // The DatePicker lives inside the bulk-actions popup.
+  await page.getByRole("combobox", { name: "Bulk actions" }).click()
   const trigger = page.getByLabel("Set due date")
   await trigger.click()
-  // The bulk picker applies each valid change immediately and stays open so
-  // the time can be adjusted; Done closes it and resets the control.
+  // Picking a date keeps the picker open and drafts the value; Done routes it
+  // through the same confirmation as the other bulk actions.
   await page.getByRole("button", { name: /^Today,/ }).click()
   await page.getByLabel("Time", { exact: true }).fill("14:30")
   await page.getByRole("button", { name: "Done" }).click()
 
+  const confirmation = page.getByRole("alertdialog", {
+    name: 'Apply "Set due date" to 1 tasks?',
+  })
+  await expect(confirmation).toBeVisible()
+  await confirmation.getByRole("button", { name: "Apply" }).click()
+
   await expect(page.getByText("Updated 1 tasks").first()).toBeVisible()
   await expect(row.getByText(/2:30 PM/)).toBeVisible()
-  // The control resets after applying so the next update is deliberate.
-  await expect(trigger).toContainText("Set due date")
 })
 
 test("paginates and reflects the page in the URL", async ({ page }) => {

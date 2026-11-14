@@ -117,10 +117,8 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
 
   const { applyBulk, isApplying } = useTaskBulkActions({
     selectedIds,
-    onDone: (patch) => {
-      // An immediate Due-date set keeps the row selection and the picker open
-      // so the time can still be adjusted; completion actions clear it.
-      if (typeof patch.dueDate !== "string") setRowSelection({})
+    onDone: () => {
+      setRowSelection({})
     },
   })
 

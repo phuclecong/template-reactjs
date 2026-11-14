@@ -10,7 +10,7 @@ and must never import from `apps/web`.
 | ------------ | ---------------------------------- | -------------------------------------- |
 | `components` | `@workspace/shared-lib/components` | Server-paginated `DataTable` shell     |
 | `hooks`      | `@workspace/shared-lib/hooks`      | `useTableState` URL-driven table state |
-| `libs`       | `@workspace/shared-lib/libs`       | Small shared utilities (`debounce`)    |
+| `utils`      | `@workspace/shared-lib/utils`      | Small shared utilities (`debounce`)    |
 
 ## The boundary rule
 
@@ -25,7 +25,7 @@ lives in `apps/web`; presentational primitives live in `packages/ui`.
 | ----------------- | ----------------------------------------- |
 | `src/components/` | Reusable React components (`DataTable`)   |
 | `src/hooks/`      | Reusable React hooks (`useTableState`)    |
-| `src/libs/`       | Framework-agnostic utilities (`debounce`) |
+| `src/utils/`      | Framework-agnostic utilities (`debounce`) |
 
 Each directory exposes its public API through an `index.ts`, paired with a
 matching entry in `package.json` `exports` (e.g.

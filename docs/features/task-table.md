@@ -27,3 +27,4 @@ After the user chooses an action, apply it to all selected rows.
 
 - Add pagination.
 - Remove infinite scroll.
+- Right-align the pagination control in the table footer.

@@ -331,7 +331,8 @@ restore, or a composition detail with no functional/a11y regression.
   Button-based links inside the shared table footer. Page links are square and
   compact (theme-provided), the active page reads as a bordered control rather
   than the old underline, and the "Rows per page" label may wrap at narrow
-  widths. Accepted.
+  widths. The repo-owned `DataTable` right-aligns the control in the footer
+  (`flex-1 justify-end`). Accepted.
 - **Select item padding.** Registry 4.23.0 uses `px-1.5 py-1` for select items;
   the compact type comes from the theme but the tighter horizontal padding is
   registry-owned. Accepted.

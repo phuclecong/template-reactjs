@@ -24,7 +24,6 @@ function renderFilter(
     onSearchChange: vi.fn(),
     role: "",
     onRoleChange: vi.fn(),
-    onClear: vi.fn(),
     ...overrides,
   }
 
@@ -77,9 +76,7 @@ describe("UsersFilterBar role filter", () => {
     const user = userEvent.setup()
     const props = renderFilter({ role: "admin" })
 
-    expect(screen.getByRole("combobox", { name: "Role" })).toHaveValue(
-      "admin"
-    )
+    expect(screen.getByRole("combobox", { name: "Role" })).toHaveValue("admin")
 
     await user.click(screen.getByRole("button", { name: "Clear" }))
 

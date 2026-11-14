@@ -214,7 +214,10 @@ export function DataTable<T>({
           </div>
 
           {pagination.pageCount > 1 && (
-            <Pagination aria-label={t("table.pagination.label")}>
+            <Pagination
+              aria-label={t("table.pagination.label")}
+              className="flex-1 justify-end"
+            >
               <PaginationContent>
                 <PaginationItem>
                   <PaginationPrevious

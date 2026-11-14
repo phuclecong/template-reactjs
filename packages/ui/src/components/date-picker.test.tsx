@@ -186,7 +186,9 @@ describe("DatePicker", () => {
 
     await user.click(screen.getByRole("button", { name: "Hạn chót" }))
     const typed = await screen.findByLabelText("Ngày và giờ")
-    expect(await screen.findByText("Định dạng: 01/01/2000 00:00")).toBeInTheDocument()
+    expect(
+      await screen.findByText("Định dạng: 01/01/2000 00:00")
+    ).toBeInTheDocument()
     await user.type(typed, "20/01/2026 14:30")
     await user.keyboard("{Enter}")
 
@@ -257,6 +259,26 @@ describe("DatePicker", () => {
     expect(screen.queryByLabelText("Time")).not.toBeInTheDocument()
     expect(trigger).toHaveFocus()
     expect(onBlur).toHaveBeenCalledTimes(1)
+  })
+
+  it("passes the committed typed value to onDone", async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    const onDone = vi.fn()
+
+    render(
+      <DatePicker onChange={onChange} onDone={onDone} aria-label="Due date" />
+    )
+
+    await user.click(screen.getByRole("button", { name: "Due date" }))
+    const typed = await screen.findByLabelText("Date and time")
+    await user.type(typed, "01/20/2026 2:30 PM")
+
+    // Done resolves the typed draft without waiting for onChange state.
+    await user.click(screen.getByRole("button", { name: "Done" }))
+
+    expect(onChange).toHaveBeenCalledWith("2026-01-20T14:30:00.000Z")
+    expect(onDone).toHaveBeenCalledWith("2026-01-20T14:30:00.000Z")
   })
 
   it("clears the value and closes the picker", async () => {
@@ -462,9 +484,7 @@ describe("DatePicker", () => {
     )
 
     await user.click(screen.getByRole("button", { name: "Due date" }))
-    await user.click(
-      await screen.findByRole("button", { name: /January 15/ })
-    )
+    await user.click(await screen.findByRole("button", { name: /January 15/ }))
 
     expect(onChange).not.toHaveBeenCalled()
   })

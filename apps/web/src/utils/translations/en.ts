@@ -164,7 +164,6 @@ export const en = {
     filters: {
       role: "Role",
       all: "All",
-      clear: "Clear filters",
     },
     columns: {
       name: "Name",

@@ -164,7 +164,6 @@ export const vi: Translation = {
     filters: {
       role: "Vai trò",
       all: "Tất cả",
-      clear: "Xóa bộ lọc",
     },
     columns: {
       name: "Tên",

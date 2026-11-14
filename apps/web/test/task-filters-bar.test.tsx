@@ -30,10 +30,7 @@ const users = [
   { id: "usr_member", name: "Mia Member" },
 ]
 
-function renderFilter(
-  values: TaskFilters = emptyFilters,
-  filterUsers = users
-) {
+function renderFilter(values: TaskFilters = emptyFilters, filterUsers = users) {
   const props = {
     searchValue: "",
     onSearchChange: vi.fn(),
@@ -197,27 +194,6 @@ describe("TaskFiltersBar status filter", () => {
     expect(screen.getByRole("button", { name: "Remove done" })).toBeVisible()
   })
 
-  it("clears the status field with the field clear control", async () => {
-    const user = userEvent.setup()
-    const onChange = vi.fn()
-    render(
-      <Harness
-        initial={{ ...emptyFilters, status: "done" }}
-        onChange={onChange}
-      />
-    )
-
-    await user.click(screen.getByRole("button", { name: "Clear", exact: true }))
-
-    expect(onChange).toHaveBeenLastCalledWith(emptyFilters)
-    expect(
-      screen.queryByRole("button", { name: "Remove done" })
-    ).not.toBeInTheDocument()
-    expect(
-      screen.getByRole("combobox", { name: "Status" })
-    ).toHaveAttribute("placeholder", "All")
-  })
-
   it("localizes the placeholder and the status labels", async () => {
     const user = userEvent.setup()
     await i18n.changeLanguage("vi")
@@ -296,27 +272,6 @@ describe("TaskFiltersBar priority filter", () => {
     ).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Remove high" })).toBeVisible()
   })
-
-  it("clears the priority field with the field clear control", async () => {
-    const user = userEvent.setup()
-    const onChange = vi.fn()
-    render(
-      <Harness
-        initial={{ ...emptyFilters, priority: "high" }}
-        onChange={onChange}
-      />
-    )
-
-    await user.click(screen.getByRole("button", { name: "Clear", exact: true }))
-
-    expect(onChange).toHaveBeenLastCalledWith(emptyFilters)
-    expect(
-      screen.queryByRole("button", { name: "Remove high" })
-    ).not.toBeInTheDocument()
-    expect(
-      screen.getByRole("combobox", { name: "Priority" })
-    ).toHaveAttribute("placeholder", "All")
-  })
 })
 
 describe("TaskFiltersBar assignee filter", () => {
@@ -374,23 +329,5 @@ describe("TaskFiltersBar assignee filter", () => {
     expect(
       screen.getByRole("button", { name: "Remove Ada Admin" })
     ).toBeVisible()
-  })
-
-  it("clears the assignee field with the field clear control", async () => {
-    const user = userEvent.setup()
-    const onChange = vi.fn()
-    render(
-      <Harness
-        initial={{ ...emptyFilters, assignee: "usr_member" }}
-        onChange={onChange}
-      />
-    )
-
-    await user.click(screen.getByRole("button", { name: "Clear", exact: true }))
-
-    expect(onChange).toHaveBeenLastCalledWith(emptyFilters)
-    expect(
-      screen.getByRole("combobox", { name: "Assignee" })
-    ).toHaveAttribute("placeholder", "All")
   })
 })

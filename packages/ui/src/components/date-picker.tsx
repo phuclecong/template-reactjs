@@ -63,6 +63,13 @@ export type DatePickerProps = {
   /** Receives the selected UTC instant, or `""` when cleared. */
   onChange?: (value: string) => void
   /**
+   * Called when `Done` is pressed, with the committed UTC instant (or `null`
+   * when the picker is empty or the typed entry is invalid). Lets a call site
+   * that keeps a local draft apply the value without waiting for `onChange`
+   * state to settle.
+   */
+  onDone?: (value: string | null) => void
+  /**
    * Called whenever the picker opens or closes. Call sites that keep a local
    * draft (such as the bulk action) use the close signal to reset it.
    */
@@ -119,6 +126,7 @@ export function DatePicker({
   id,
   name,
   onBlur,
+  onDone,
   locale = "en",
   placeholder = "",
   labels,
@@ -296,9 +304,10 @@ export function DatePicker({
   }
 
   function handleDone() {
-    commitTypedValue()
+    const committed = commitTypedValue()
     setOpen(false)
     finishClose()
+    onDone?.(committed)
   }
 
   function handleClear() {

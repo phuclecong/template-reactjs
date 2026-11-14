@@ -154,6 +154,15 @@ export function TaskBulkActions({
     setPendingAction({ item, count: selectedCount })
   }
 
+  function dueDateAction(value: string): BulkActionItem {
+    return {
+      id: "dueDate:set",
+      label: t("tasks.bulk.setDueDate"),
+      groupLabel: t("tasks.filters.dueDate"),
+      patch: { dueDate: formValueToDueDate(value) },
+    }
+  }
+
   function handleCancel() {
     if (isApplying) return
     setPendingAction(null)
@@ -211,7 +220,9 @@ export function TaskBulkActions({
             <ComboboxList>
               {(group: BulkActionGroup) => (
                 <ComboboxGroup key={group.value} items={group.items}>
-                  <ComboboxLabel>{group.value}</ComboboxLabel>
+                  <ComboboxLabel className="mt-2 border-t border-border px-1 py-1.5 text-xs font-bold text-muted-foreground">
+                    {group.value}
+                  </ComboboxLabel>
                   {group.items.map((item) => (
                     <ComboboxItem key={item.id} value={item}>
                       {item.label}
@@ -220,35 +231,40 @@ export function TaskBulkActions({
                 </ComboboxGroup>
               )}
             </ComboboxList>
+            <DatePicker
+              aria-label={t("tasks.bulk.setDueDate")}
+              value={dueDate}
+              // Keep the picked value as a draft; `Done` resolves it through the
+              // same confirmation flow as the other bulk actions, and closing
+              // the picker discards the draft.
+              onChange={(value) => {
+                if (!value) return
+
+                setDueDate(value)
+              }}
+              onDone={(value) => {
+                if (!value) return
+
+                handleSelect(dueDateAction(value))
+              }}
+              onOpenChange={(open) => {
+                if (!open) setDueDate("")
+              }}
+              disabled={!hasSelection}
+              locale={locale}
+              placeholder={t("tasks.bulk.setDueDate")}
+              labels={{
+                clear: t("common.clear"),
+                done: t("common.done"),
+                time: t("datePicker.time"),
+                typedEntryLabel: t("datePicker.typedLabel"),
+                typedEntryHint: t("datePicker.typedHint"),
+                typedEntryError: t("datePicker.typedError"),
+              }}
+              className="w-44"
+            />
           </ComboboxContent>
         </Combobox>
-
-        <DatePicker
-          aria-label={t("tasks.bulk.setDueDate")}
-          value={dueDate}
-          // Bulk updates apply immediately; the control stays open so the
-          // time can still be adjusted, then resets when it closes.
-          onChange={(value) => {
-            if (!value) return
-            setDueDate(value)
-            applyBulk({ dueDate: formValueToDueDate(value) })
-          }}
-          onOpenChange={(open) => {
-            if (!open) setDueDate("")
-          }}
-          disabled={!hasSelection}
-          locale={locale}
-          placeholder={t("tasks.bulk.setDueDate")}
-          labels={{
-            clear: t("common.clear"),
-            done: t("common.done"),
-            time: t("datePicker.time"),
-            typedEntryLabel: t("datePicker.typedLabel"),
-            typedEntryHint: t("datePicker.typedHint"),
-            typedEntryError: t("datePicker.typedError"),
-          }}
-          className="w-44"
-        />
 
         <Button type="button" onClick={() => onCreate()} size="sm">
           {t("tasks.new")}

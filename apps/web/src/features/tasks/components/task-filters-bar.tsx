@@ -15,7 +15,7 @@ import {
 } from "@workspace/ui/components/combobox"
 import { DateRangePicker } from "@workspace/ui/components/date-range-picker"
 import { Input } from "@workspace/ui/components/input"
-import { ChevronDownIcon, XIcon } from "lucide-react"
+import { XIcon } from "lucide-react"
 import { resolveLocale } from "@workspace/ui/lib/date"
 import {
   EMPTY_TASK_FILTERS,
@@ -107,22 +107,6 @@ function FilterCombobox({
             </>
           )}
         </ComboboxValue>
-        {selectedValues.length > 0 ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            aria-label={t("common.clear")}
-            className="ml-auto opacity-50 hover:opacity-100"
-            onClick={() => onValueChange("")}
-          >
-            <XIcon className="pointer-events-none" />
-          </Button>
-        ) : null}
-        <ChevronDownIcon
-          aria-hidden="true"
-          className="pointer-events-none size-4 shrink-0 text-muted-foreground"
-        />
       </ComboboxChips>
       <ComboboxContent anchor={anchor}>
         <ComboboxEmpty>{t("combobox.noResults")}</ComboboxEmpty>

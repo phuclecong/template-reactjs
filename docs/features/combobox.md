@@ -71,9 +71,11 @@ Decision record: `docs/adr/0008-multi-value-table-filters.md`
 - Status, Priority, and Assignee are multi-select. Values are OR'd within a
   field and fields are AND'd.
 - The explicit "All" item is removed everywhere. An empty selection means "all"
-  and the placeholder reads "All". The toolbar's existing "Clear filters"
-  button remains; each field also has a `ComboboxClear` control when it has a
-  value.
+  and the placeholder reads "All". The Tasks toolbar's existing "Clear filters"
+  button remains. Task filter fields have no separate field-level clear
+  control: selected values are removed individually through their chip remove
+  buttons. The single-select Users Role field shows a labelled clear control
+  while a role is selected.
 - Selected values render as chips inside the field. Chips wrap onto multiple
   lines rather than truncating or scrolling.
 - Each `ComboboxChipRemove` has a translated accessible name.
@@ -105,7 +107,8 @@ Decision record: `docs/adr/0008-multi-value-table-filters.md`
 - One grouped `Combobox` (single-select, controlled `value={null}` so the
   trigger never shows the last action) replaces the three `DropdownMenu`s.
 - Groups: Status, Priority, Assignee, and Due date. Due date contains the
-  "Clear due date" action. The `DatePicker` stays a separate control.
+  "Clear due date" action. The `DatePicker` sits inside the same popup, below
+  the grouped action list.
 - Search matches the group label plus the item label, so "assign", "status",
   "priority", and "done" all find their actions.
 - Selecting an action closes the popup and opens `ConfirmDialog` before every
@@ -114,8 +117,10 @@ Decision record: `docs/adr/0008-multi-value-table-filters.md`
 - Confirming calls the existing `applyBulk` handler unchanged; cancelling leaves
   the selection untouched. A successful update clears the row selection as
   today. `ConfirmDialog`'s `loading` reflects an in-flight mutation.
-- The `DatePicker` keeps its immediate-apply, stays-open-to-adjust behaviour and
-  is not wrapped in a confirmation.
+- The `DatePicker` keeps a local draft: picking a date or adjusting the time
+  updates only the control. `Done` routes the committed value through the same
+  confirmation dialog as the other actions; closing without `Done` discards the
+  draft. The picker stays open until `Done`, `Esc`, or an outside click.
 - The existing "N selected" text remains beside the trigger. The trigger label
   stays "Bulk actions".
 - The earlier "clear button" and "destructive styling" requirements are dropped:
@@ -187,7 +192,7 @@ import {
   grouped actions, disabled, and empty stories, with `play` interactions for
   the main flows; title `Primitives/Combobox`, `tags: ["autodocs"]`.
 - `apps/web/test/task-bulk-actions.test.tsx`: grouped selection, confirmation,
-  cancel, and the unchanged DatePicker behaviour.
+  cancel, and the drafted DatePicker confirmation flow.
 - `apps/web/e2e/tasks-filters.spec.ts`: update listbox/`option` role queries;
   add multi-select URL and API scenarios and the bulk confirmation flow. Keep
   the date-filter scenarios.
@@ -212,12 +217,12 @@ pnpm --filter web test:e2e
       URL uses comma-joined values and the API receives repeated params.
 - [ ] Users Role filter uses a single-select `Combobox`; empty means all.
 - [ ] No "All" item remains in any migrated filter; placeholders read "All".
-- [ ] Chips wrap, each has a working remove button, and the filter field also
-      offers a clear control.
+- [ ] Chips wrap and each has a working remove button; the Tasks toolbar clear
+      resets all filters, and the Users Role field offers a labelled clear.
 - [ ] Bulk actions use one grouped, searchable `Combobox`; every discrete
       action, including "Clear due date", goes through the confirm dialog.
-- [ ] The bulk `DatePicker` still applies immediately and stays open,
-      unconfirmed.
+- [ ] The bulk `DatePicker` drafts the value, stays open until `Done`, and
+      applies only after the shared confirmation dialog.
 - [ ] Keyboard-only operation works for both filter fields and bulk actions,
       following Base UI chip semantics.
 - [ ] No regressions in pagination, due-date filters, selection reset, or bulk

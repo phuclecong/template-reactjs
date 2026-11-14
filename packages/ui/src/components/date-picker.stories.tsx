@@ -50,6 +50,7 @@ const meta = {
   },
   argTypes: {
     onChange: { control: false },
+    onDone: { control: false },
     onOpenChange: { control: false },
     labels: { control: "object" },
     min: { control: "text" },
