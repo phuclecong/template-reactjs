@@ -1,0 +1,41 @@
+{
+  "requestedUrl": "http://localhost:4173/dashboard/tasks",
+  "finalDisplayedUrl": "http://localhost:4173/dashboard/tasks",
+  "categories": {
+    "performance": {
+      "score": 0.86
+    }
+  },
+  "audits": {
+    "first-contentful-paint": { "numericValue": 1700 },
+    "largest-contentful-paint": { "numericValue": 3100 },
+    "total-blocking-time": { "numericValue": 250 },
+    "cumulative-layout-shift": { "numericValue": 0.04 },
+    "network-requests": {
+      "details": {
+        "items": [
+          {
+            "url": "http://localhost:4173/assets/index-abc123.js",
+            "resourceType": "Script",
+            "transferSize": 1210000
+          },
+          {
+            "url": "http://localhost:4173/mockServiceWorker.js",
+            "resourceType": "Script",
+            "transferSize": 5000
+          },
+          {
+            "url": "http://localhost:4173/assets/index-abc123.css",
+            "resourceType": "Stylesheet",
+            "transferSize": 54000
+          },
+          {
+            "url": "http://localhost:4173/favicon.ico",
+            "resourceType": "Other",
+            "transferSize": 500
+          }
+        ]
+      }
+    }
+  }
+}

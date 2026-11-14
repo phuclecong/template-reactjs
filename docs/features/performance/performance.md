@@ -15,21 +15,32 @@ The work is measured on the **production build**. The audit previously cited as 
 
 The discarded report (`localhost-dashboard-tasks_2026-11-14_18-33-45.json`) is a Chrome DevTools Lighthouse run against `http://localhost:5173/dashboard/tasks` — the Vite **dev server**. The trace shows 196 requests, `@vite/client` and react-refresh in the dependency tree, and 10,780 KiB of unminified JavaScript (`unminified-javascript` alone estimated 4,229 KiB of savings). It is kept locally and gitignored; it is not a baseline.
 
-| Signal                 | Dev-server audit (2026-11-14)                       | Production build                                |
-| ---------------------- | --------------------------------------------------- | ----------------------------------------------- |
-| Entry                  | `http://localhost:5173/dashboard/tasks`             | `apps/web/dist`                                 |
-| JS requests            | 196, unminified modules                             | 1 chunk                                         |
-| JS transfer            | 10,780 KiB total (unminified)                       | 1.6 MB raw / 559 KB gzip                        |
-| CSS                    | Served through the module graph                     | 92 KB raw / 14.5 KB gzip                        |
-| Performance score      | 0.55                                                | measured by work item 6.1                       |
-| FCP / LCP              | 5.8 s / 11.1 s                                      | measured by work item 6.1                       |
-| TBT / CLS              | 20 ms / 0                                           | measured by work item 6.1                       |
+| Signal                 | Dev-server audit (2026-11-14)                       | Production build (2026-11-14)                              |
+| ---------------------- | --------------------------------------------------- | ---------------------------------------------------------- |
+| Entry                  | `http://localhost:5173/dashboard/tasks`             | `apps/web/dist`, served by `vite preview`                  |
+| JS requests            | 196, unminified modules                             | 1 chunk                                                    |
+| JS transfer            | 10,780 KiB total (unminified)                       | 1.72 MB raw / 560 kB gzip over the wire                    |
+| CSS                    | Served through the module graph                     | 91.4 kB raw / 14.9 kB gzip over the wire                   |
+| Performance score      | 0.55                                                | 1.00 `/login`; 0.74 `/dashboard/tasks`                     |
+| FCP / LCP              | 5.8 s / 11.1 s                                      | 904 ms / 904 ms; 3,780 ms / 4,059 ms                       |
+| TBT / CLS              | 20 ms / 0                                           | 59 ms / 0; 290 ms / 0                                      |
 
 The 0.55 score and 11.1 s LCP describe Vite's module graph, not what a user downloads. Auditing the dev server is never evidence (ADR-0010).
 
+### Measured production baseline (work item 6.1)
+
+Recorded 2026-11-14 from `pnpm perf` on the pre-optimization build: `vite build`, served by `vite preview`, Lighthouse mobile (simulated Slow 4G, 4× CPU), three cold runs per route, medians shown. These are the **pre-optimization** numbers the byte budgets were seeded from (work item 6.5 ratchets them lower). The `/dashboard/tasks` timing floor is not yet green: the initial LHCI gate requires score ≥ 0.85 and LCP ≤ 3.5 s, and the gap is what work items 6.2–6.4 address.
+
+| Route              | JS transfer | CSS transfer | FCP     | LCP     | TBT    | CLS   | Score |
+| ------------------ | ----------- | ------------ | ------- | ------- | ------ | ----- | ----- |
+| `/login`           | 560,228 B   | 14,875 B     | 904 ms  | 904 ms  | 59 ms  | 0.000 | 1.00  |
+| `/dashboard/tasks` | 560,228 B   | 14,875 B     | 3,780 ms | 4,059 ms | 290 ms | 0.000 | 0.74  |
+
+The byte figures are Lighthouse's `network-requests` `transferSize` (compressed bytes plus headers), summed for `Script` and `Stylesheet`; they match the current `apps/web/perf-budgets.json` ceilings exactly. The dev-server report above remains discarded evidence — it is never recorded as a baseline.
+
 ## 3. What is actually slow
 
-- **One eager chunk.** `App.tsx` imports every route and heavy overlay at module scope; there is no `React.lazy` anywhere. Every route shares the 559 KB gzip entry, including views a user never visits.
+- **One eager chunk.** `App.tsx` imports every route and heavy overlay at module scope; there is no `React.lazy` anywhere. Every route shares the 560 KB gzip entry, including views a user never visits.
 - **The mock backend gates first render.** `MswGate` renders `null` until `setupWorker().start()` resolves and 151 tasks are seeded, and MSW plus the mock data layer are inside the production bundle.
 - **Blank waits.** `ProtectedRoute`, `RedirectIfAuthed`, and `DashboardLayout` return `null` while their async checks run, so a cold visitor can see a blank page rather than a loading surface.
 - **No guardrail.** There is no production Lighthouse run, bundle budget, or CI check, so a regression is discovered by users.
