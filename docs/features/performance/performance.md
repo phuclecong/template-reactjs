@@ -126,6 +126,21 @@ Recorded with `pnpm perf` on the `ticket/30-msw-off-critical-path` mock build, t
 - No screen is blank during auth, chunk load, or data load; CLS stays ≤ 0.1.
 - Per-route JS bytes fall relative to the 6.1 baseline.
 
+**Measured result (work item 6.3, 2026-11-14)**
+
+Recorded with `pnpm perf` on the merged `ticket/31-route-splitting` mock build, three cold runs per route, medians shown:
+
+| Route              | JS transfer | CSS transfer | FCP    | LCP     | TBT    | CLS   | Score |
+| ------------------ | ----------- | ------------ | ------ | ------- | ------ | ----- | ----- |
+| `/login`           | 299,759 B   | 14,875 B     | 905 ms | 905 ms  | 4 ms   | 0.000 | 1.00  |
+| `/dashboard/tasks` | 494,993 B   | 14,875 B     | 906 ms | 4,316 ms | 233 ms | 0.000 | 0.82  |
+
+- Both byte budgets pass. `/login` falls 260,469 B (−46.5%) against the §2 baseline; `/dashboard/tasks` falls 65,235 B (−11.6%) as measured. CSS is unchanged from the baseline because the skeletons use inline dimensions rather than new utility classes.
+- The dashboard measurement is a lower bound on route-chunk body bytes: the login step registers the mock service worker before the audited tab opens, so Lighthouse attributes header-only transfer to the dynamically imported route chunks. Build-level gzip sizes are ~300 kB for `/login` and ~400 kB of route code for `/dashboard/tasks`, plus the ~171 kB request-time worker chunk. Bringing the tasks route itself below the old single-bundle total is the overlay split (6.4) plus the 6.5 re-seed.
+- `build.manifest` records each `src/routes/*` chunk as a dynamic entry: every route entry imports only shared chunks and the entry, and no route entry imports another route entry. `index.html` preloads only the entry's static import; no route chunk is preloaded.
+- A production preview probe on cold `/login`, `/dashboard/tasks`, and `/dashboard/settings` requested only the current route's chunk; four seconds of idle added no further route chunk. The sidebar and breadcrumb `IntentLink` prefetches on pointer enter, focus, or pointer down; unit and e2e tests assert nothing is fetched on mount, at startup, or while idle.
+- The `/dashboard/tasks` Lighthouse timing gate remains red (LCP 4.3 s, score 0.82), the pre-existing gap recorded in §2; CLS is 0.000 on both routes and the byte budgets are green.
+
 ### 6.4 Overlay-level lazy loading and chunk failure handling
 
 Lazy-load the task form dialog, delete dialog, and bulk actions; prefetch them on trigger intent. Add a shared `lazyWithRetry` (one retry, then a full reload) and an error boundary around route and overlay chunks. Split the calendar internals only if the tasks-route budget still fails after 6.3.
