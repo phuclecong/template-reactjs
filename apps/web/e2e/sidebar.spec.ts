@@ -51,6 +51,18 @@ test("sidebar opens as a drawer on mobile", async ({ page }) => {
   await expect(page.locator('[data-mobile="true"]')).toBeVisible()
 })
 
+test("mobile drawer closes after navigating", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await login(page, "admin@example.com", "adminpass")
+
+  await page.locator('[data-sidebar="trigger"]').click()
+  await expect(page.locator('[data-mobile="true"]')).toBeVisible()
+
+  await page.getByRole("link", { name: "Users" }).click()
+  await expect(page).toHaveURL(/\/dashboard\/users/)
+  await expect(page.locator('[data-mobile="true"]')).not.toBeVisible()
+})
+
 test("signs out via the sidebar footer", async ({ page }) => {
   await login(page, "admin@example.com", "adminpass")
   await expect(page).toHaveURL(/\/dashboard\/tasks/)
