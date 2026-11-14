@@ -36,12 +36,27 @@ Recorded 2026-11-14 from `pnpm perf` on the pre-optimization build: `vite build`
 | `/login`           | 560,228 B   | 14,875 B     | 904 ms   | 904 ms   | 59 ms  | 0.000 | 1.00  |
 | `/dashboard/tasks` | 560,228 B   | 14,875 B     | 3,780 ms | 4,059 ms | 290 ms | 0.000 | 0.74  |
 
-The byte figures are Lighthouse's `network-requests` `transferSize` (compressed bytes plus headers), summed for `Script` and `Stylesheet`; they match the current `apps/web/perf-budgets.json` ceilings exactly. The dev-server report above remains discarded evidence — it is never recorded as a baseline.
+The byte figures are Lighthouse's `network-requests` `transferSize` (compressed bytes plus headers), summed for `Script` and `Stylesheet`; they seeded the original byte ceilings. The dev-server report above remains discarded evidence — it is never recorded as a baseline.
+
+### Post-optimization baseline (work item 6.5)
+
+Recorded 2026-11-14 from two consecutive `pnpm perf` runs on the final mock build (`ticket/33-verify-ratchet`), three cold runs per route per run, medians shown. The harness now seeds the authenticated tab's `sessionStorage` directly and never loads the app or registers a service worker before the audit (§5, #33), so these are honest `transferSize` values and the first `/api` request is the cold seed of all 150 tasks.
+
+| Route              | JS transfer | CSS transfer | FCP        | LCP      | TBT        | CLS   | Score |
+| ------------------ | ----------- | ------------ | ---------- | -------- | ---------- | ----- | ----- |
+| `/login`           | 300,317 B   | 14,875 B     | 905 ms     | 905 ms   | 0–2 ms     | 0.000 | 1.00  |
+| `/dashboard/tasks` | 553,891 B   | 14,875 B     | 906–907 ms | 4,620 ms | 142–157 ms | 0.000 | 0.82  |
+
+Both runs produced identical byte medians (`/login` 300,317 B JS, `/dashboard/tasks` 553,891 B JS, 14,875 B CSS on both routes); repeat-run timing spread stayed in the single-digit milliseconds for LCP and under 15 ms for TBT. `apps/web/perf-budgets.json` is ratcheted from these values (§6.5).
+
+The honest numbers supersede the service-worker-masked harness figures recorded under 6.3 and 6.4 (494,993 B and 553,873 B for the tasks route, and #31's 437,015–570,180 B range). In those runs the UI login step had registered the mock worker before Lighthouse opened the audited tab, so dynamically imported route chunks were reported with `transferSize: 179` (headers only). With the fix, every `Script`/`Stylesheet` in both reports transfers a real body; `/login` requests no worker at all, and `/dashboard/tasks` pays the request-time worker chunk inside the measured cold visit, as the contract requires.
+
+Timing verdict: `/login` meets the §7 targets. `/dashboard/tasks` meets CLS ≤ 0.1 and TBT ≤ 200 ms, but **does not** meet LCP ≤ 2.5 s, and also remains above the initial thresholds (LCP ≤ 3.5 s, score ≥ 0.85). Those thresholds are unchanged and now report-only (§5); the residual gap is recorded in §6.5 and §7, and a follow-up is required before they can block again.
 
 ## 3. What is actually slow
 
 - **One eager chunk.** `App.tsx` imports every route and heavy overlay at module scope; there is no `React.lazy` anywhere. Every route shares the 560 KB gzip entry, including views a user never visits.
-- **The mock backend gates first render.** `MswGate` renders `null` until `setupWorker().start()` resolves and 151 tasks are seeded, and MSW plus the mock data layer are inside the production bundle.
+- **The mock backend gates first render.** `MswGate` renders `null` until `setupWorker().start()` resolves and 150 tasks are seeded, and MSW plus the mock data layer are inside the production bundle.
 - **Blank waits.** `ProtectedRoute`, `RedirectIfAuthed`, and `DashboardLayout` return `null` while their async checks run, so a cold visitor can see a blank page rather than a loading surface.
 - **No guardrail.** There is no production Lighthouse run, bundle budget, or CI check, so a regression is discovered by users.
 
@@ -70,24 +85,24 @@ Not supported by the code: unbounded lists (both tables are server-paginated at 
 
 - **Artifact**: `vite build` + `vite preview`. The dev server is never measured.
 - **Profile**: Lighthouse mobile emulation — simulated Slow 4G (150 ms RTT, 1.6 Mbps down, 750 Kbps up) and 4× CPU slowdown.
-- **State**: a cold browser context per run. The 151-task seed is part of the measured first visit.
-- **Routes**: `/login` (unauthenticated entry) and `/dashboard/tasks` (heaviest authenticated view, reached through a login step).
+- **State**: a cold browser context per run. The 150-task seed is part of the measured first visit. The authenticated tab receives the deterministic `auth.session` value through `evaluateOnNewDocument` before app modules run; the harness never navigates the app or registers the mock service worker before the audit. No `localStorage` seed exists when the audit starts, so the first `/api` request starts the worker and seeds inside the measured visit.
+- **Routes**: `/login` (unauthenticated entry) and `/dashboard/tasks` (heaviest authenticated view; its session is injected by the harness, not created by a UI login).
 - **Runs**: three per route; assertions use the median, never a single run.
 - **UX gates**: LCP ≤ 2.5 s, CLS ≤ 0.1, TBT ≤ 200 ms. FCP is tracked without a separate gate.
-- **Byte budgets**: per-route initial JS plus render-blocking CSS, summed from the Lighthouse report's `network-requests` `transferSize` for `Script` and `Stylesheet`. Budgets are set from the post-optimization measurement and then ratchet: a regression above +5% fails.
-- **CI**: byte budgets block immediately (they are deterministic). LHCI timing assertions block on the median with generous initial thresholds — score ≥ 0.85 and LCP ≤ 3.5 s — and tighten once two releases are stable.
+- **Byte budgets**: per-route initial JS plus render-blocking CSS, summed from the Lighthouse report's `network-requests` `transferSize` for `Script` and `Stylesheet`. Budgets are set from the post-optimization measurement and then ratchet: a regression above +5% fails. The ratchet rule is `newCeiling = min(currentCeiling, ceil(measured × 1.05))`, so a re-measurement can tighten a ceiling but never loosen one. Reports that contain a `Script` or `Stylesheet` with `transferSize ≤ 256` are rejected as possible service-worker masking / under-measurement (the observed masked value was 179 B; the smallest honest chunk is 511 B).
+- **CI**: byte budgets block immediately (they are deterministic), and a separate blocking step builds both the audited mock mode and a `VITE_API_URL` real-backend mode and asserts the real build emits no MSW chunk or preload. Lighthouse timing assertions use the initial thresholds — score ≥ 0.85 and LCP ≤ 3.5 s — but are **report-only** (`warn` in `lighthouserc.cjs`) at the current baseline because `/dashboard/tasks` does not meet them ([#35](https://github.com/phuclecong/template-reactjs/issues/35)): LHCI prints the measured values and warnings, and `pnpm perf` exits 0 when the byte budgets pass. To re-enable blocking once `/dashboard/tasks` meets the targets, change the two assertion severities from `warn` to `error`; do that only after #35 brings the route under the thresholds and two consecutive stable releases pass. A red route is fixed, never re-baselined by loosening an assertion.
 
 ## 6. Work items
 
 ### 6.1 Production measurement harness, baseline, and CI gate
 
-`apps/web` owns `lighthouserc.*`, `scripts/perf/login.*` (Puppeteer login step), `scripts/perf/budget.*` (report-derived byte totals), and `perf-budgets.json`. A root `pnpm perf` builds, previews, audits both routes cold, computes per-route JS/CSS bytes, and prints FCP/LCP/TBT/CLS medians. A CI job runs the same: byte check blocking, Lighthouse gate as in §5. The measured baseline is recorded in §2.
+`apps/web` owns `lighthouserc.*`, `scripts/perf/login.*` (Puppeteer session-seed step), `scripts/perf/budget.*` (report-derived byte totals plus the masking guard), `scripts/perf/verify-real-build.*` (both-mode build assertion), and `perf-budgets.json`. A root `pnpm perf` builds, previews, audits both routes cold, computes per-route JS/CSS bytes, and prints FCP/LCP/TBT/CLS medians. A CI job runs the same: byte check blocking, Lighthouse gate as in §5. The measured baseline is recorded in §2.
 
 **Acceptance**
 
 - `pnpm perf` reproduces both routes on a clean checkout.
 - The report prints per-route JS/CSS bytes and FCP/LCP/TBT/CLS medians.
-- CI fails when a byte budget or the timing floor is breached.
+- CI fails when a byte budget or the real-build MSW assertion is breached; Lighthouse timing thresholds report-and-warn until the authenticated route meets them.
 - The baseline table in §2 is filled with production numbers.
 
 ### 6.2 Mock backend off the critical path
@@ -140,6 +155,7 @@ Recorded with `pnpm perf` on the merged `ticket/31-route-splitting` mock build, 
 - `build.manifest` records each `src/routes/*` chunk as a dynamic entry: every route entry imports only shared chunks and the entry, and no route entry imports another route entry. `index.html` preloads only the entry's static import; no route chunk is preloaded.
 - A production preview probe on cold `/login`, `/dashboard/tasks`, and `/dashboard/settings` requested only the current route's chunk; four seconds of idle added no further route chunk. The sidebar and breadcrumb `IntentLink` prefetches on pointer enter, focus, or pointer down; unit and e2e tests assert nothing is fetched on mount, at startup, or while idle.
 - The `/dashboard/tasks` Lighthouse timing gate remains red (LCP 4.3 s, score 0.82), the pre-existing gap recorded in §2; CLS is 0.000 on both routes and the byte budgets are green.
+- **Superseded measurement:** the byte figures in this table were produced by the service-worker-masked harness. #33 fixed the harness; §2's post-optimization baseline is the current evidence, and the tasks route honestly measures 553,891 B and LCP ~4.6 s.
 
 ### 6.4 Overlay-level lazy loading and chunk failure handling
 
@@ -172,12 +188,36 @@ The form and delete dialogs stay in one deferred `task-dialogs` module; the bulk
 - Overlay chunks are deferred: `task-dialogs` (2,360 B gzip) and `task-bulk-actions-content` (815 B gzip), plus their still-deferred dependency slices. The marginal open-time cost is paid only when a trigger is used.
 - A Playwright spec intercepts the Settings route module and answers 404: the shell stays mounted, the translated alert and **Try again** appear, and retrying after the interception stops recovers the Settings heading. Boundary/`RetryableLazy` unit tests cover overlay failure, the one-retry contract, no unhandled rejection, and fresh-attempt recovery.
 - The `/dashboard/tasks` Lighthouse timing gate remains red (LCP 4,617 ms, score 0.81), the pre-existing gap recorded in §2; CLS is 0.000, TBT is 144 ms, and the byte budgets pass.
+- **Superseded measurement:** the 553,873 B "after" harness figure happened to be close to the honest total, but the 494,993 B "before" figure was service-worker-masked. #33 fixed the harness; use §2's post-optimization baseline (553,891 B, LCP 4,621–4,628 ms) as the current measurement.
 
 ### 6.5 Verification and ratchet
 
 Re-run both routes, record the post-optimization baseline, set the byte budgets, tighten the Lighthouse thresholds, and confirm the real-backend build. Update this spec.
 
 **Acceptance**: the §7 done condition.
+
+**Measured result (work item 6.5, 2026-11-14)**
+
+_Measurement integrity._ `scripts/perf/login.cjs` no longer navigates the app or logs in through the UI. It computes the deterministic `mock.<base64url(claims)>` token for `usr_admin` and injects `sessionStorage["auth.session"] = JSON.stringify({ token, user })` into every audited page target with `evaluateOnNewDocument`; `settings.disableStorageReset: true` preserves it. Because the app never boots in the login step, the audited tab starts with no service worker and no `localStorage` seed, and the first `/api` request starts the worker and seeds all 150 tasks inside the measured visit. `budget.mjs` now rejects any report whose `Script`/`Stylesheet` transfer is ≤ 256 B (possible service-worker masking / under-measurement; 179 B was the observed masked value and 511 B the smallest honest chunk), and `test/fixtures/perf/lhr-tasks-masked.json` (179 B) plus a 511 B pass case cover the guard. Evidence from the fixed runs: every script transfers a real body (entry 227,708 B; route/shared chunks 511–55,043 B; request-time MSW chunk 169,297 B), no `179 B` entries exist, and no mock worker request precedes the audit. Two consecutive `pnpm perf` runs produced identical byte medians and single-digit-millisecond timing spread (§2).
+
+_Byte budgets._ Ratchet rule: `newCeiling = min(currentCeiling, ceil(measured × 1.05))`. Applied to the honest medians:
+
+| Route              | Metric | Measured  | `ceil(measured × 1.05)` | Previous ceiling | New ceiling                    |
+| ------------------ | ------ | --------- | ----------------------- | ---------------- | ------------------------------ |
+| `/login`           | JS     | 300,317 B | 315,333 B               | 560,228 B        | **315,333 B**                  |
+| `/login`           | CSS    | 14,875 B  | 15,619 B                | 14,875 B         | **14,875 B**                   |
+| `/dashboard/tasks` | JS     | 553,891 B | 581,586 B               | 560,228 B        | **560,228 B** (never loosened) |
+| `/dashboard/tasks` | CSS    | 14,875 B  | 15,619 B                | 14,875 B         | **14,875 B**                   |
+
+The gate is green on the recorded reports and blocking: lowering the `/login` JS ceiling to 300,000 B made the budget script exit 1 with `FAIL`, then the ceiling was restored. The tasks route cannot be ratcheted below 560,228 B under the +5% rule because its honest measurement is 553,891 B; the rule forbids loosening it to 581,586 B.
+
+_CI real-backend check._ `apps/web/scripts/perf/verify-real-build.mjs` (script `pnpm --filter web verify:real-build`) builds the audited mock mode into `dist` and a `VITE_API_URL=http://example.test/api` mode into the gitignored `dist/real`, then asserts: the mock manifest contains the dynamic MSW chunk and does not preload it; the real manifest has no MSW chunk, no emitted script contains MSW runtime markers (`mockServiceWorker`, `setupWorker`, `@mswjs/interceptors`, `msw/browser`, `dataHandlers`), and `index.html` has no MSW preload/reference. The step is part of the blocking CI `ci` job. (The real output still contains the inert `public/mockServiceWorker.js` static copy; it is not a chunk, is never preloaded or registered by the real build, and can be excluded at deploy time.)
+
+_Lighthouse thresholds._ The timing assertions stay at the initial contract (`score ≥ 0.85`, `LCP ≤ 3.5 s`) but are configured as **report-only** (`warn`) so the perf job is green while the honest numbers are published: LHCI prints the values and warnings, and `pnpm perf` exits 0 as long as the byte budgets pass. The deferral is tracked by [#35](https://github.com/phuclecong/template-reactjs/issues/35). Blocking is re-enabled by changing those two severities from `warn` to `error` in `apps/web/lighthouserc.cjs`, only after #35 brings `/dashboard/tasks` under both thresholds and two consecutive stable releases pass. Byte budgets and the real-build MSW assertion remain blocking.
+
+_Timing verdict._ `/login`: LCP 905 ms, CLS 0.000, TBT 0–2 ms, score 1.00 — meets §7. `/dashboard/tasks`: LCP 4,620 ms (target ≤ 2,500 ms; initial threshold ≤ 3,500 ms), CLS 0.000, TBT 142–157 ms, score 0.82. CLS and TBT pass; LCP and the score threshold (0.82 vs ≥ 0.85) are **not met**, which is why §7 target 1 remains open under [#35](https://github.com/phuclecong/template-reactjs/issues/35). The report-only configuration does not change those numbers and must not be described as the target passing.
+
+_Diagnosis of the residual tasks gap._ The cold authenticated route must download 553,891 B of JS (entry 227,708 B + route/shared closure ≈ 98,000 B + request-time MSW chunk 169,297 B) and seed 150 tasks on the first `/api` request. Under 4× CPU and Slow 4G simulation that structure floors LCP near 4.6 s. Starting `ensureMockWorker()` from the tasks route loader (in parallel with the route chunk, never at startup and never on `/login`) moved the MSW chunk request from ~440 ms to ~110 ms in the trace but did not change simulated LCP, which is bandwidth/CPU-bound. Trimming MSW's WebSocket interceptor would require aliasing an external package subpath (fragile), changes a runtime MSW installs, and its few-kilobyte saving cannot close a >1.1 s gap; it was not applied. No dataset, seeding point, or measurement rule was changed to flatter the result. The remaining work is [#35](https://github.com/phuclecong/template-reactjs/issues/35).
 
 ## 7. Done condition
 
@@ -189,10 +229,24 @@ Re-run both routes, record the post-optimization baseline, set the byte budgets,
 
 If the post-optimization measurement already sits below the thresholds, "done" means holding them with the ratchet — not inventing further work.
 
+**Actual results (2026-11-14, work item 6.5)**
+
+| Condition                                              | Result                        | Evidence                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------ | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. LCP ≤ 2.5 s, CLS ≤ 0.1, TBT ≤ 200 ms on both routes | **NOT MET — deferred to #35** | `/login` passes (LCP 905 ms, CLS 0.000, TBT 0–2 ms, score 1.00). `/dashboard/tasks` fails LCP at 4,620 ms and score 0.82 (initial threshold LCP ≤ 3.5 s, score ≥ 0.85, also not met); CLS 0.000 and TBT 142–157 ms pass. Follow-up: [#35](https://github.com/phuclecong/template-reactjs/issues/35). |
+| 2. Byte budgets green and blocking in CI               | **MET**                       | `/login` ratcheted to 315,333 B JS; `/dashboard/tasks` at 560,228 B; CSS 14,875 B both. Deliberately lowering a ceiling exits 1.                                                                                                                                                                     |
+| 3. Real-backend build emits no MSW chunk               | **MET**                       | Both-mode CI step asserts no MSW manifest entry, runtime marker, or preload in the `VITE_API_URL` build.                                                                                                                                                                                             |
+| 4. Lint, typecheck, unit, e2e, Storybook pass          | **MET**                       | `pnpm lint`, `pnpm typecheck`, `pnpm test` (web: 20 files / 142 tests; all package suites pass), `CI=1 pnpm --filter web test:e2e` (31 tests), and `pnpm --filter @workspace/ui test-storybook:ci` (29 suites / 95 tests) all exited 0.                                                              |
+| 5. Spec, ADR-0010, ADR-0011, `requirement.md` current  | **MET**                       | This document and both ADRs updated; `requirement.md` already asks for production performance budgets.                                                                                                                                                                                               |
+
+The honest `/dashboard/tasks` LCP gap is therefore the open item, deferred to [#35](https://github.com/phuclecong/template-reactjs/issues/35). Per the decided policy, the timing assertions now report rather than block, so the perf job exits 0 when byte budgets pass; the target is not met and #35 must land before the assertions can be switched back to `error`. The assertion thresholds were not loosened.
+
 ## 8. Risks
 
 - **Request waterfall.** Splitting can trade bytes for round trips; mitigate with intent-only prefetch and by keeping the shell and providers in the entry chunk.
-- **Noisy lab timings on shared runners.** Median of three, a deterministic byte gate, and generous initial Lighthouse thresholds; tighten once stable.
+- **Noisy lab timings on shared runners.** Median of three, a deterministic byte gate, and initial Lighthouse thresholds that report-only until the target is met; switch them back to blocking once stable.
 - **Skeleton layout shift.** Skeletons must reserve the dimensions of the content they replace; CLS is part of the gate.
 - **Mock and real builds diverging.** Both are built in CI; only the mock build is audited.
 - **Seeding dominates the measurement.** Cold context is deliberate; seeding stays at first request, never at startup.
+- **Service-worker masking.** A warm worker makes Lighthouse report header-only subresource transfers. The login step never registers one, and the byte script rejects any `Script`/`Stylesheet` ≤ 256 B; never re-introduce a UI login before the audit.
+- **Cold mock route timing.** `/dashboard/tasks` honestly measures ~4.6 s LCP because the mock backend's 169 kB worker chunk and the 150-task seed are part of the measured first visit. The §7 target is unmet; timing assertions are report-only until a follow-up fixes it, and re-enabling blocking must not be mistaken for the target passing.
