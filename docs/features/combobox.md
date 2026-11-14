@@ -70,18 +70,35 @@ Decision record: `docs/adr/0008-multi-value-table-filters.md`
 
 - Status, Priority, and Assignee are multi-select. Values are OR'd within a
   field and fields are AND'd.
-- The explicit "All" item is removed everywhere. An empty selection means "all"
-  and the placeholder reads "All". The Tasks toolbar's existing "Clear filters"
-  button remains. Task filter fields have no separate field-level clear
-  control: selected values are removed individually through their chip remove
-  buttons. The single-select Users Role field shows a labelled clear control
-  while a role is selected.
+- The explicit "All" item is removed everywhere. An empty selection still means
+  all values, while an empty field's placeholder names the field itself
+  ("Status", "Priority", "Assignee", "Role"). The Tasks toolbar's existing
+  "Clear filters" button remains. Task filter fields have no separate
+  field-level clear control: selected values are removed individually through
+  their chip remove buttons. The single-select Users Role field shows a
+  labelled clear control while a role is selected.
 - Selected values render as chips inside the field. Chips wrap onto multiple
   lines rather than truncating or scrolling.
 - Each `ComboboxChipRemove` has a translated accessible name.
 - The Users Role filter is single-select and stays scalar. Empty means "all".
 - There are no separate toolbar filter chips. Chips live in the field; the
   earlier "keep the toolbar filter chips in sync" line is dropped.
+
+### Where the pieces live
+
+- The combobox primitive is vendored, unedited, in
+  `packages/ui/src/components/combobox.tsx` (ADR-0009). Keep it unedited so
+  registry upgrades stay a clean diff.
+- The reusable filter composition is repo-owned: `FilterCombobox` lives in
+  `packages/shared-lib/src/components/filter-combobox.tsx` and is imported from
+  `@workspace/shared-lib/components`. It handles both multi-select and
+  single-select through a required `multiple` mode, takes translated
+  `{ value, label }` options plus the scalar URL value, and consumes the
+  app-provided shared translation keys (`combobox.noResults`,
+  `combobox.removeChip`, `common.clear`).
+- A future feature extends the shared component instead of reimplementing the
+  combobox wiring; feature code supplies only its translated options, labels,
+  aria-labels, and placeholders.
 
 ### Multi-value contract
 
@@ -216,7 +233,9 @@ pnpm --filter web test:e2e
 - [ ] Tasks filters (Status, Priority, Assignee) support multiple values; the
       URL uses comma-joined values and the API receives repeated params.
 - [ ] Users Role filter uses a single-select `Combobox`; empty means all.
-- [ ] No "All" item remains in any migrated filter; placeholders read "All".
+- [ ] No "All" item remains in any migrated filter; empty placeholders name the
+      field ("Status", "Priority", "Assignee", "Role") while empty selection
+      still means all values.
 - [ ] Chips wrap and each has a working remove button; the Tasks toolbar clear
       resets all filters, and the Users Role field offers a labelled clear.
 - [ ] Bulk actions use one grouped, searchable `Combobox`; every discrete
