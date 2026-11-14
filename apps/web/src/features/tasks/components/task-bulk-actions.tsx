@@ -19,6 +19,7 @@ import {
   formValueToDueDate,
   type UserOption,
 } from "@/features/tasks/utils"
+import { useIntentPrefetch } from "@/hooks/use-intent-prefetch"
 
 /**
  * Base UI's default collator matcher searches each item's label. Feeding it the
@@ -57,6 +58,9 @@ export function TaskBulkActions({
   const prefetchForm = useCallback(() => {
     void prefetchTaskOverlay("form")
   }, [])
+
+  const bulkIntentHandlers = useIntentPrefetch(prefetchBulk)
+  const formIntentHandlers = useIntentPrefetch(prefetchForm)
 
   const groups = useMemo<BulkActionGroup[]>(() => {
     const statusLabel = t("tasks.filters.status")
@@ -186,9 +190,7 @@ export function TaskBulkActions({
             }
             disabled={!hasSelection}
             aria-label={t("tasks.bulk.actions")}
-            onPointerEnter={prefetchBulk}
-            onFocus={prefetchBulk}
-            onPointerDown={prefetchBulk}
+            {...bulkIntentHandlers}
           >
             {t("tasks.bulk.actions")}
           </ComboboxTrigger>
@@ -216,9 +218,7 @@ export function TaskBulkActions({
         <Button
           type="button"
           onClick={() => onCreate()}
-          onPointerEnter={prefetchForm}
-          onFocus={prefetchForm}
-          onPointerDown={prefetchForm}
+          {...formIntentHandlers}
           size="sm"
         >
           {t("tasks.new")}

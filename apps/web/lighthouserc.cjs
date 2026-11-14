@@ -60,12 +60,23 @@ module.exports = {
     },
     assert: {
       assertions: {
+        // CLS and TBT are the UX gates that the app currently meets, so they
+        // block on the median. Byte budgets remain blocking in
+        // scripts/perf/budget.mjs as well.
+        "cumulative-layout-shift": [
+          "error",
+          { maxNumericValue: 0.1, aggregationMethod: "median" },
+        ],
+        "total-blocking-time": [
+          "error",
+          { maxNumericValue: 200, aggregationMethod: "median" },
+        ],
         // Report-only until the authenticated route meets the target. LHCI
-        // still prints the measured scores/LCP and any warning values, but a
-        // warning does not fail the job; byte budgets remain blocking in
-        // scripts/perf/budget.mjs. Re-enable blocking by changing these two
-        // severities from "warn" to "error" once `/dashboard/tasks` meets
-        // score >= 0.85 and LCP <= 3.5 s (see performance.md §5/§6.5).
+        // still prints the measured score/LCP and any warning values, but a
+        // warning does not fail the job. Re-enable blocking by changing these
+        // two severities from "warn" to "error" once `/dashboard/tasks` meets
+        // score >= 0.85 and LCP <= 3.5 s (issue #35; see performance.md
+        // §5/§6.5).
         "categories:performance": [
           "warn",
           { minScore: 0.85, aggregationMethod: "median" },

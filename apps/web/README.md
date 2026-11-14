@@ -78,7 +78,8 @@ is wired once in `src/providers/index.tsx` and pages fetch through Refine hooks
 | `audit-log-provider`      | Stub with a real interface; echoes writes, no persistence yet           |
 
 **Mock vs. real backend.** With `VITE_API_URL` unset, the app runs fully against
-an in-browser MSW worker (booted in `src/components/msw-provider.tsx`). Set
+an in-browser MSW worker (started on the first `/api` request by
+`src/utils/mock-worker.ts`, which dynamically imports `src/utils/msw.ts`). Set
 `VITE_API_URL` and the app calls the real backend at that origin directly (CORS
 must be enabled on the backend).
 

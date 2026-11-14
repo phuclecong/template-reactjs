@@ -1,6 +1,7 @@
 import { useCallback } from "react"
 import { Link } from "react-router-dom"
 
+import { useIntentPrefetch } from "@/hooks/use-intent-prefetch"
 import { prefetchRoute } from "@/routes/route-loaders"
 
 type IntentLinkProps = React.ComponentProps<typeof Link>
@@ -18,23 +19,11 @@ export function IntentLink({ ref, to, ...props }: IntentLinkProps) {
     void prefetchRoute(typeof to === "string" ? to : (to.pathname ?? ""))
   }, [to])
 
-  return (
-    <Link
-      {...props}
-      ref={ref}
-      to={to}
-      onPointerEnter={(event) => {
-        prefetch()
-        props.onPointerEnter?.(event)
-      }}
-      onFocus={(event) => {
-        prefetch()
-        props.onFocus?.(event)
-      }}
-      onPointerDown={(event) => {
-        prefetch()
-        props.onPointerDown?.(event)
-      }}
-    />
-  )
+  const intentHandlers = useIntentPrefetch<HTMLAnchorElement>(prefetch, {
+    onPointerEnter: props.onPointerEnter,
+    onFocus: props.onFocus,
+    onPointerDown: props.onPointerDown,
+  })
+
+  return <Link {...props} ref={ref} to={to} {...intentHandlers} />
 }

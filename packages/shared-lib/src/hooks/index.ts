@@ -1,3 +1,4 @@
+export { DEFAULT_PAGE_SIZE } from "./table-defaults"
 export { useTableState } from "./use-table-state"
 export type {
   TableStateOptions,

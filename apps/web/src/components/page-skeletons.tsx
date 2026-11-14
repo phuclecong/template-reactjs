@@ -1,6 +1,10 @@
 import { useTranslation } from "react-i18next"
 import { TableSkeleton } from "@workspace/shared-lib/components/table-skeleton"
+import { DEFAULT_PAGE_SIZE } from "@workspace/shared-lib/hooks/table-defaults"
 import { Skeleton } from "@workspace/ui/components/skeleton"
+
+import { TASK_SKELETON_COLUMN_WIDTHS } from "@/features/tasks/utils/column-widths"
+import { USER_SKELETON_COLUMN_WIDTHS } from "@/features/users/utils/column-widths"
 
 /**
  * Page-shaped loading surfaces. They reserve the layout the real screen will
@@ -11,13 +15,6 @@ import { Skeleton } from "@workspace/ui/components/skeleton"
  * Dimensions use inline styles rather than one-off Tailwind utilities so the
  * skeleton adds no CSS to the render-blocking stylesheet.
  */
-
-/** Tasks table column widths (`features/tasks/components/tasks-table.tsx`). */
-const TASK_COLUMN_WIDTHS = [36, 360, 120, 120, 180, 200, 140]
-/** Users table column widths (`features/users/components/users-table.tsx`). */
-const USER_COLUMN_WIDTHS = [220, 300, 160, 100]
-/** Default page size (`packages/shared-lib/src/hooks/use-table-state.ts`). */
-const DEFAULT_PAGE_SIZE = 30
 
 type BarProps = {
   height: number
@@ -128,7 +125,9 @@ export function TablePageSkeleton({ kind }: { kind: "tasks" | "users" }) {
         </div>
       ) : null}
       <TableSkeleton
-        columnWidths={isTasks ? TASK_COLUMN_WIDTHS : USER_COLUMN_WIDTHS}
+        columnWidths={
+          isTasks ? TASK_SKELETON_COLUMN_WIDTHS : USER_SKELETON_COLUMN_WIDTHS
+        }
         rowCount={DEFAULT_PAGE_SIZE}
         label={t(isTasks ? "tasks.loading" : "users.loading")}
       />
