@@ -69,6 +69,31 @@ describe("service-worker masking guard", () => {
     )
   })
 
+  it("fails at the 256 B boundary but accepts an honest 511 B chunk", () => {
+    const report = (transferSize: number) => ({
+      requestedUrl: "http://localhost:4173/dashboard/tasks",
+      audits: {
+        "network-requests": {
+          details: {
+            items: [
+              {
+                url: "http://localhost:4173/assets/http-error-abc.js",
+                resourceType: "Script",
+                transferSize,
+              },
+            ],
+          },
+        },
+      },
+    })
+
+    expect(() => assertNoMaskedResources(report(256))).toThrow(
+      /service-worker masking.*under-measurement/i
+    )
+    expect(() => assertNoMaskedResources(report(257))).not.toThrow()
+    expect(() => assertNoMaskedResources(report(511))).not.toThrow()
+  })
+
   it("accepts the honest reports whose scripts carry response bodies", () => {
     expect(() => assertNoMaskedResources(loginRuns[0])).not.toThrow()
     expect(() => assertNoMaskedResources(tasksRuns[0])).not.toThrow()

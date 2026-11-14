@@ -19,9 +19,11 @@ const LHR_FILE = /^lhr-.*\.json$/
 
 // A script or stylesheet that transfers at most this many bytes cannot carry a
 // real response body. In practice it means a service worker answered the
-// request and Lighthouse only counted the headers, so the byte budget would be
-// compared against an under-measurement.
-const HEADER_ONLY_TRANSFER_LIMIT = 100
+// request and Lighthouse only counted the headers (179 B was observed for
+// masked dynamic route chunks), so the byte budget would be compared against
+// an under-measurement. The smallest honest chunk observed in this build is
+// 511 B, leaving headroom above the threshold.
+const HEADER_ONLY_TRANSFER_LIMIT = 256
 
 const TIMING_AUDITS = [
   ["first-contentful-paint", "fcpMs"],
@@ -62,7 +64,8 @@ export function sumTransferBytes(report, resourceType) {
  * A warm service worker in the audited profile answers subresource requests
  * itself, so Chrome attributes no body bytes to them (`transferSize: 179` was
  * observed for dynamically imported route chunks). Auditing such a report
- * would compare the budget against a fabricated, much smaller download.
+ * would compare the budget against a fabricated, much smaller download. The
+ * threshold is 256 B because the smallest honest emitted chunk is 511 B.
  */
 export function findMaskedResources(report) {
   const items = report?.audits?.["network-requests"]?.details?.items
