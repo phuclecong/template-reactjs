@@ -51,4 +51,21 @@ describe("IntentLink", () => {
 
     expect(prefetchRoute).toHaveBeenCalledExactlyOnceWith("/dashboard/settings")
   })
+
+  it("still calls a handler supplied by the caller", () => {
+    const onFocus = vi.fn()
+
+    render(
+      <MemoryRouter>
+        <IntentLink to="/dashboard/settings" onFocus={onFocus}>
+          Settings
+        </IntentLink>
+      </MemoryRouter>
+    )
+
+    fireEvent.focus(screen.getByRole("link", { name: "Settings" }))
+
+    expect(prefetchRoute).toHaveBeenCalledExactlyOnceWith("/dashboard/settings")
+    expect(onFocus).toHaveBeenCalledTimes(1)
+  })
 })

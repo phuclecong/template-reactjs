@@ -7,8 +7,6 @@ type TableSkeletonProps = {
   rowCount: number
   /** Translated loading announcement for assistive technology. */
   label: string
-  /** Reserve the pagination footer so the table does not shift when data lands. */
-  showFooter?: boolean
 }
 
 /**
@@ -22,7 +20,6 @@ export function TableSkeleton({
   columnWidths,
   rowCount,
   label,
-  showFooter = true,
 }: TableSkeletonProps) {
   return (
     <>
@@ -72,19 +69,17 @@ export function TableSkeleton({
           ))}
         </div>
       </div>
-      {showFooter ? (
-        <div
-          className="flex items-center justify-between gap-4"
-          aria-hidden="true"
-          data-slot="table-skeleton-footer"
-        >
-          <div className="flex items-center gap-2">
-            <Skeleton style={{ height: 16, width: 96 }} />
-            <Skeleton style={{ height: 28, width: 64 }} />
-          </div>
-          <Skeleton className="h-8 w-48" />
+      <div
+        className="flex items-center justify-between gap-4"
+        aria-hidden="true"
+        data-slot="table-skeleton-footer"
+      >
+        <div className="flex items-center gap-2">
+          <Skeleton style={{ height: 16, width: 96 }} />
+          <Skeleton style={{ height: 28, width: 64 }} />
         </div>
-      ) : null}
+        <Skeleton className="h-8 w-48" />
+      </div>
     </>
   )
 }

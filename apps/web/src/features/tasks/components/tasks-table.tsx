@@ -15,8 +15,10 @@ import {
 } from "@/features/tasks/components/task-overlay-loaders"
 import { useTaskBulkActions } from "@/features/tasks/hooks/use-task-bulk-actions"
 import { useTasks } from "@/features/tasks/hooks/use-tasks"
-import type { CurrentUser } from "@/features/users/utils"
 import { toCrudFilters, type TaskRow } from "@/features/tasks/utils"
+import { TASK_COLUMN_WIDTHS } from "@/features/tasks/utils/column-widths"
+import type { CurrentUser } from "@/features/users/utils"
+import { useIntentPrefetch } from "@/hooks/use-intent-prefetch"
 
 const FILTER_KEYS = [
   "status",
@@ -31,7 +33,8 @@ const FILTER_KEYS = [
  * `onEdit`/`onDelete`/`onPrefetchEdit`/`onPrefetchDelete` (stable
  * `useCallback`s) are referentially stable across renders, so `React.memo`
  * skips re-rendering these buttons when the table re-renders for selection or
- * pagination changes.
+ * pagination changes. `useIntentPrefetch` keeps the spreadable handlers stable
+ * for the same reason.
  */
 const TaskActionsCell = memo(function TaskActionsCell({
   task,
@@ -50,6 +53,9 @@ const TaskActionsCell = memo(function TaskActionsCell({
   onPrefetchEdit: () => void
   onPrefetchDelete: () => void
 }) {
+  const editIntentHandlers = useIntentPrefetch(onPrefetchEdit)
+  const deleteIntentHandlers = useIntentPrefetch(onPrefetchDelete)
+
   return (
     <div className="flex items-center gap-1">
       <Button
@@ -58,9 +64,7 @@ const TaskActionsCell = memo(function TaskActionsCell({
         size="xs"
         disabled={!task.canModify}
         onClick={() => onEdit(task)}
-        onPointerEnter={onPrefetchEdit}
-        onFocus={onPrefetchEdit}
-        onPointerDown={onPrefetchEdit}
+        {...editIntentHandlers}
       >
         {editLabel}
       </Button>
@@ -70,9 +74,7 @@ const TaskActionsCell = memo(function TaskActionsCell({
         size="xs"
         disabled={!task.canModify}
         onClick={() => onDelete(task)}
-        onPointerEnter={onPrefetchDelete}
-        onFocus={onPrefetchDelete}
-        onPointerDown={onPrefetchDelete}
+        {...deleteIntentHandlers}
       >
         {deleteLabel}
       </Button>
@@ -146,7 +148,7 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
     () => [
       {
         id: "select",
-        size: 36,
+        size: TASK_COLUMN_WIDTHS.select,
         enableSorting: false,
         header: ({ table }) => (
           <Checkbox
@@ -173,17 +175,21 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
           />
         ),
       },
-      { accessorKey: "title", header: t("tasks.columns.title"), size: 360 },
+      {
+        accessorKey: "title",
+        header: t("tasks.columns.title"),
+        size: TASK_COLUMN_WIDTHS.title,
+      },
       {
         accessorKey: "status",
         header: t("tasks.columns.status"),
-        size: 120,
+        size: TASK_COLUMN_WIDTHS.status,
         cell: ({ row }) => t(`tasks.status.${row.original.status}`),
       },
       {
         accessorKey: "priority",
         header: t("tasks.columns.priority"),
-        size: 120,
+        size: TASK_COLUMN_WIDTHS.priority,
         cell: ({ row }) =>
           row.original.priority
             ? t(`tasks.priority.${row.original.priority}`)
@@ -192,13 +198,13 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
       {
         accessorKey: "assigneeName",
         header: t("tasks.columns.assignee"),
-        size: 180,
+        size: TASK_COLUMN_WIDTHS.assignee,
         enableSorting: false,
       },
       {
         accessorKey: "dueDate",
         header: t("tasks.columns.dueDate"),
-        size: 200,
+        size: TASK_COLUMN_WIDTHS.dueDate,
         cell: ({ row }) =>
           row.original.dueDate
             ? formatDateTime(row.original.dueDate, locale)
@@ -207,7 +213,7 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
       {
         id: "actions",
         header: t("tasks.columns.actions"),
-        size: 140,
+        size: TASK_COLUMN_WIDTHS.actions,
         enableSorting: false,
         cell: ({ row }) => (
           <TaskActionsCell

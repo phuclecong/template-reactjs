@@ -26,6 +26,10 @@
 const DASHBOARD_PREFIX = "/dashboard"
 const SESSION_KEY = "auth.session"
 
+// These literals intentionally duplicate the TypeScript seed
+// (`packages/api/src/auth.ts` / `ensureSeedUsers`) so this one-shot Puppeteer
+// script can run outside the app bundle. `apps/web/test/perf-login.test.ts`
+// pins them against `signToken` and the seeded user, so drift fails CI.
 const TOKEN_CLAIMS = { sub: "usr_admin", role: "admin", type: "access" }
 const SEEDED_ADMIN = {
   id: "usr_admin",

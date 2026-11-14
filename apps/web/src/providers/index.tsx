@@ -17,8 +17,8 @@ import { applyPersistedLocale } from "@/utils/i18n"
  * here — data, auth, access-control, notifications, i18n, and audit-log. Routes
  * render as children inside `<Refine>` so the hooks resolve their context.
  *
- * Children render immediately. The mock worker is started lazily by the
- * request transports (`@/utils/mock-worker`), never as a startup gate, so
+ * Children render immediately. Transports start the mock worker lazily on the
+ * first `/api` request (`@/utils/mock-worker`), never as a startup gate, so
  * `/login` paints and accepts input before the worker exists.
  */
 export function Providers({ children }: { children: React.ReactNode }) {

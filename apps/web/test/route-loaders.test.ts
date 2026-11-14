@@ -64,13 +64,9 @@ describe("route loaders", () => {
     expect(loads.register).toBe(0)
   })
 
-  it("starts the mock worker alongside the authenticated tasks route", async () => {
+  it("leaves worker startup to the first /api request, not route loading", async () => {
     await prefetchRoute("/dashboard/tasks")
-
-    expect(ensureMockWorker).toHaveBeenCalledTimes(1)
-  })
-
-  it("never starts the mock worker for the anonymous login route", async () => {
+    await routeLoaders["/dashboard/tasks"]()
     await prefetchRoute("/login")
 
     expect(ensureMockWorker).not.toHaveBeenCalled()
