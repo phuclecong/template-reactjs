@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useMemo, type ComponentProps } from "react"
 import { useTranslation } from "react-i18next"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -41,6 +41,32 @@ export type FilterComboboxProps =
 const optionValueEquals = (option: FilterOption, selected: FilterOption) =>
   option.value === selected.value
 
+// Unknown values (for example a deleted User id still in the URL) fall back to
+// their raw value so their chips stay visible and removable.
+const fallbackOption = (value: string): FilterOption => ({ value, label: value })
+
+type FilterComboboxContentProps = {
+  /** Forwarded to `ComboboxContent`; multi-select anchors the popup to its chips. */
+  anchor?: ComponentProps<typeof ComboboxContent>["anchor"]
+}
+
+function FilterComboboxContent({ anchor }: FilterComboboxContentProps) {
+  const { t } = useTranslation()
+
+  return (
+    <ComboboxContent anchor={anchor}>
+      <ComboboxEmpty>{t("combobox.noResults")}</ComboboxEmpty>
+      <ComboboxList>
+        {(option: FilterOption) => (
+          <ComboboxItem key={option.value} value={option}>
+            {option.label}
+          </ComboboxItem>
+        )}
+      </ComboboxList>
+    </ComboboxContent>
+  )
+}
+
 function MultiSelectFilterCombobox({
   options,
   value,
@@ -55,16 +81,11 @@ function MultiSelectFilterCombobox({
     () => new Map(options.map((option) => [option.value, option])),
     [options]
   )
-  // Unknown values (for example a deleted User id still in the URL) fall back
-  // to their raw value so their chips stay visible and removable.
   const selectedOptions = useMemo(
     () =>
       selectedValues.map(
         (selectedValue) =>
-          optionByValue.get(selectedValue) ?? {
-            value: selectedValue,
-            label: selectedValue,
-          }
+          optionByValue.get(selectedValue) ?? fallbackOption(selectedValue)
       ),
     [optionByValue, selectedValues]
   )
@@ -135,16 +156,7 @@ function MultiSelectFilterCombobox({
           )}
         </ComboboxValue>
       </ComboboxChips>
-      <ComboboxContent anchor={anchor}>
-        <ComboboxEmpty>{t("combobox.noResults")}</ComboboxEmpty>
-        <ComboboxList>
-          {(option: FilterOption) => (
-            <ComboboxItem key={option.value} value={option}>
-              {option.label}
-            </ComboboxItem>
-          )}
-        </ComboboxList>
-      </ComboboxContent>
+      <FilterComboboxContent anchor={anchor} />
     </Combobox>
   )
 }
@@ -158,11 +170,10 @@ function SingleSelectFilterCombobox({
   className,
 }: FilterComboboxSharedProps) {
   const { t } = useTranslation()
-  const selectedOption = useMemo(() => {
-    const match = options.find((option) => option.value === value)
-    if (match) return match
-    return value ? { value, label: value } : null
-  }, [options, value])
+  const selectedOption = useMemo(
+    () => options.find((option) => option.value === value) ?? null,
+    [options, value]
+  )
 
   return (
     <Combobox
@@ -193,16 +204,7 @@ function SingleSelectFilterCombobox({
         ) : null}
       </ComboboxInput>
 
-      <ComboboxContent>
-        <ComboboxEmpty>{t("combobox.noResults")}</ComboboxEmpty>
-        <ComboboxList>
-          {(option: FilterOption) => (
-            <ComboboxItem key={option.value} value={option}>
-              {option.label}
-            </ComboboxItem>
-          )}
-        </ComboboxList>
-      </ComboboxContent>
+      <FilterComboboxContent />
     </Combobox>
   )
 }

@@ -79,7 +79,9 @@ Decision record: `docs/adr/0008-multi-value-table-filters.md`
   labelled clear control while a role is selected.
 - Selected values render as chips inside the field. Chips wrap onto multiple
   lines rather than truncating or scrolling.
-- Each `ComboboxChipRemove` has a translated accessible name.
+- Each chip's remove control has a translated accessible name. Because the
+  registry chip's built-in removal control is icon-only, `FilterCombobox`
+  renders a labelled button with `showRemove={false}`.
 - The Users Role filter is single-select and stays scalar. Empty means "all".
 - There are no separate toolbar filter chips. Chips live in the field; the
   earlier "keep the toolbar filter chips in sync" line is dropped.
@@ -97,8 +99,9 @@ Decision record: `docs/adr/0008-multi-value-table-filters.md`
   app-provided shared translation keys (`combobox.noResults`,
   `combobox.removeChip`, `common.clear`).
 - A future feature extends the shared component instead of reimplementing the
-  combobox wiring; feature code supplies only its translated options, labels,
-  aria-labels, and placeholders.
+  combobox wiring; it supplies translated options, aria-labels, and
+  placeholders, while `FilterCombobox` owns the shared keys for the empty
+  state, chip removal, and the single-select clear control.
 
 ### Multi-value contract
 

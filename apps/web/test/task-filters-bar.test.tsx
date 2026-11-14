@@ -99,6 +99,26 @@ function DelayedHarness({
   )
 }
 
+describe("TaskFiltersBar clear filters", () => {
+  it("calls onClear when the Clear filters button is clicked", async () => {
+    const user = userEvent.setup()
+    const props = renderFilter({
+      status: "todo,in-progress",
+      priority: "low,high",
+      assignee: "usr_admin,unassigned",
+      dueFrom: "2026-01-01",
+      dueTo: "2026-01-31",
+    })
+
+    const clearButton = screen.getByRole("button", { name: "Clear filters" })
+    expect(clearButton).toBeVisible()
+
+    await user.click(clearButton)
+
+    expect(props.onClear).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe("TaskFiltersBar status filter", () => {
   it("has no field clear control when nothing is selected", () => {
     renderFilter()
