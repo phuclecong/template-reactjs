@@ -48,7 +48,7 @@ module.exports = async function login(browser, context) {
   try {
     await page.goto(loginUrl, { waitUntil: "domcontentloaded", timeout: 30_000 })
 
-    // `MswGate` renders the form only after the mock worker is ready.
+    // The form paints immediately; submitting starts the mock worker lazily.
     await page.locator("input#email").fill(email)
     await page.locator("input#password").fill(password)
     await Promise.all([

@@ -6,6 +6,11 @@ import react from "@vitejs/plugin-react"
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    // Emit `.vite/manifest.json` so build checks can assert chunk names and
+    // preloads (e.g. no mock worker/handlers chunk in a real-backend build).
+    manifest: true,
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
