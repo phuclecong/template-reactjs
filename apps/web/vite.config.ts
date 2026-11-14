@@ -6,6 +6,12 @@ import react from "@vitejs/plugin-react"
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    // Emit `.vite/manifest.json` so route-chunk separation and the
+    // "no chunk requested at startup" contract can be verified from the
+    // production build rather than inferred from source imports.
+    manifest: true,
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

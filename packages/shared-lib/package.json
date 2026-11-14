@@ -30,6 +30,7 @@
   },
   "exports": {
     "./components": "./src/components/index.ts",
+    "./components/table-skeleton": "./src/components/table-skeleton.tsx",
     "./hooks": "./src/hooks/index.ts",
     "./utils": "./src/utils/index.ts"
   }
