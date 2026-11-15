@@ -3,7 +3,7 @@
 **Status**: accepted
 **Tracking**: spec [#34](https://github.com/phuclecong/template-reactjs/issues/34); work items [#29](https://github.com/phuclecong/template-reactjs/issues/29)–[#33](https://github.com/phuclecong/template-reactjs/issues/33)
 **Decision records**: `docs/adr/0010-performance-measured-on-production-builds.md`, `docs/adr/0011-pagination-over-virtualization.md`
-**Related**: `docs/features/requirement.md`, `task-table.md`, ADR-0005 (client-side data fetching), ADR-0009 (shadcn vendoring)
+**Related**: `docs/features/requirement.md`, `task-table.md`, `error-boundaries.md`, ADR-0005 (client-side data fetching), ADR-0009 (shadcn vendoring)
 
 ## 1. Summary
 
@@ -171,7 +171,7 @@ Lazy-load the task form dialog, delete dialog, and bulk actions; prefetch them o
 
 The form and delete dialogs stay in one deferred `task-dialogs` module; the bulk-actions popup (combobox content, `DatePicker`, confirmation dialog) moved to a deferred `task-bulk-actions-content` module. The persistent bulk toolbar — selection count, bulk-actions trigger, and **New task** — remains eager, so first paint keeps its triggers. `TaskActionsCell` keeps stable intent callbacks, so its memo is not invalidated. Every overlay chunk is prefetched on pointer enter, focus, or pointer down of its trigger; nothing is requested at startup or while idle, and a prefetch failure is swallowed (the rendered overlay owns the retry/reload path).
 
-`lazyWithRetry` retries a failed import once. On repeated failure it marks `sessionStorage` and performs one full reload; after that marker exists, a still-missing chunk rejects to the error boundary instead of reloading in a loop. `ChunkErrorBoundary` is a dependency-free class component that renders the translated `error.*` copy and a **Try again** button; retrying creates a fresh `React.lazy` identity because React caches a loader's rejection.
+`lazyWithRetry` retries a failed import once. On repeated failure it marks `sessionStorage` and performs one full reload; after that marker exists, a still-missing chunk rejects to the error boundary instead of reloading in a loop. `ChunkErrorBoundary` is a thin preset over the shared dependency-free `ErrorBoundary` (ADR-0012) that renders the translated `error.*` copy and a **Try again** button; retrying creates a fresh `React.lazy` identity because React caches a loader's rejection.
 
 | Measurement                                     | Before 6.4                  | After 6.4                            | Change                  |
 | ----------------------------------------------- | --------------------------- | ------------------------------------ | ----------------------- |
