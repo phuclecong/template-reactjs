@@ -2,10 +2,21 @@ import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 
 import "@workspace/ui/globals.css"
+import { ErrorBoundary } from "@/components/error-boundary"
+import {
+  installUnhandledRejectionReporter,
+  reportError,
+} from "@/utils/error-reporting"
 import { App } from "./App.tsx"
 
-createRoot(document.getElementById("root")!).render(
+installUnhandledRejectionReporter()
+
+createRoot(document.getElementById("root")!, {
+  onUncaughtError: (error, info) => reportError(error, info),
+}).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>
 )

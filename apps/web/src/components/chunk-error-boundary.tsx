@@ -1,27 +1,6 @@
-import { Component, type ReactNode } from "react"
-import { useTranslation } from "react-i18next"
+import type { ReactNode } from "react"
 
-import { Button } from "@workspace/ui/components/button"
-
-function ChunkErrorFallback({ onRetry }: { onRetry: () => void }) {
-  const { t } = useTranslation()
-
-  return (
-    <div
-      role="alert"
-      className="flex flex-col gap-2 p-4 text-sm"
-      // Inline rather than a new utility so the render-blocking stylesheet
-      // stays the same size for an error-only surface.
-      style={{ alignItems: "flex-start" }}
-    >
-      <p className="font-medium">{t("error.title")}</p>
-      <p className="text-muted-foreground">{t("error.body")}</p>
-      <Button type="button" variant="outline" size="sm" onClick={onRetry}>
-        {t("error.retry")}
-      </Button>
-    </div>
-  )
-}
+import { ErrorBoundary } from "@/components/error-boundary"
 
 type ChunkErrorBoundaryProps = {
   children: ReactNode
@@ -33,36 +12,15 @@ type ChunkErrorBoundaryProps = {
   onRetry?: () => void
 }
 
-type ChunkErrorBoundaryState = {
-  hasError: boolean
-}
-
 /**
- * Catches render-time chunk failures (a rejecting `React.lazy`) and renders a
- * translated retry action instead of a blank surface. It is a class component
- * because error boundaries have no hook equivalent; no error-boundary
+ * Catches render-time failures in a chunk-backed surface, including a rejecting
+ * `React.lazy`, and renders a translated retry action instead of a blank
+ * surface. It is a preset over the shared `ErrorBoundary`; no error-boundary
  * dependency is added.
  */
-export class ChunkErrorBoundary extends Component<
-  ChunkErrorBoundaryProps,
-  ChunkErrorBoundaryState
-> {
-  state: ChunkErrorBoundaryState = { hasError: false }
-
-  static getDerivedStateFromError(): ChunkErrorBoundaryState {
-    return { hasError: true }
-  }
-
-  private readonly retry = () => {
-    this.props.onRetry?.()
-    this.setState({ hasError: false })
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return <ChunkErrorFallback onRetry={this.retry} />
-    }
-
-    return this.props.children
-  }
+export function ChunkErrorBoundary({
+  children,
+  onRetry,
+}: ChunkErrorBoundaryProps) {
+  return <ErrorBoundary onReset={onRetry}>{children}</ErrorBoundary>
 }

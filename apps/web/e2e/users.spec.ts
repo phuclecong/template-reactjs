@@ -7,7 +7,9 @@ async function openUsers(page: Page) {
   await expect(page).toHaveURL(/\/dashboard\/users/)
   // Wait for the Users page itself before asserting on the table, otherwise
   // the Tasks table still mounted during the route transition can match.
-  await expect(page.getByRole("textbox", { name: "Search users" })).toBeVisible()
+  await expect(
+    page.getByRole("textbox", { name: "Search users" })
+  ).toBeVisible()
   await expect(page.getByRole("table")).toBeVisible()
 }
 
@@ -56,7 +58,9 @@ test("filters users by role and clears the filter", async ({ page }) => {
   await expect(page.getByRole("cell", { name: "Mia Member" })).toBeVisible()
   await expect(page.getByRole("cell", { name: "Ada Admin" })).toHaveCount(0)
 
-  await page.getByRole("button", { name: "Clear", exact: true }).click()
+  // The clear control is internal to the combobox and icon-only, so target its
+  // data-slot contract rather than an accessible name.
+  await page.locator('[data-slot="combobox-clear"]').click()
 
   await expect(page).not.toHaveURL(/role=/)
   await expect(page.getByRole("cell", { name: "Ada Admin" })).toBeVisible()
