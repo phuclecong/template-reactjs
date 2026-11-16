@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest"
 import { routeLoaders } from "../src/routes/route-loaders"
 import {
   DEFAULT_SITE_URL,
+  OG_IMAGE_PATH,
   SITE_NAME,
+  absoluteUrl,
   canonicalUrl,
   pageTitle,
   resolveSiteUrl,
@@ -62,6 +64,15 @@ describe("site defaults", () => {
     expect(resolveSiteUrl("https://example.com/")).toBe("https://example.com")
     expect(resolveSiteUrl("  https://example.com///  ")).toBe(
       "https://example.com"
+    )
+  })
+
+  it("builds absolute asset URLs on the same origin", () => {
+    expect(absoluteUrl(OG_IMAGE_PATH, "https://example.com/")).toBe(
+      "https://example.com/og-image.png"
+    )
+    expect(absoluteUrl(OG_IMAGE_PATH, undefined)).toBe(
+      `${DEFAULT_SITE_URL}/og-image.png`
     )
   })
 })

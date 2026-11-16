@@ -1,7 +1,12 @@
 import type { RoutePath } from "../src/routes/route-paths"
 import {
+  OG_IMAGE_ALT,
+  OG_IMAGE_HEIGHT,
+  OG_IMAGE_PATH,
+  OG_IMAGE_WIDTH,
   SITE_DESCRIPTION,
   SITE_NAME,
+  absoluteUrl,
   canonicalUrl,
   pageTitle,
   resolveSiteUrl,
@@ -70,11 +75,16 @@ function socialTags({
   title,
   description,
   url,
+  siteUrl,
 }: {
   title: string
   description: string
   url?: string
+  siteUrl?: string
 }): string[] {
+  // The image is origin-level, so it is referenced by absolute URL on every
+  // document. It lives in `public/` and is metadata-only: no page request.
+  const imageUrl = absoluteUrl(OG_IMAGE_PATH, siteUrl)
   const tags = [
     metaProperty("og:title", title, "og:title"),
     metaProperty("og:description", description, "og:description"),
@@ -83,9 +93,14 @@ function socialTags({
   tags.push(
     metaProperty("og:type", "website", "og:type"),
     metaProperty("og:site_name", SITE_NAME, "og:site_name"),
+    metaProperty("og:image", imageUrl, "og:image"),
+    metaProperty("og:image:alt", OG_IMAGE_ALT, "og:image:alt"),
+    metaProperty("og:image:width", String(OG_IMAGE_WIDTH), "og:image:width"),
+    metaProperty("og:image:height", String(OG_IMAGE_HEIGHT), "og:image:height"),
     metaName("twitter:card", "summary_large_image", "twitter:card"),
     metaName("twitter:title", title, "twitter:title"),
-    metaName("twitter:description", description, "twitter:description")
+    metaName("twitter:description", description, "twitter:description"),
+    metaName("twitter:image", imageUrl, "twitter:image")
   )
   return tags
 }
@@ -116,6 +131,7 @@ export function buildPublicHead(path: RoutePath, siteUrl: string): string {
       title,
       description: metadata.description,
       url: canonical,
+      siteUrl,
     }),
     jsonLdTag({
       "@context": "https://schema.org",
@@ -131,12 +147,16 @@ export function buildPublicHead(path: RoutePath, siteUrl: string): string {
  * Head for the catch-all document. It serves the dashboard, `/`, and unknown
  * paths, so it cannot assert a canonical URL or og:url for any of them.
  */
-export function buildCatchAllHead(): string {
+export function buildCatchAllHead(siteUrl?: string): string {
   return [
     titleTag(SITE_NAME),
     metaName("description", SITE_DESCRIPTION, "description"),
     robotsTag("noindex"),
-    ...socialTags({ title: SITE_NAME, description: SITE_DESCRIPTION }),
+    ...socialTags({
+      title: SITE_NAME,
+      description: SITE_DESCRIPTION,
+      siteUrl,
+    }),
   ].join("\n")
 }
 
@@ -191,7 +211,7 @@ export function buildRouteDocuments(
 ): Record<string, string> {
   const resolvedSiteUrl = resolveSiteUrl(siteUrl)
   const documents: Record<string, string> = {
-    "index.html": transformHead(indexHtml, buildCatchAllHead()),
+    "index.html": transformHead(indexHtml, buildCatchAllHead(resolvedSiteUrl)),
   }
 
   for (const [path, metadata] of Object.entries(routeMetadata) as [
