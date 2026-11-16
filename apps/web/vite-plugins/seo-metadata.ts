@@ -4,6 +4,7 @@ import { join, resolve } from "node:path"
 import type { Plugin, ResolvedConfig } from "vite"
 
 import { DEFAULT_SITE_URL, resolveSiteUrl } from "../src/routes/route-metadata"
+import { buildCrawlFiles, crawlFileForPath } from "./seo-crawl"
 import {
   buildPublicHead,
   buildRouteDocuments,
@@ -24,11 +25,14 @@ function readSiteUrl(options: SeoMetadataPluginOptions): string | undefined {
  * Emits per-route metadata for the indexable surface.
  *
  * - Build: reads the built `dist/index.html`, rewrites its head as the
- *   catch-all (`noindex`, no canonical), and writes one flat HTML document per
- *   indexable route (`login.html`, `register.html`). The body is untouched.
+ *   catch-all (`noindex`, no canonical), writes one flat HTML document per
+ *   indexable route (`login.html`, `register.html`), and writes `robots.txt`
+ *   and `sitemap.xml` from the same route table and origin. The body is
+ *   untouched.
  * - Dev: serves the same head for an indexable path through the same builder,
  *   after Vite's own HTML transform injects the client and HMR preamble, so
- *   view-source without JavaScript matches the build.
+ *   view-source without JavaScript matches the build. The crawler files are
+ *   served from the same builders, so they never fall through to `index.html`.
  *
  * `SITE_URL` is read here, in Node, and never enters the client bundle.
  */
@@ -54,10 +58,20 @@ export function seoMetadataPlugin(
 
     configureServer(server) {
       server.middlewares.use((request, response, next) => {
-        if (request.method !== "GET") return next()
+        const isHead = request.method === "HEAD"
+        if (request.method !== "GET" && !isHead) return next()
 
         const pathname = new URL(request.url ?? "/", "http://localhost")
           .pathname
+        const crawlFile = crawlFileForPath(pathname, siteUrl)
+        if (crawlFile) {
+          response.statusCode = 200
+          response.setHeader("Content-Type", crawlFile.contentType)
+          response.end(isHead ? undefined : crawlFile.body)
+          return
+        }
+
+        if (isHead) return next()
         const path = publicRoutePath(pathname)
         if (!path) return next()
 
@@ -90,11 +104,13 @@ export function seoMetadataPlugin(
       const outDir = resolve(config.root, config.build.outDir)
       const built = await readFile(join(outDir, "index.html"), "utf8")
       const documents = buildRouteDocuments(built, siteUrl)
+      const crawlFiles = buildCrawlFiles(siteUrl)
 
       await Promise.all(
-        Object.entries(documents).map(([name, html]) =>
-          writeFile(join(outDir, name), html)
-        )
+        [
+          ...Object.entries(documents),
+          ...Object.entries(crawlFiles),
+        ].map(([name, content]) => writeFile(join(outDir, name), content))
       )
     },
   }
