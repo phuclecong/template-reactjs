@@ -6,6 +6,7 @@ import {
   type HttpError,
 } from "@refinedev/core"
 import type { TaskPriority, TaskStatus } from "@/features/tasks/utils"
+import { track } from "@/observability"
 import { apiUrl } from "@/utils/api-url"
 import { describeError } from "@/utils/http-error"
 
@@ -26,6 +27,20 @@ type BulkUpdateResponse = {
 type ApplyBulkOptions = {
   /** Runs once the mutation finishes, whether it succeeds or fails. */
   onSettled?: () => void
+}
+
+type BulkActionName = "status" | "priority" | "assignee" | "due_date"
+
+/**
+ * The bulk action an event reports: the single field the patch changes.
+ * An empty patch names no action, so it emits no event.
+ */
+function bulkActionName(patch: BulkPatch): BulkActionName | undefined {
+  if ("status" in patch) return "status"
+  if ("priority" in patch) return "priority"
+  if ("assigneeId" in patch) return "assignee"
+  if ("dueDate" in patch) return "due_date"
+  return undefined
 }
 
 /**
@@ -52,6 +67,7 @@ export function useTaskBulkActions({
   const applyBulk = useCallback(
     (patch: BulkPatch, options?: ApplyBulkOptions) => {
       if (selectedIds.length === 0) return
+      const action = bulkActionName(patch)
       bulkMutation.mutate(
         {
           url: `${apiUrl}/tasks/bulk`,
@@ -81,7 +97,16 @@ export function useTaskBulkActions({
           }),
         },
         {
-          onSuccess: () => {
+          onSuccess: (data) => {
+            const result = data?.data
+            if (action !== undefined) {
+              track("task.bulk_action", {
+                action,
+                selected: selectedIds.length,
+                updated: result?.updated ?? 0,
+                failed: result?.failed?.length ?? 0,
+              })
+            }
             onDone()
             void invalidate({ resource: "tasks", invalidates: ["list"] })
           },

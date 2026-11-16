@@ -33,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select"
+import { track } from "@/observability"
 import { describeError } from "@/utils/http-error"
 import {
   PRIORITY_OPTIONS,
@@ -159,7 +160,12 @@ export function TaskFormDialog({
           successNotification,
           errorNotification,
         },
-        { onSuccess: onClose }
+        {
+          onSuccess: () => {
+            track("task.updated", { taskId: task.id })
+            onClose()
+          },
+        }
       )
       return
     }
@@ -171,7 +177,12 @@ export function TaskFormDialog({
         successNotification,
         errorNotification,
       },
-      { onSuccess: onClose }
+      {
+        onSuccess: (data) => {
+          track("task.created", { taskId: data?.data?.id })
+          onClose()
+        },
+      }
     )
   }
 
@@ -411,7 +422,12 @@ export function DeleteTaskDialog({
           description: describeError(error),
         }),
       },
-      { onSuccess: onClose }
+      {
+        onSuccess: () => {
+          track("task.deleted", { taskId: task.id })
+          onClose()
+        },
+      }
     )
   }
 

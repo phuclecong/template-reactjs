@@ -3,7 +3,7 @@
 **Status**: accepted
 **Tracking**: spec [#34](https://github.com/phuclecong/template-reactjs/issues/34); work items [#29](https://github.com/phuclecong/template-reactjs/issues/29)–[#33](https://github.com/phuclecong/template-reactjs/issues/33)
 **Decision records**: `docs/adr/0010-performance-measured-on-production-builds.md`, `docs/adr/0011-pagination-over-virtualization.md`
-**Related**: `docs/features/requirement.md`, `task-table.md`, `error-boundaries.md`, ADR-0005 (client-side data fetching), ADR-0009 (shadcn vendoring)
+**Related**: `docs/features/requirement.md`, `task-table.md`, `error-boundaries.md`, `logging-and-monitoring.md`, ADR-0005 (client-side data fetching), ADR-0009 (shadcn vendoring)
 
 ## 1. Summary
 
@@ -74,7 +74,7 @@ Not supported by the code: unbounded lists (both tables are server-paginated at 
 **Non-goals**
 
 - Backend infrastructure scaling and third-party service latency.
-- A RUM vendor. Field INP is a follow-up once telemetry exists; this repo stays lab-only.
+- A RUM vendor. Field LCP/CLS/INP are logged locally through the observability sink (`logging-and-monitoring.md`, ADR-0013); no third party receives them, and the lab harness remains the measurement contract.
 - The report's SEO (`meta-description`, `robots-txt`), favicon 404, and accessibility label mismatch — separate issues.
 - Image optimization: no images or web fonts exist. Convention instead: any future image must be responsive, dimensioned, and lazy below the fold.
 - Virtualization (ADR-0011).

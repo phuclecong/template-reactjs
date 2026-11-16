@@ -1,3 +1,5 @@
+import { log } from "./logger"
+
 export type ErrorContext = { componentStack?: string }
 
 /** Coerces any thrown value into an `Error` without changing an existing one. */
@@ -5,16 +7,20 @@ export function normalizeError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error))
 }
 
-/** Single reporting seam; a telemetry vendor can replace the console sink. */
+/**
+ * Single reporting seam for uncaught errors, unhandled rejections, and caught
+ * render errors. It emits a structured `error` entry through the shared logger,
+ * whose console sink still calls `console.error`.
+ */
 export function reportError(error: unknown, context?: ErrorContext): void {
   const normalized = normalizeError(error)
 
-  if (context?.componentStack) {
-    console.error(normalized, context.componentStack)
-    return
-  }
-
-  console.error(normalized)
+  log("error", normalized.message, {
+    error: normalized,
+    ...(context?.componentStack === undefined
+      ? {}
+      : { componentStack: context.componentStack }),
+  })
 }
 
 /**

@@ -18,7 +18,7 @@ The boundary is deliberately **render-only**. React does not route event-handler
 - `ErrorBoundary` in `apps/web/src/components/error-boundary.tsx`.
 - A root boundary around `<App />` in `main.tsx`, inside `StrictMode`.
 - `ChunkErrorBoundary` becomes a preset over `ErrorBoundary`; `RetryableLazy` keeps the fresh-lazy-identity retry.
-- `apps/web/src/utils/error-reporting.ts`: `normalizeError`, `reportError`, and `installUnhandledRejectionReporter`, wired in `main.tsx`.
+- `apps/web/src/observability/error-reporting.ts`: `normalizeError`, `reportError`, and `installUnhandledRejectionReporter`, wired in `main.tsx` (moved into the observability module by ADR-0013).
 - Unit tests, ADR-0012, the `performance.md` cross-link, and the correction to `performance.md` §6.4.
 
 ### Out of scope
@@ -72,7 +72,7 @@ The fresh `React.lazy` identity stays in `RetryableLazy`, because React caches a
 
 ### Reporting
 
-`apps/web/src/utils/error-reporting.ts` exposes:
+`apps/web/src/observability/error-reporting.ts` exposes:
 
 ```ts
 type ErrorContext = { componentStack?: string }
@@ -84,13 +84,13 @@ export function installUnhandledRejectionReporter(
 ): void
 ```
 
-`reportError` normalizes a non-`Error` reason and writes it to `console.error`; it is the single place a future telemetry vendor plugs in. `installUnhandledRejectionReporter` adds an `unhandledrejection` listener and must not call `preventDefault` — the browser's default reporting stays intact. The injectable target exists so tests do not leak a listener.
+`reportError` normalizes a non-`Error` reason and emits a structured `error` entry through the shared logger (`docs/features/logging-and-monitoring.md`, ADR-0013); the logger's console sink still routes error entries through `console.error`, so tests that assert the diagnostic fired keep working. `installUnhandledRejectionReporter` adds an `unhandledrejection` listener and must not call `preventDefault` — the browser's default reporting stays intact. The injectable target exists so tests do not leak a listener.
 
-`main.tsx` installs the listener and passes `onUncaughtError: (error, info) => reportError(error, info)` to `createRoot`. `onCaughtError` is left at React's default so a caught render error is logged once and is not reported twice by boundary `onError`.
+`main.tsx` installs the listener and passes both `onUncaughtError` and `onCaughtError` to `createRoot` as `(error, info) => reportError(error, info)`. The root boundary deliberately receives no `onError`, so a caught render error is reported once; any feature boundary that passes `onError` must not also call `reportError`.
 
 ### Development behaviour
 
-React 19 reports an error caught by a boundary once through `onCaughtError` (a consolidated `console.error`); it does not rethrow caught errors, and no DevTools overlay is part of the documented behaviour. We keep that default rather than suppressing it. Tests that intentionally crash a tree spy on `console.error` to keep the suite clean and assert the diagnostic fired.
+React 19 reports an error caught by a boundary once through `onCaughtError`; it does not rethrow caught errors, and no DevTools overlay is part of the documented behaviour. `main.tsx` now owns that callback and routes it through `reportError`, so a caught error becomes one structured entry whose console sink still calls `console.error`. Tests that intentionally crash a tree spy on `console.error` to keep the suite clean and assert the diagnostic fired.
 
 ## 4. What boundaries do not catch
 
@@ -114,11 +114,11 @@ Event handlers and promises must not be wrapped in `try/catch` that rethrows, ho
 
 - `apps/web/test/error-boundary.test.tsx` covers: default translated fallback, node fallback, function fallback with reset recovery, `onError` receiving the caught error, `onReset` on reset, and normalization of a non-`Error` throw. The expected `console.error` is spied and asserted.
 - The existing `chunk-error-boundary.test.tsx` and `RetryableLazy` tests remain the preset regression net. The route-404 Playwright spec remains the end-to-end recovery proof; no new e2e spec is added.
-- `reportError` and the `unhandledrejection` wiring are unit-tested through the injected target.
+- `reportError` and the `unhandledrejection` wiring are unit-tested through the injected target; the emitted entry shape is covered by the logging tests.
 - `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm perf` pass. The `/dashboard/tasks` byte budget stays green; if the boundary pushes it over the 560,228 B ceiling, shrink the boundary rather than raise the budget.
 
 ## 6. Future work
 
 - Add `resetKeys` when a feature boundary must reset on an entity or route change.
 - Add a boundary-aware async hook only if a fallback, rather than a toast, is the right affordance for an async failure; revisit ADR-0012.
-- Replace `reportError`'s console sink with a telemetry vendor.
+- Implement the observability layer's `LogSink` (ADR-0013) to forward `reportError` entries to a telemetry vendor; the error path already shares that sink.

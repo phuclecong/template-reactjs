@@ -5,14 +5,17 @@ import "@workspace/ui/globals.css"
 import { ErrorBoundary } from "@/components/error-boundary"
 import {
   installUnhandledRejectionReporter,
+  installWebVitals,
   reportError,
-} from "@/utils/error-reporting"
+} from "@/observability"
 import { App } from "./App.tsx"
 
 installUnhandledRejectionReporter()
+installWebVitals()
 
 createRoot(document.getElementById("root")!, {
   onUncaughtError: (error, info) => reportError(error, info),
+  onCaughtError: (error, info) => reportError(error, info),
 }).render(
   <StrictMode>
     <ErrorBoundary>
