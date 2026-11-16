@@ -2,6 +2,7 @@ import type { ReactNode } from "react"
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
 
 import { RetryableLazy } from "@/components/retryable-lazy"
+import { RouteMetadata } from "@/components/route-metadata"
 import { ThemeProvider } from "@/components/theme-provider"
 import {
   AuthPageSkeleton,
@@ -42,6 +43,7 @@ export function App() {
     <BrowserRouter>
       <ThemeProvider>
         <Providers>
+          <RouteMetadata />
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route element={<RedirectIfAuthed />}>
