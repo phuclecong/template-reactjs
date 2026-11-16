@@ -31,7 +31,7 @@ The report has been deleted; §7.6 records the measurements of the real artifact
 
 - **Public routes** — `/login`, `/register`: indexable, with full Page metadata and sitemap entries.
 - **Protected routes** — `/dashboard/tasks`, `/dashboard/users`, `/dashboard/settings`: `noindex` at the crawl layer, no canonical, no sitemap entry, no structured data.
-- **`/`** — a client-side redirect to `/dashboard`, which bounces unauthenticated visitors to `/login`. No content of its own, so it is not indexable and not in the sitemap; `/login` is the canonical entry point.
+- **`/`** — a permanent host redirect to `/login`, so the root is never served as an index-blocked document; the in-app client redirect to `/dashboard` remains. No content of its own, so it is not in the sitemap; `/login` is the canonical entry point.
 - **Unknown paths** — served the catch-all `index.html`, which carries `noindex`.
 
 ## 4. Goals and non-goals
@@ -40,7 +40,7 @@ The report has been deleted; §7.6 records the measurements of the real artifact
 
 - Emit accurate Page metadata for every Public route in the initial HTML, where non-JS crawlers can read it.
 - Give shared public links a consistent social preview with absolute URLs.
-- Keep the dashboard, `/`, and unknown paths out of the index by two independent mechanisms (robots rule and response header).
+- Keep the dashboard and unknown paths out of the index by two independent mechanisms (robots rule and response header), and redirect `/` to `/login` so the root itself is never an index-blocked page.
 - Generate `robots.txt` and `sitemap.xml` from the routing table so they cannot drift from it.
 - Hold all of it green in CI on the production build.
 
@@ -93,6 +93,7 @@ Site name is `Dashboard`, matching the app-wide title and `shell.title` in both 
 
 - `robots.txt` is generated at build: `User-agent: *`, `Allow: /`, `Disallow: /dashboard/`, and `Sitemap: {SITE_URL}/sitemap.xml`.
 - `apps/web/vercel.json` sets `X-Robots-Tag: noindex` for `/dashboard/:path*`, which the crawler sees on the HTML response itself.
+- `apps/web/vercel.json` permanently redirects `/` to `/login`, the canonical entry point, so a crawler never receives the `noindex` catch-all for the root.
 - `sitemap.xml` is generated at build and lists exactly `{SITE_URL}/login` and `{SITE_URL}/register`. No `lastmod`: with a mock backend and no content updates, it would be fabricated.
 - Client-written `<meta name="robots">` is not relied on for exclusion — it is invisible to a non-JS crawler and unusable for a crawler already told not to fetch. Header and robots rule agree because these routes are never intended to be indexed.
 
@@ -103,7 +104,7 @@ Site name is `Dashboard`, matching the app-wide title and `shell.title` in both 
 ### 5.6 Mechanism
 
 - **Build.** A Vite plugin in `apps/web/vite-plugins/seo-metadata.ts`, registered in `apps/web/vite.config.ts`, templates the built `index.html` into `dist/login.html` and `dist/register.html` at `closeBundle`, and writes `dist/robots.txt`, `dist/sitemap.xml`, and `dist/seo-manifest.json`. The DOM-free head builders live in `apps/web/src/seo/head.ts`, the crawler builders in `apps/web/vite-plugins/seo-crawl.ts`, and the build-only origin resolution in `apps/web/vite-plugins/site-url.ts`. Because the plugin runs inside `vite build`, `vite preview`, `pnpm perf`, and CI's build step all pick the artifacts up without extra wiring.
-- **Host.** `vercel.json` rewrites `/login` → `/login.html` and `/register` → `/register.html` ahead of the `/(.*)` → `/index.html` catch-all.
+- **Host.** `vercel.json` redirects `/` → `/login` permanently, rewrites `/login` → `/login.html` and `/register` → `/register.html` ahead of the `/(.*)` → `/index.html` catch-all.
 - **Dev parity.** The same head-building function (`src/seo/head.ts`) serves a Vite dev middleware that injects the per-route head for public paths, so local view-source matches the build. When `SITE_URL` is unset in dev, the middleware derives the origin from the request, so the canonical names the dev server the browser is actually on.
 - **Client.** A single `<RouteMetadata>` (`apps/web/src/components/route-metadata.tsx`) mounted under `App` imports `@/seo/head`, resolves `useLocation()` through the same route table, and reconciles the head imperatively: every emitted tag carries a stable `data-seo` key, and the component updates it in place, creates it if missing (dev, unknown paths), and removes `noindex` when navigating to a public route. It removes unkeyed duplicates of the tags it owns, but leaves a consumer-added unkeyed JSON-LD alone. React 19's native document-metadata hoisting is not used, because React cannot see tags the build wrote and would leave a second, stale `description`.
 - **Contract script.** `apps/web/scripts/seo/verify.mjs` reads `dist/seo-manifest.json`, emitted by the plugin from the typed table, instead of carrying its own copy of route copy and image fields. A consumer editing `route-metadata.ts` therefore changes the manifest and the checker together.
@@ -118,7 +119,7 @@ Site name is `Dashboard`, matching the app-wide title and `shell.title` in both 
   - `login.html` and `register.html` contain every tag in §5.2, with absolute URLs and no duplicates, and match the manifest for their route;
   - `index.html` contains the §5.3 head and no canonical;
   - `robots.txt` and `sitemap.xml` match §5.4 exactly;
-  - `vercel.json` declares the two rewrites before the catch-all and the dashboard `X-Robots-Tag` header.
+  - `vercel.json` declares the root redirect, the two rewrites before the catch-all, and the dashboard `X-Robots-Tag` header.
     This is the only check that proves the tags exist for a non-JS crawler; Lighthouse runs JavaScript and cannot tell templated head from client-written head.
 - **Byte budgets**: unchanged. The added head is markup, and the OG image is referenced but never loaded, so neither counts against the JS/CSS budgets. The client reconciliation component is the only JS addition; its cost is measured and must stay under the existing ceilings in `apps/web/perf-budgets.json`.
 - **Link previews**: verification with a real debugger is **pending a host**. The evidence run uses `SITE_URL=http://localhost:4173`, which proves the build emits absolute, correctly derived URLs but cannot be resolved by an external debugger.
@@ -155,7 +156,7 @@ Generate `robots.txt` and `sitemap.xml` in the build; add the `X-Robots-Tag` hea
 **Acceptance**
 
 - Emitted `robots.txt` and `sitemap.xml` match §5.4 byte-for-byte for a given `SITE_URL`.
-- `vercel.json` declares the header for `/dashboard/:path*`.
+- `vercel.json` declares the header for `/dashboard/:path*` and the permanent `/` → `/login` redirect.
 - `dist/index.html` carries `noindex` and no canonical or `og:url`.
 - The sitemap contains exactly the two public URLs, with no `lastmod`.
 

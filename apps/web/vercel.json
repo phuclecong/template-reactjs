@@ -5,6 +5,9 @@
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
     }
   ],
+  "redirects": [
+    { "source": "/", "destination": "/login", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/login", "destination": "/login.html" },
     { "source": "/register", "destination": "/register.html" },

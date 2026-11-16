@@ -655,14 +655,20 @@ export function verifySitemapXml(content, manifest) {
 }
 
 /**
- * Asserts the host rules in `vercel.json`: public rewrites before the
- * catch-all, and the dashboard response-level `noindex` header. `vite preview`
- * does not apply these, so inspecting the config is the only local proof.
+ * Asserts the host rules in `vercel.json`: the root redirect to the indexable
+ * entry point, public rewrites before the catch-all, and the dashboard
+ * response-level `noindex` header. `vite preview` does not apply these, so
+ * inspecting the config is the only local proof.
  */
 export function verifyVercelConfig(config, manifest) {
   const problems = []
   const rewrites = Array.isArray(config?.rewrites) ? config.rewrites : []
   const headers = Array.isArray(config?.headers) ? config.headers : []
+  const redirects = Array.isArray(config?.redirects) ? config.redirects : []
+
+  if (!hasRootRedirect(redirects)) {
+    problems.push('vercel.json: missing permanent redirect "/" -> "/login"')
+  }
 
   const catchAllIndex = rewrites.findIndex(
     (rule) => rule?.source === "/(.*)" && rule?.destination === "/index.html"
@@ -696,6 +702,15 @@ export function verifyVercelConfig(config, manifest) {
   }
 
   return problems
+}
+
+function hasRootRedirect(redirects) {
+  return redirects.some(
+    (rule) =>
+      rule?.source === "/" &&
+      rule?.destination === "/login" &&
+      (rule?.permanent === true || rule?.statusCode === 301)
+  )
 }
 
 function hasDashboardNoindex(headers) {

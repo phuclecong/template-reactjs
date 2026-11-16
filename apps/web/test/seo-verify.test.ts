@@ -25,6 +25,7 @@ function loadFixture(name: string) {
 function loadVercel() {
   return JSON.parse(loadFixture("vercel.json")) as {
     rewrites: { source: string; destination: string }[]
+    redirects: { source: string; destination: string; permanent?: boolean }[]
     headers: { source: string; headers: { key: string; value: string }[] }[]
   }
 }
@@ -318,6 +319,15 @@ describe("sitemap.xml", () => {
 describe("vercel.json host rules", () => {
   it("accepts the compliant fixture", () => {
     expect(verifyVercelConfig(loadVercel(), manifest)).toEqual([])
+  })
+
+  it("fails when the root redirect is missing", () => {
+    const config = loadVercel()
+    config.redirects = []
+
+    expect(verifyVercelConfig(config, manifest)).toContain(
+      'vercel.json: missing permanent redirect "/" -> "/login"'
+    )
   })
 
   it("fails when a public rewrite is missing", () => {
