@@ -114,7 +114,6 @@ export function LoginForm() {
         <p>
           <pre>
             <p>Demo Account:</p>
-            <p>admin@example.com - adminpass </p>
             <p>member@example.com - memberpass</p>
           </pre>
         </p>
