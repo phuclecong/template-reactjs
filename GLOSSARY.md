@@ -44,6 +44,28 @@ _Avoid_: Batch update, mass edit
 A language and region pair (e.g. `en`, `vi`) used to translate the interface and format currency.
 _Avoid_: Language, region
 
+**Public route**:
+A route the app serves without a signed-in User: Login and Register.
+_Avoid_: Anonymous route, open page, guest route
+
+**Protected route**:
+A route served only to a signed-in User: the dashboard and its pages.
+_Avoid_: Private route, auth route, secure route
+
+### Discoverability
+
+**Page metadata**:
+The title, description, canonical URL, and social-preview tags that describe a route to search engines and link-preview tools.
+_Avoid_: Meta tags, head tags, SEO tags
+
+**Crawl policy**:
+Whether a route may appear in search results: indexable, or excluded.
+_Avoid_: Indexing rules, robots rules
+
+**Site URL**:
+The canonical absolute origin under which the app is published. Every absolute URL the app publishes derives from it.
+_Avoid_: Base URL, host, domain
+
 ### Observability
 
 **Analytics session**:
