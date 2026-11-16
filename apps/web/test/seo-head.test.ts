@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  DEFAULT_SITE_URL,
+  OG_IMAGE_ALT,
+  OG_IMAGE_HEIGHT,
+  OG_IMAGE_PATH,
+  OG_IMAGE_WIDTH,
   SITE_DESCRIPTION,
   SITE_NAME,
   pageTitle,
@@ -65,7 +70,9 @@ describe("public head", () => {
     )
   })
 
-  it("emits the social tags that do not need the preview image", () => {
+  it("emits the social tags including the preview image", () => {
+    const imageUrl = `${SITE_URL}${OG_IMAGE_PATH}`
+
     expect(head).toContain(
       `<meta property="og:title" content="${pageTitle(login.title)}" data-seo="og:title" />`
     )
@@ -82,6 +89,18 @@ describe("public head", () => {
       `<meta property="og:site_name" content="${SITE_NAME}" data-seo="og:site_name" />`
     )
     expect(head).toContain(
+      `<meta property="og:image" content="${imageUrl}" data-seo="og:image" />`
+    )
+    expect(head).toContain(
+      `<meta property="og:image:alt" content="${OG_IMAGE_ALT}" data-seo="og:image:alt" />`
+    )
+    expect(head).toContain(
+      `<meta property="og:image:width" content="${OG_IMAGE_WIDTH}" data-seo="og:image:width" />`
+    )
+    expect(head).toContain(
+      `<meta property="og:image:height" content="${OG_IMAGE_HEIGHT}" data-seo="og:image:height" />`
+    )
+    expect(head).toContain(
       '<meta name="twitter:card" content="summary_large_image" data-seo="twitter:card" />'
     )
     expect(head).toContain(
@@ -90,8 +109,9 @@ describe("public head", () => {
     expect(head).toContain(
       `<meta name="twitter:description" content="${login.description}" data-seo="twitter:description" />`
     )
-    expect(head).not.toContain("og:image")
-    expect(head).not.toContain("twitter:image")
+    expect(head).toContain(
+      `<meta name="twitter:image" content="${imageUrl}" data-seo="twitter:image" />`
+    )
   })
 
   it("emits valid WebApplication JSON-LD pointing at the canonical URL", () => {
@@ -115,7 +135,7 @@ describe("public head", () => {
 })
 
 describe("catch-all head", () => {
-  const head = buildCatchAllHead()
+  const head = buildCatchAllHead(SITE_URL)
 
   it("uses the site title and description", () => {
     expect(head).toContain(`<title data-seo="title">${SITE_NAME}</title>`)
@@ -125,6 +145,8 @@ describe("catch-all head", () => {
   })
 
   it("carries the social tags minus og:url", () => {
+    const imageUrl = `${SITE_URL}${OG_IMAGE_PATH}`
+
     expect(head).toContain(
       `<meta property="og:title" content="${SITE_NAME}" data-seo="og:title" />`
     )
@@ -132,6 +154,21 @@ describe("catch-all head", () => {
       `<meta property="og:description" content="${SITE_DESCRIPTION}" data-seo="og:description" />`
     )
     expect(head).toContain('data-seo="twitter:card"')
+    expect(head).toContain(
+      `<meta property="og:image" content="${imageUrl}" data-seo="og:image" />`
+    )
+    expect(head).toContain(
+      `<meta property="og:image:alt" content="${OG_IMAGE_ALT}" data-seo="og:image:alt" />`
+    )
+    expect(head).toContain(
+      `<meta property="og:image:width" content="${OG_IMAGE_WIDTH}" data-seo="og:image:width" />`
+    )
+    expect(head).toContain(
+      `<meta property="og:image:height" content="${OG_IMAGE_HEIGHT}" data-seo="og:image:height" />`
+    )
+    expect(head).toContain(
+      `<meta name="twitter:image" content="${imageUrl}" data-seo="twitter:image" />`
+    )
     expect(head).not.toContain("og:url")
   })
 
@@ -141,6 +178,12 @@ describe("catch-all head", () => {
     )
     expect(head).not.toContain("canonical")
     expect(head).not.toContain("application/ld+json")
+  })
+
+  it("falls back to the preview origin for the image when SITE_URL is unset", () => {
+    expect(buildCatchAllHead()).toContain(
+      `content="${DEFAULT_SITE_URL}${OG_IMAGE_PATH}"`
+    )
   })
 })
 
@@ -199,6 +242,55 @@ describe("buildRouteDocuments", () => {
   it("gives each public document its own canonical", () => {
     expect(documents["login.html"]).toContain(`href="${SITE_URL}/login"`)
     expect(documents["register.html"]).toContain(`href="${SITE_URL}/register"`)
+  })
+
+  it("references the absolute preview image on both public documents", () => {
+    const imageUrl = `${SITE_URL}${OG_IMAGE_PATH}`
+
+    for (const name of ["login.html", "register.html"]) {
+      const html = documents[name]
+      expect(html).toContain(
+        `<meta property="og:image" content="${imageUrl}" data-seo="og:image" />`
+      )
+      expect(html).toContain(
+        `<meta property="og:image:alt" content="${OG_IMAGE_ALT}" data-seo="og:image:alt" />`
+      )
+      expect(html).toContain(
+        `<meta property="og:image:width" content="1200" data-seo="og:image:width" />`
+      )
+      expect(html).toContain(
+        `<meta property="og:image:height" content="630" data-seo="og:image:height" />`
+      )
+      expect(html).toContain(
+        `<meta name="twitter:image" content="${imageUrl}" data-seo="twitter:image" />`
+      )
+      expect(html).toContain(
+        '<meta name="twitter:card" content="summary_large_image" data-seo="twitter:card" />'
+      )
+    }
+  })
+
+  it("carries the preview image on the catch-all without og:url or canonical", () => {
+    const html = documents["index.html"]
+
+    expect(html).toContain(
+      `<meta property="og:image" content="${SITE_URL}${OG_IMAGE_PATH}" data-seo="og:image" />`
+    )
+    expect(html).toContain(
+      `<meta name="twitter:image" content="${SITE_URL}${OG_IMAGE_PATH}" data-seo="twitter:image" />`
+    )
+    expect(html).not.toContain("og:url")
+    expect(html).not.toContain('rel="canonical"')
+  })
+
+  it("never loads the preview image in any emitted document", () => {
+    for (const html of Object.values(documents)) {
+      // The image URL appears only in the two metadata tags.
+      expect(html.match(/\/og-image\.png/g)).toHaveLength(2)
+      expect(html).not.toMatch(/<img\b/i)
+      expect(html).not.toMatch(/<link\b[^>]*rel="preload"[^>]*as="image"/i)
+      expect(html).not.toMatch(/fetch\([^)]*og-image/i)
+    }
   })
 })
 
