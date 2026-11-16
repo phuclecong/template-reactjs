@@ -28,10 +28,12 @@ module.exports = {
       // cold run so each route gets its own browser.
       url: ["http://localhost:4173/login", "http://localhost:4173/register"],
       numberOfRuns: 1,
-      puppeteerLaunchOptions: {
-        args: ["--no-sandbox", "--disable-dev-shm-usage"],
-      },
       settings: {
+        // GitHub Actions disables unprivileged user namespaces, so the Chrome
+        // that Lighthouse launches itself needs these flags. Unlike the
+        // performance config, this run has no puppeteerScript for LHCI to
+        // reuse, so `puppeteerLaunchOptions` would not reach the audit browser.
+        chromeFlags: "--no-sandbox --disable-dev-shm-usage",
         // The SEO category is enough; collecting performance here would add
         // noise and is already covered by lighthouserc.cjs.
         onlyCategories: ["seo"],
