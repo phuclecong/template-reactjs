@@ -9,9 +9,9 @@ import {
 
 /**
  * Tags the SEO head may leave unkeyed. The dev `index.html` template carries a
- * plain `<title>` and a host or template may add defaults; they would shadow
- * the keyed tags the component writes (`document.title` reads the first title
- * element), so they are removed before reconciling.
+ * plain `<title>` and a host or template may add defaults; they would compete
+ * with the keyed tags the component writes (`document.title` reads the first
+ * title element), so they are removed before reconciling.
  */
 const UNKEYED_HEAD_SELECTORS = [
   "title",

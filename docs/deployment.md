@@ -38,7 +38,7 @@ the catch-all:
 
 | Variable       | Required       | Purpose                                                                                                                                                                                                                                         |
 | -------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SITE_URL`     | **yes (live)** | Canonical origin for the deployment (for example `https://app.example.com`), used for canonical, `og:url`, and JSON-LD URLs. Build-time only; it is never shipped to the browser. When unset, the build warns and uses `http://localhost:4173`. |
+| `SITE_URL`     | **yes (live)** | Canonical origin for the deployment (for example `https://app.example.com`), used for canonical, `og:url`, `og:image`, JSON-LD, sitemap, and robots URLs. Build-time only; it is never shipped to the browser. When unset, the build warns and uses `http://localhost:4173`. |
 | `VITE_API_URL` | optional       | Real backend origin (including the `/api` prefix). When set, the app calls it directly (CORS must be enabled on the backend); when unset, the in-browser MSW mock serves the API.                                                               |
 
 **A live host must set `SITE_URL`.** Without it, the emitted canonical and

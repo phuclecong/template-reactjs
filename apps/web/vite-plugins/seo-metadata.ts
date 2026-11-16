@@ -30,7 +30,7 @@ function readSiteUrl(options: SeoMetadataPluginOptions): string | undefined {
  *   and `sitemap.xml` from the same route table and origin. The body is
  *   untouched.
  * - Dev: serves the same head for an indexable path through the same builder,
- *   after Vite's own HTML transform injects the client and HMR preamble, so
+ *   after Vite's own HTML processing injects the client and HMR preamble, so
  *   view-source without JavaScript matches the build. The crawler files are
  *   served from the same builders, so they never fall through to `index.html`.
  *

@@ -15,7 +15,7 @@ No live host exists in this repository (`docs/deployment.md`), so link-preview-d
 
 ## 2. Why the previous reference is not a baseline
 
-The report that prompted this work (`localhost_5173-20261116T154408.json`) is a Chrome DevTools Lighthouse run against `http://localhost:5173` — the Vite **dev server** — on `/dashboard/tasks`. Under ADR-0010 it is not evidence: the dev server measures Vite's module graph, not the built artifact. It also measured the wrong route: `/dashboard/tasks` is a **Protected route** that this feature deliberately excludes from the index.
+The report that prompted this work was a Chrome DevTools Lighthouse run against `http://localhost:5173` — the Vite **dev server** — on `/dashboard/tasks`. Under ADR-0010 it is not evidence: the dev server measures Vite's module graph, not the built artifact. It also measured the wrong route: `/dashboard/tasks` is a **Protected route** that this feature deliberately excludes from the index. The report file has been deleted and is not cited as evidence anywhere in this document.
 
 Its findings are still the reasons this document exists, and they are recorded here in prose rather than as a score:
 
@@ -25,7 +25,7 @@ Its findings are still the reasons this document exists, and they are recorded h
 | `robots-txt`: invalid | `/robots.txt` falls through the SPA rewrite and returns `index.html` |
 | SEO score 0.82        | A dev-server number with no relationship to the production build     |
 
-The report is deleted once §7.6 measures the real artifact. The same report's accessibility (`label-content-name-mismatch`) and favicon findings are separate issues, not part of this feature (§4).
+The report has been deleted; §7.6 records the measurements of the real artifact instead. The same report's accessibility (`label-content-name-mismatch`) and favicon findings are separate issues, not part of this feature (§4).
 
 ## 3. What is actually indexable
 
@@ -182,6 +182,34 @@ Add `scripts/seo/verify.mjs` and a `verify:seo` package script; add the blocking
 Record the production-build evidence here, delete the dev-server report, and confirm the performance budgets are unchanged.
 
 **Acceptance**: the §8 done condition.
+
+**Evidence — measured 2026-11-16.**
+
+Run: `SITE_URL=http://localhost:4173 pnpm --filter web perf` against the production artifact (`tsc -b && vite build`, served by `vite preview` on port 4173, never the dev server), with system Chrome. The harness exited 0.
+
+Lighthouse SEO, one cold run per public route:
+
+| Route       | SEO score | Result |
+| ----------- | --------: | ------ |
+| `/login`    |      1.00 | PASS   |
+| `/register` |      1.00 | PASS   |
+
+**Canonical origin used:** `SITE_URL=http://localhost:4173`. The emitted canonical, `og:url`, `og:image`, robots `Sitemap:` line, and sitemap entries all derive from it; `verify:seo` passes for that origin.
+
+Byte budgets (Lighthouse `transferSize`, median of three cold runs), against the unchanged `apps/web/perf-budgets.json`:
+
+| Route             | Metric | Measured | Ceiling | Headroom | Result |
+| ----------------- | ------ | -------: | ------: | -------: | ------ |
+| `/login`          | JS     |  305,670 | 315,333 |    9,663 | PASS   |
+| `/login`          | CSS    |   14,869 |  14,875 |        6 | PASS   |
+| `/dashboard/tasks`| JS     |  542,173 | 560,228 |   18,055 | PASS   |
+| `/dashboard/tasks`| CSS    |   14,869 |  14,875 |        6 | PASS   |
+
+`perf-budgets.json` was not re-ratcheted. The client reconciliation component is included in the measured JS figures, adds no separate chunk, and fits the existing ceilings with 9,663 bytes of JS headroom on `/login` and 18,055 bytes on `/dashboard/tasks`.
+
+**CSS budget fix.** The only budget pressure came from Tailwind v4 scanning two source comments: the bare words `shadow` and `transform` were treated as class candidates and emitted unused `.shadow` and `.transform` utilities. Rewording the comments removed them with no behaviour change. The emitted stylesheet went from `index-Bm55X5ke.css` (92,140 raw bytes, 14,467 gzip at `gzip -9`) to `index-CMAsv2Ey.css` (91,423 raw bytes, 14,398 gzip at `gzip -9`; Vite reports 14.49 kB gzip). The measured transfer size, 14,869 bytes, is under the unchanged 14,875 ceiling — a 6-byte margin, so any new utility would need a deliberate budget review rather than being absorbed silently.
+
+The dev-server report that prompted this work has been deleted and is not cited as evidence.
 
 ## 8. Done condition
 
