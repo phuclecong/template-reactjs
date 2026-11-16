@@ -1,5 +1,9 @@
 import type { ComponentType } from "react"
 
+import type { RoutePath } from "./route-paths"
+
+export type { RoutePath }
+
 type RouteModule = { default: ComponentType }
 
 /**
@@ -32,9 +36,7 @@ export const routeLoaders = {
     import("@/routes/settings").then((module) => ({
       default: module.SettingsPage,
     })),
-} satisfies Record<string, () => Promise<RouteModule>>
-
-export type RoutePath = keyof typeof routeLoaders
+} satisfies Record<RoutePath, () => Promise<RouteModule>>
 
 export function isRoutePath(path: string): path is RoutePath {
   return Object.hasOwn(routeLoaders, path)

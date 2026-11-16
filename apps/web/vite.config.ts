@@ -3,9 +3,11 @@ import { defineConfig } from "vite"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 
+import { seoMetadataPlugin } from "./vite-plugins/seo-metadata"
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), seoMetadataPlugin()],
   build: {
     // Emit `.vite/manifest.json` so route-chunk separation, preloads, and the
     // "no chunk requested at startup" contract can be verified from the
