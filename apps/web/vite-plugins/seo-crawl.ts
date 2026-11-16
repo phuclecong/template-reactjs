@@ -1,7 +1,6 @@
 import type { RoutePath } from "../src/routes/route-paths"
 import {
   canonicalUrl,
-  resolveSiteUrl,
   routeMetadata,
   type RouteMetadata,
 } from "../src/routes/route-metadata"
@@ -44,12 +43,11 @@ export function indexableRoutePaths(): RoutePath[] {
  * crawler honouring this file alone.
  */
 export function buildRobotsTxt(siteUrl: string): string {
-  const origin = resolveSiteUrl(siteUrl)
   return [
     "User-agent: *",
     "Allow: /",
     "Disallow: /dashboard/",
-    `Sitemap: ${origin}/sitemap.xml`,
+    `Sitemap: ${siteUrl}/sitemap.xml`,
     "",
   ].join("\n")
 }
@@ -60,9 +58,8 @@ export function buildRobotsTxt(siteUrl: string): string {
  * the content has no real modification time to report.
  */
 export function buildSitemapXml(siteUrl: string): string {
-  const origin = resolveSiteUrl(siteUrl)
   const urls = indexableRoutePaths().map((path) => {
-    const loc = escapeXml(canonicalUrl(path, origin))
+    const loc = escapeXml(canonicalUrl(path, siteUrl))
     return `  <url>\n    <loc>${loc}</loc>\n  </url>`
   })
 

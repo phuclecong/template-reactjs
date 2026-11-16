@@ -2,13 +2,11 @@ import { describe, expect, it } from "vitest"
 
 import { routeLoaders } from "../src/routes/route-loaders"
 import {
-  DEFAULT_SITE_URL,
   OG_IMAGE_PATH,
   SITE_NAME,
   absoluteUrl,
   canonicalUrl,
   pageTitle,
-  resolveSiteUrl,
   routeMetadata,
 } from "../src/routes/route-metadata"
 
@@ -45,34 +43,18 @@ describe("site defaults", () => {
     expect(pageTitle("Create an account")).toBe("Create an account | Dashboard")
   })
 
-  it("builds absolute canonical URLs with no trailing slash", () => {
+  it("builds absolute canonical URLs from a concrete origin", () => {
     expect(canonicalUrl("/login", "https://example.com")).toBe(
       "https://example.com/login"
     )
-    expect(canonicalUrl("/register", "https://example.com/")).toBe(
+    expect(canonicalUrl("/register", "https://example.com")).toBe(
       "https://example.com/register"
     )
   })
 
-  it("falls back to the local preview origin when SITE_URL is unset", () => {
-    expect(resolveSiteUrl(undefined)).toBe(DEFAULT_SITE_URL)
-    expect(resolveSiteUrl("")).toBe(DEFAULT_SITE_URL)
-    expect(resolveSiteUrl("   ")).toBe(DEFAULT_SITE_URL)
-  })
-
-  it("normalizes a configured origin", () => {
-    expect(resolveSiteUrl("https://example.com/")).toBe("https://example.com")
-    expect(resolveSiteUrl("  https://example.com///  ")).toBe(
-      "https://example.com"
-    )
-  })
-
   it("builds absolute asset URLs on the same origin", () => {
-    expect(absoluteUrl(OG_IMAGE_PATH, "https://example.com/")).toBe(
+    expect(absoluteUrl(OG_IMAGE_PATH, "https://example.com")).toBe(
       "https://example.com/og-image.png"
-    )
-    expect(absoluteUrl(OG_IMAGE_PATH, undefined)).toBe(
-      `${DEFAULT_SITE_URL}/og-image.png`
     )
   })
 })

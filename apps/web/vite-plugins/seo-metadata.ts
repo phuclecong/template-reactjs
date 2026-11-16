@@ -1,16 +1,18 @@
 import { readFile, writeFile } from "node:fs/promises"
+import type { IncomingMessage } from "node:http"
 import { join, resolve } from "node:path"
 
 import type { Plugin, ResolvedConfig } from "vite"
 
-import { DEFAULT_SITE_URL, resolveSiteUrl } from "../src/routes/route-metadata"
-import { buildCrawlFiles, crawlFileForPath } from "./seo-crawl"
 import {
   buildPublicHead,
   buildRouteDocuments,
-  publicRoutePath,
+  indexableRoutePath,
   transformHead,
-} from "./seo-head"
+} from "../src/seo/head"
+import { buildCrawlFiles, crawlFileForPath } from "./seo-crawl"
+import { SEO_MANIFEST_FILE, serializeSeoManifest } from "./seo-manifest"
+import { DEFAULT_SITE_URL, resolveSiteUrl } from "./site-url"
 
 export type SeoMetadataPluginOptions = {
   /** Overrides `SITE_URL`; intended for tests and embedders. */
@@ -22,19 +24,47 @@ function readSiteUrl(options: SeoMetadataPluginOptions): string | undefined {
 }
 
 /**
+ * Dev requests describe the origin the browser is actually on when `SITE_URL`
+ * is unset, so raw dev HTML carries a canonical for the dev server rather than
+ * the build fallback.
+ */
+function requestOrigin(
+  request: IncomingMessage,
+  options: SeoMetadataPluginOptions
+): string {
+  const configured = readSiteUrl(options)?.trim()
+  if (configured) return resolveSiteUrl(configured)
+
+  const host = request.headers.host
+  if (!host) return DEFAULT_SITE_URL
+
+  const forwardedProto = request.headers["x-forwarded-proto"]
+  const socket = request.socket as { encrypted?: boolean }
+  const protocol =
+    typeof forwardedProto === "string"
+      ? forwardedProto.split(",")[0].trim()
+      : socket.encrypted
+        ? "https"
+        : "http"
+
+  return `${protocol}://${host}`
+}
+
+/**
  * Emits per-route metadata for the indexable surface.
  *
  * - Build: reads the built `dist/index.html`, rewrites its head as the
  *   catch-all (`noindex`, no canonical), writes one flat HTML document per
- *   indexable route (`login.html`, `register.html`), and writes `robots.txt`
- *   and `sitemap.xml` from the same route table and origin. The body is
- *   untouched.
+ *   indexable route (`login.html`, `register.html`), and writes `robots.txt`,
+ *   `sitemap.xml`, and `seo-manifest.json` from the same route table and
+ *   origin. The body is untouched.
  * - Dev: serves the same head for an indexable path through the same builder,
  *   after Vite's own HTML processing injects the client and HMR preamble, so
  *   view-source without JavaScript matches the build. The crawler files are
  *   served from the same builders, so they never fall through to `index.html`.
  *
- * `SITE_URL` is read here, in Node, and never enters the client bundle.
+ * `SITE_URL` is read here, in Node, and never enters the client bundle. The
+ * build resolves it once and passes the concrete origin to every builder.
  */
 export function seoMetadataPlugin(
   options: SeoMetadataPluginOptions = {}
@@ -61,9 +91,10 @@ export function seoMetadataPlugin(
         const isHead = request.method === "HEAD"
         if (request.method !== "GET" && !isHead) return next()
 
+        const origin = requestOrigin(request, options)
         const pathname = new URL(request.url ?? "/", "http://localhost")
           .pathname
-        const crawlFile = crawlFileForPath(pathname, siteUrl)
+        const crawlFile = crawlFileForPath(pathname, origin)
         if (crawlFile) {
           response.statusCode = 200
           response.setHeader("Content-Type", crawlFile.contentType)
@@ -72,7 +103,7 @@ export function seoMetadataPlugin(
         }
 
         if (isHead) return next()
-        const path = publicRoutePath(pathname)
+        const path = indexableRoutePath(pathname)
         if (!path) return next()
 
         void (async () => {
@@ -87,7 +118,7 @@ export function seoMetadataPlugin(
             )
             const html = transformHead(
               transformed,
-              buildPublicHead(path, siteUrl)
+              buildPublicHead(path, origin)
             )
 
             response.statusCode = 200
@@ -110,6 +141,7 @@ export function seoMetadataPlugin(
         [
           ...Object.entries(documents),
           ...Object.entries(crawlFiles),
+          [SEO_MANIFEST_FILE, serializeSeoManifest(siteUrl)],
         ].map(([name, content]) => writeFile(join(outDir, name), content))
       )
     },

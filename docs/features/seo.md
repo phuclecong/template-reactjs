@@ -57,7 +57,7 @@ The report has been deleted; §7.6 records the measurements of the real artifact
 
 ### 5.1 Source of truth
 
-`apps/web/src/routes/route-metadata.ts` exports `Record<RoutePath, RouteMetadata>`, typed against the `RoutePath` union in `route-loaders.ts` — the same union `App` uses for its lazy imports and intent prefetching. Adding a route without metadata, or metadata for a non-route, fails `tsc`.
+`apps/web/src/routes/route-metadata.ts` exports `Record<RoutePath, RouteMetadata>`, typed against the `RoutePath` union in `apps/web/src/routes/route-paths.ts` (re-exported by `route-loaders.ts`) — the same union `App` uses for its lazy imports and intent prefetching. Adding a route without metadata, or metadata for a non-route, fails `tsc`.
 
 Each entry carries a title, a description, and `indexable: boolean`. Public routes also carry the canonical path and social-preview copy; Protected routes carry a title for the browser tab only and are never emitted as files.
 
@@ -102,10 +102,11 @@ Site name is `Dashboard`, matching the app-wide title and `shell.title` in both 
 
 ### 5.6 Mechanism
 
-- **Build.** A Vite plugin in `apps/web/vite.config.ts` (implementation in its own module) templates the built `index.html` into `dist/login.html` and `dist/register.html` at `closeBundle`, and writes `dist/robots.txt` and `dist/sitemap.xml`. Because it runs inside `vite build`, `vite preview`, `pnpm perf`, and CI's build step all pick the artifacts up without extra wiring.
+- **Build.** A Vite plugin in `apps/web/vite-plugins/seo-metadata.ts`, registered in `apps/web/vite.config.ts`, templates the built `index.html` into `dist/login.html` and `dist/register.html` at `closeBundle`, and writes `dist/robots.txt`, `dist/sitemap.xml`, and `dist/seo-manifest.json`. The DOM-free head builders live in `apps/web/src/seo/head.ts`, the crawler builders in `apps/web/vite-plugins/seo-crawl.ts`, and the build-only origin resolution in `apps/web/vite-plugins/site-url.ts`. Because the plugin runs inside `vite build`, `vite preview`, `pnpm perf`, and CI's build step all pick the artifacts up without extra wiring.
 - **Host.** `vercel.json` rewrites `/login` → `/login.html` and `/register` → `/register.html` ahead of the `/(.*)` → `/index.html` catch-all.
-- **Dev parity.** The same head-building function serves a Vite dev middleware that injects the per-route head for public paths, so local view-source matches the build.
-- **Client.** A single `<RouteMetadata>` mounted under `App` resolves `useLocation()` through the same route table and reconciles the head imperatively: every emitted tag carries a stable `data-seo` key, and the component updates it in place, creates it if missing (dev, unknown paths), and removes `noindex` when navigating to a public route. React 19's native document-metadata hoisting is not used, because React cannot see tags the build wrote and would leave a second, stale `description`.
+- **Dev parity.** The same head-building function (`src/seo/head.ts`) serves a Vite dev middleware that injects the per-route head for public paths, so local view-source matches the build. When `SITE_URL` is unset in dev, the middleware derives the origin from the request, so the canonical names the dev server the browser is actually on.
+- **Client.** A single `<RouteMetadata>` (`apps/web/src/components/route-metadata.tsx`) mounted under `App` imports `@/seo/head`, resolves `useLocation()` through the same route table, and reconciles the head imperatively: every emitted tag carries a stable `data-seo` key, and the component updates it in place, creates it if missing (dev, unknown paths), and removes `noindex` when navigating to a public route. It removes unkeyed duplicates of the tags it owns, but leaves a consumer-added unkeyed JSON-LD alone. React 19's native document-metadata hoisting is not used, because React cannot see tags the build wrote and would leave a second, stale `description`.
+- **Contract script.** `apps/web/scripts/seo/verify.mjs` reads `dist/seo-manifest.json`, emitted by the plugin from the typed table, instead of carrying its own copy of route copy and image fields. A consumer editing `route-metadata.ts` therefore changes the manifest and the checker together.
 
 ## 6. Measurement contract
 
@@ -113,8 +114,8 @@ Site name is `Dashboard`, matching the app-wide title and `shell.title` in both 
 - **Routes**: `/login` and `/register` — the indexable surface. The dashboard is not audited for SEO; its `noindex` header is config-asserted (`vite preview` does not apply `vercel.json` headers).
 - **Runs**: one cold run per route. Lighthouse's SEO score has no timing component, so a median buys nothing; this is a deliberate, documented deviation from ADR-0010's three-run rule for performance.
 - **Gate**: Lighthouse `categories:seo` = 1.0, blocking, on both routes, wired into `apps/web/scripts/perf/run.mjs` as an SEO pass alongside the performance pass. A score below 1.0 names the failing audit; it is fixed or documented, never hidden behind a lower threshold.
-- **Contract script**: `apps/web/scripts/seo/verify.mjs` (the style of `scripts/perf/budget.mjs`) is blocking in CI and asserts, from the built `dist/`:
-  - `login.html` and `register.html` contain every tag in §5.2, with absolute URLs and no duplicates;
+- **Contract script**: `apps/web/scripts/seo/verify.mjs` (the style of `scripts/perf/budget.mjs`) is blocking in CI, reads the build-emitted `dist/seo-manifest.json`, and asserts from the built `dist/`:
+  - `login.html` and `register.html` contain every tag in §5.2, with absolute URLs and no duplicates, and match the manifest for their route;
   - `index.html` contains the §5.3 head and no canonical;
   - `robots.txt` and `sitemap.xml` match §5.4 exactly;
   - `vercel.json` declares the two rewrites before the catch-all and the dashboard `X-Robots-Tag` header.
@@ -200,12 +201,22 @@ Byte budgets (Lighthouse `transferSize`, median of three cold runs), against the
 
 | Route             | Metric | Measured | Ceiling | Headroom | Result |
 | ----------------- | ------ | -------: | ------: | -------: | ------ |
-| `/login`          | JS     |  305,670 | 315,333 |    9,663 | PASS   |
+| `/login`          | JS     |  305,599 | 315,333 |    9,734 | PASS   |
 | `/login`          | CSS    |   14,869 |  14,875 |        6 | PASS   |
-| `/dashboard/tasks`| JS     |  542,173 | 560,228 |   18,055 | PASS   |
+| `/dashboard/tasks`| JS     |  542,104 | 560,228 |   18,124 | PASS   |
 | `/dashboard/tasks`| CSS    |   14,869 |  14,875 |        6 | PASS   |
 
-`perf-budgets.json` was not re-ratcheted. The client reconciliation component is included in the measured JS figures, adds no separate chunk, and fits the existing ceilings with 9,663 bytes of JS headroom on `/login` and 18,055 bytes on `/dashboard/tasks`.
+`perf-budgets.json` was not re-ratcheted. The client reconciliation component is included in the measured JS figures, adds no separate chunk, and fits the existing ceilings with 9,734 bytes of JS headroom on `/login` and 18,124 bytes on `/dashboard/tasks`.
+
+**Reconciliation component cost.** Measured on the production build (`SITE_URL=http://localhost:4173 pnpm --filter web build`) by comparing the entry chunk (`dist/assets/index-*.js`, the only chunk carrying the component and the shared table/builders) with and without `<RouteMetadata />` mounted in `App`:
+
+| Build                     | Entry chunk raw | Entry chunk gzip (`gzip -9`) |
+| ------------------------- | --------------: | ---------------------------: |
+| With `<RouteMetadata />`  |         726,096 |                      231,596 |
+| Without `<RouteMetadata />` |       722,093 |                      230,281 |
+| **Cost of the component** |       **4,003** |                   **1,315** |
+
+The delta is the client-side SEO cost: the reconciliation component plus the shared route table and `src/seo/head.ts` builders, which are tree-shaken when the component is absent. It adds no separate chunk and is already inside the measured JS figures above; the same build produced `index-CMAsv2Ey.css` (91,423 raw bytes, 14,398 at `gzip -9`), unchanged from the CSS baseline.
 
 **CSS budget fix.** The only budget pressure came from Tailwind v4 scanning two source comments: the bare words `shadow` and `transform` were treated as class candidates and emitted unused `.shadow` and `.transform` utilities. Rewording the comments removed them with no behaviour change. The emitted stylesheet went from `index-Bm55X5ke.css` (92,140 raw bytes, 14,467 gzip at `gzip -9`) to `index-CMAsv2Ey.css` (91,423 raw bytes, 14,398 gzip at `gzip -9`; Vite reports 14.49 kB gzip). The measured transfer size, 14,869 bytes, is under the unchanged 14,875 ceiling — a 6-byte margin, so any new utility would need a deliberate budget review rather than being absorbed silently.
 

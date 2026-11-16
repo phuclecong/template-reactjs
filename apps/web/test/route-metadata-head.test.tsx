@@ -11,7 +11,7 @@ import {
   pageTitle,
   routeMetadata,
 } from "@/routes/route-metadata"
-import { buildCatchAllHead, buildPublicHead } from "../vite-plugins/seo-head"
+import { buildCatchAllHead, buildPublicHead } from "@/seo/head"
 
 const ORIGIN = window.location.origin
 
@@ -240,5 +240,38 @@ describe("RouteMetadata", () => {
       new Set(destinationKeys(buildCatchAllHead(ORIGIN)))
     )
     expect(documentHeadKeys()).toHaveLength(new Set(documentHeadKeys()).size)
+  })
+
+  it("preserves a consumer-added unkeyed JSON-LD while reconciling its own tag", async () => {
+    const user = userEvent.setup()
+    document.head.insertAdjacentHTML(
+      "beforeend",
+      '<script type="application/ld+json" data-consumer="organization">' +
+        '{"@context":"https://schema.org","@type":"Organization","name":"Acme"}' +
+        "</script>"
+    )
+    const consumerTag = () =>
+      document.head.querySelector('script[data-consumer="organization"]')
+    const jsonLdCount = () =>
+      document.head.querySelectorAll('script[type="application/ld+json"]')
+        .length
+
+    renderAt("/login")
+
+    expect(seo("json-ld")).not.toBeNull()
+    expect(consumerTag()).not.toBeNull()
+    expect(jsonLdCount()).toBe(2)
+
+    await user.click(screen.getByRole("link", { name: "go-tasks" }))
+
+    expect(seo("json-ld")).toBeNull()
+    expect(consumerTag()).not.toBeNull()
+    expect(jsonLdCount()).toBe(1)
+
+    await user.click(screen.getByRole("link", { name: "go-login" }))
+
+    expect(seo("json-ld")).not.toBeNull()
+    expect(consumerTag()).not.toBeNull()
+    expect(jsonLdCount()).toBe(2)
   })
 })

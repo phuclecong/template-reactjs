@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest"
 
 import {
-  DEFAULT_SITE_URL,
   OG_IMAGE_ALT,
   OG_IMAGE_HEIGHT,
   OG_IMAGE_PATH,
@@ -15,11 +14,10 @@ import {
   buildCatchAllHead,
   buildPublicHead,
   buildRouteDocuments,
-  escapeAttribute,
   escapeHtml,
-  publicRoutePath,
+  indexableRoutePath,
   transformHead,
-} from "../vite-plugins/seo-head"
+} from "../src/seo/head"
 
 const SITE_URL = "https://dashboard.example"
 
@@ -180,15 +178,10 @@ describe("catch-all head", () => {
     expect(head).not.toContain("application/ld+json")
   })
 
-  it("falls back to the preview origin for the image when SITE_URL is unset", () => {
-    expect(buildCatchAllHead()).toContain(
-      `content="${DEFAULT_SITE_URL}${OG_IMAGE_PATH}"`
-    )
-  })
 })
 
 describe("transformHead", () => {
-  it("replaces stale SEO tags and preserves the Vite script tags", () => {
+  it("replaces existing Page metadata and preserves the Vite script tags", () => {
     const html = transformHead(
       builtIndexHtml,
       buildPublicHead("/login", SITE_URL)
@@ -294,16 +287,16 @@ describe("buildRouteDocuments", () => {
   })
 })
 
-describe("publicRoutePath", () => {
+describe("indexableRoutePath", () => {
   it("resolves exactly the indexable route paths", () => {
-    expect(publicRoutePath("/login")).toBe("/login")
-    expect(publicRoutePath("/register")).toBe("/register")
+    expect(indexableRoutePath("/login")).toBe("/login")
+    expect(indexableRoutePath("/register")).toBe("/register")
   })
 
   it("returns null for protected, unknown, and non-canonical paths", () => {
-    expect(publicRoutePath("/dashboard/tasks")).toBeNull()
-    expect(publicRoutePath("/unknown")).toBeNull()
-    expect(publicRoutePath("/login/")).toBeNull()
+    expect(indexableRoutePath("/dashboard/tasks")).toBeNull()
+    expect(indexableRoutePath("/unknown")).toBeNull()
+    expect(indexableRoutePath("/login/")).toBeNull()
   })
 })
 
@@ -315,7 +308,7 @@ describe("escaping", () => {
   })
 
   it("escapes attribute values", () => {
-    expect(escapeAttribute(`" onload="alert(1)`)).toBe(
+    expect(escapeHtml(`" onload="alert(1)`)).toBe(
       "&quot; onload=&quot;alert(1)"
     )
   })

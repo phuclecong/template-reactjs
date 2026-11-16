@@ -22,12 +22,6 @@ export const SITE_DESCRIPTION =
 export const TITLE_TEMPLATE = `%s | ${SITE_NAME}`
 
 /**
- * Origin used when `SITE_URL` is unset, so local builds and `vite preview`
- * still emit absolute URLs. A live host must set `SITE_URL`.
- */
-export const DEFAULT_SITE_URL = "http://localhost:4173"
-
-/**
  * Shared social-preview image, checked in under `public/` so link crawlers get
  * one absolute URL for every route. It is metadata only: the page never loads
  * it. Consumers replace this one file in place.
@@ -72,19 +66,9 @@ export function pageTitle(title: string): string {
   return TITLE_TEMPLATE.replace("%s", title)
 }
 
-/** Normalizes a build-time canonical origin to a bare absolute origin. */
-export function resolveSiteUrl(siteUrl: string | undefined): string {
-  const trimmed = siteUrl?.trim()
-  if (!trimmed) return DEFAULT_SITE_URL
-  return trimmed.replace(/\/+$/, "")
-}
-
-/** Absolute URL for a path on the site origin. */
-export function absoluteUrl(
-  path: string,
-  siteUrl: string | undefined
-): string {
-  return `${resolveSiteUrl(siteUrl)}${path}`
+/** Absolute URL for a path on the given site origin. */
+export function absoluteUrl(path: string, siteUrl: string): string {
+  return `${siteUrl}${path}`
 }
 
 /** Absolute canonical URL for a route; the same string is used for og:url. */

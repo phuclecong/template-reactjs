@@ -1,4 +1,4 @@
-import type { RoutePath } from "../src/routes/route-paths"
+import type { RoutePath } from "../routes/route-paths"
 import {
   OG_IMAGE_ALT,
   OG_IMAGE_HEIGHT,
@@ -9,18 +9,18 @@ import {
   absoluteUrl,
   canonicalUrl,
   pageTitle,
-  resolveSiteUrl,
   routeMetadata,
   type RouteMetadata,
-} from "../src/routes/route-metadata"
+} from "../routes/route-metadata"
 
 /**
- * Pure head templating shared by the build plugin and the dev middleware.
- * Nothing here touches the filesystem or Vite, so it is unit-testable in Node
- * and the same function renders production HTML and dev view-source.
+ * Pure Page metadata builders shared by the build plugin and the client.
+ * Nothing here touches the filesystem, Vite, or the browser, so it is
+ * unit-testable in Node and the same function renders production HTML and
+ * dev view-source.
  *
  * Every emitted tag carries a stable `data-seo` key. The client reconciliation
- * component (#50) updates tags by that key, so it must not be renamed casually.
+ * component updates tags by that key, so it must not be renamed casually.
  */
 
 const HTML_ESCAPES: Record<string, string> = {
@@ -35,24 +35,20 @@ export function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (character) => HTML_ESCAPES[character])
 }
 
-export function escapeAttribute(value: string): string {
-  return escapeHtml(value)
-}
-
 function titleTag(title: string): string {
   return `<title data-seo="title">${escapeHtml(title)}</title>`
 }
 
 function metaName(name: string, content: string, key: string): string {
-  return `<meta name="${name}" content="${escapeAttribute(content)}" data-seo="${key}" />`
+  return `<meta name="${name}" content="${escapeHtml(content)}" data-seo="${key}" />`
 }
 
 function metaProperty(property: string, content: string, key: string): string {
-  return `<meta property="${property}" content="${escapeAttribute(content)}" data-seo="${key}" />`
+  return `<meta property="${property}" content="${escapeHtml(content)}" data-seo="${key}" />`
 }
 
 function canonicalTag(href: string): string {
-  return `<link rel="canonical" href="${escapeAttribute(href)}" data-seo="canonical" />`
+  return `<link rel="canonical" href="${escapeHtml(href)}" data-seo="canonical" />`
 }
 
 function robotsTag(directive: string): string {
@@ -80,7 +76,7 @@ function socialTags({
   title: string
   description: string
   url?: string
-  siteUrl?: string
+  siteUrl: string
 }): string[] {
   // The image is origin-level, so it is referenced by absolute URL on every
   // document. It lives in `public/` and is metadata-only: no page request.
@@ -110,7 +106,7 @@ function socialTags({
  * middleware should leave the request to Vite (protected and unknown paths
  * keep the client-rendered catch-all).
  */
-export function publicRoutePath(pathname: string): RoutePath | null {
+export function indexableRoutePath(pathname: string): RoutePath | null {
   if (!Object.hasOwn(routeMetadata, pathname)) return null
   const path = pathname as RoutePath
   return routeMetadata[path].indexable ? path : null
@@ -147,7 +143,7 @@ export function buildPublicHead(path: RoutePath, siteUrl: string): string {
  * Head for the catch-all document. It serves the dashboard, `/`, and unknown
  * paths, so it cannot assert a canonical URL or og:url for any of them.
  */
-export function buildCatchAllHead(siteUrl?: string): string {
+export function buildCatchAllHead(siteUrl: string): string {
   return [
     titleTag(SITE_NAME),
     metaName("description", SITE_DESCRIPTION, "description"),
@@ -182,9 +178,10 @@ function headLines(head: string): string[] {
 }
 
 /**
- * Replaces the SEO portion of a document's head, preserving everything else
- * Vite emitted (stylesheets, module preloads, the entry script) and the body.
- * Idempotent: applying it twice produces the same document.
+ * Replaces the Page metadata portion of a document's head, preserving
+ * everything else Vite emitted (stylesheets, module preloads, the entry
+ * script) and the body. Idempotent: applying it twice produces the same
+ * document.
  */
 export function transformHead(html: string, head: string): string {
   const match = html.match(HEAD_PATTERN)
@@ -209,9 +206,8 @@ export function buildRouteDocuments(
   indexHtml: string,
   siteUrl: string
 ): Record<string, string> {
-  const resolvedSiteUrl = resolveSiteUrl(siteUrl)
   const documents: Record<string, string> = {
-    "index.html": transformHead(indexHtml, buildCatchAllHead(resolvedSiteUrl)),
+    "index.html": transformHead(indexHtml, buildCatchAllHead(siteUrl)),
   }
 
   for (const [path, metadata] of Object.entries(routeMetadata) as [
@@ -221,7 +217,7 @@ export function buildRouteDocuments(
     if (!metadata.indexable) continue
     documents[`${path.slice(1)}.html`] = transformHead(
       indexHtml,
-      buildPublicHead(path, resolvedSiteUrl)
+      buildPublicHead(path, siteUrl)
     )
   }
 

@@ -4,14 +4,17 @@ import { useLocation } from "react-router-dom"
 import {
   buildCatchAllHead,
   buildPublicHead,
-  publicRoutePath,
-} from "../../vite-plugins/seo-head"
+  indexableRoutePath,
+} from "@/seo/head"
 
 /**
- * Tags the SEO head may leave unkeyed. The dev `index.html` template carries a
- * plain `<title>` and a host or template may add defaults; they would compete
- * with the keyed tags the component writes (`document.title` reads the first
- * title element), so they are removed before reconciling.
+ * Tags the dev `index.html` template or a host may leave unkeyed. They would
+ * compete with the keyed tags the component writes (`document.title` reads the
+ * first title element), so duplicates are removed before reconciling.
+ *
+ * Structured data is deliberately not in this list: a consumer may add its own
+ * unkeyed JSON-LD (for example Organization), and this component only owns the
+ * `data-seo="json-ld"` tag it writes itself.
  */
 const UNKEYED_HEAD_SELECTORS = [
   "title",
@@ -20,7 +23,6 @@ const UNKEYED_HEAD_SELECTORS = [
   'meta[property^="og:"]',
   'meta[name^="twitter:"]',
   'link[rel="canonical"]',
-  'script[type="application/ld+json"]',
 ]
 
 function removeUnkeyedHeadTags(head: HTMLElement) {
@@ -116,10 +118,10 @@ export function RouteMetadata() {
   const { pathname } = useLocation()
 
   useEffect(() => {
-    const publicPath = publicRoutePath(pathname)
+    const indexablePath = indexableRoutePath(pathname)
     reconcileHead(
-      publicPath
-        ? buildPublicHead(publicPath, window.location.origin)
+      indexablePath
+        ? buildPublicHead(indexablePath, window.location.origin)
         : buildCatchAllHead(window.location.origin)
     )
   }, [pathname])

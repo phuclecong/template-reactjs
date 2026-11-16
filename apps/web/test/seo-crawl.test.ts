@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import {
-  DEFAULT_SITE_URL,
-  canonicalUrl,
-  routeMetadata,
-} from "../src/routes/route-metadata"
+import { canonicalUrl, routeMetadata } from "../src/routes/route-metadata"
 import {
   SITEMAP_NAMESPACE,
   buildCrawlFiles,
@@ -34,15 +30,12 @@ describe("robots.txt", () => {
     )
   })
 
-  it("normalizes a trailing slash so the Sitemap URL is well formed", () => {
-    expect(buildRobotsTxt(`${SITE_URL}///`)).toBe(buildRobotsTxt(SITE_URL))
-  })
-
-  it("falls back to the local preview origin when SITE_URL is unset", () => {
-    expect(buildRobotsTxt("")).toContain(
-      `Sitemap: ${DEFAULT_SITE_URL}/sitemap.xml`
+  it("uses the concrete origin passed by the build", () => {
+    expect(buildRobotsTxt(SITE_URL)).toContain(
+      `Sitemap: ${SITE_URL}/sitemap.xml`
     )
   })
+
 })
 
 describe("sitemap.xml", () => {

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Build-output check for the SEO metadata contract on the production artifact.
+// Build-output check for the Page metadata contract on the production artifact.
 //
 // Input: the `dist/` directory written by `vite build` (never the dev server)
 // plus `apps/web/vercel.json`. Output: PASS/FAIL with every missing tag, file,
@@ -8,6 +8,11 @@
 // This is the only check that proves the head exists for a non-JS crawler:
 // Lighthouse executes JavaScript and cannot distinguish a templated head from
 // a client-written one.
+//
+// Route copy and preview-image fields are not duplicated here. The build
+// writes `dist/seo-manifest.json` from the typed route table, and this script
+// asserts the real artifacts against that manifest. Editing
+// `src/routes/route-metadata.ts` therefore needs no change here.
 //
 // The pure helpers below are covered by `test/seo-verify.test.ts`; the
 // command-line entry point only handles files, formatting, and exit codes.
@@ -18,56 +23,10 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 
 const APP_DIR = fileURLToPath(new URL("../..", import.meta.url))
 
-export const DEFAULT_SITE_URL = "http://localhost:4173"
-
-export const SITE_NAME = "Dashboard"
-export const SITE_DESCRIPTION =
-  "A reusable dashboard for managing tasks, users, and settings."
-export const OG_IMAGE_PATH = "/og-image.png"
-export const OG_IMAGE_WIDTH = "1200"
-export const OG_IMAGE_HEIGHT = "630"
-export const OG_IMAGE_ALT =
-  "Dashboard: manage your tasks, users, and settings in one place."
+export const SEO_MANIFEST_FILE = "seo-manifest.json"
 export const SITEMAP_NAMESPACE = "http://www.sitemaps.org/schemas/sitemap/0.9"
-
-/**
- * The public-route contract, declared here because this script is plain
- * JavaScript and cannot import the TypeScript route table. It is deliberately
- * small: the exact copy that must be in the built HTML plus the file the host
- * rewrite points at. Keep it in step with `src/routes/route-metadata.ts` when a
- * public route is added; `/login` and `/register` are the only indexable
- * routes (spec §3, §5.2).
- */
-export const PUBLIC_ROUTES = [
-  {
-    path: "/login",
-    file: "login.html",
-    title: "Sign in | Dashboard",
-    description:
-      "Sign in to the dashboard to manage your tasks, users, and settings.",
-  },
-  {
-    path: "/register",
-    file: "register.html",
-    title: "Create an account | Dashboard",
-    description:
-      "Create an account to start managing tasks, users, and settings.",
-  },
-]
-
-export function resolveSiteUrl(value) {
-  const trimmed = typeof value === "string" ? value.trim() : ""
-  if (!trimmed) return DEFAULT_SITE_URL
-  return trimmed.replace(/\/+$/, "")
-}
-
-function canonicalUrl(path, siteUrl) {
-  return `${resolveSiteUrl(siteUrl)}${path}`
-}
-
-function imageUrl(siteUrl) {
-  return `${resolveSiteUrl(siteUrl)}${OG_IMAGE_PATH}`
-}
+export const DASHBOARD_PREFIX = "/dashboard/"
+const DASHBOARD_HEADER_SOURCE = "/dashboard/:path*"
 
 const ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", "#39": "'" }
 
@@ -75,6 +34,18 @@ function decodeHtml(value) {
   return value.replace(/&(#39|amp|lt|gt|quot|apos);/g, (_, name) => {
     return ENTITIES[name] ?? `&${name};`
   })
+}
+
+const XML_ENTITIES = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&apos;",
+}
+
+function escapeXml(value) {
+  return value.replace(/[&<>"']/g, (character) => XML_ENTITIES[character])
 }
 
 const ATTRIBUTE_PATTERN =
@@ -96,7 +67,7 @@ function extractHead(html) {
 }
 
 /**
- * Every head tag with an SEO meaning, keyed the way the spec names it:
+ * Every head tag with a metadata meaning, keyed the way the spec names it:
  * `title`, `description`, `canonical`, `robots`, `og:*`, `twitter:*`, and
  * `json-ld`. Non-metadata tags (charset, viewport, stylesheet, modulepreload)
  * are ignored.
@@ -202,14 +173,106 @@ function expectHref(file, key, entry, expected, problems) {
   }
 }
 
-/**
- * Asserts the §5.2 head of one public document: every tag present exactly
- * once, with absolute URLs derived from the configured origin.
- */
-export function verifyPublicDocument(html, routePath, siteUrl) {
-  const route = PUBLIC_ROUTES.find((candidate) => candidate.path === routePath)
-  if (!route) throw new Error(`Unknown public route: ${routePath}`)
+function isAbsoluteUrl(value) {
+  return typeof value === "string" && /^https?:\/\/[^/]/.test(value)
+}
 
+/**
+ * Absolute URLs are part of the contract: a relative canonical or preview image
+ * is valid HTML but useless to a crawler. This names the tag before the value
+ * comparison so the first failure is the actionable one.
+ */
+function expectAbsoluteContent(file, key, entry, problems) {
+  if (!entry) return
+  const actual = entry.attributes.content
+  if (!isAbsoluteUrl(actual)) {
+    problems.push(
+      `${file}: ${describeKey(key)} is not an absolute URL (${JSON.stringify(actual)})`
+    )
+  }
+}
+
+function expectAbsoluteHref(file, key, entry, problems) {
+  if (!entry) return
+  const actual = entry.attributes.href
+  if (!isAbsoluteUrl(actual)) {
+    problems.push(
+      `${file}: ${describeKey(key)} href is not an absolute URL (${JSON.stringify(actual)})`
+    )
+  }
+}
+
+/**
+ * Checks the manifest shape without assuming any route copy: the checker must
+ * work for whatever the route table currently declares.
+ */
+export function validateManifest(manifest) {
+  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
+    return [`${SEO_MANIFEST_FILE}: not a JSON object`]
+  }
+
+  const problems = []
+  if (!isAbsoluteUrl(manifest.siteUrl)) {
+    problems.push(`${SEO_MANIFEST_FILE}: siteUrl is missing or not absolute`)
+  }
+  for (const field of ["name", "description"]) {
+    if (typeof manifest.site?.[field] !== "string") {
+      problems.push(`${SEO_MANIFEST_FILE}: site.${field} is missing`)
+    }
+  }
+  if (typeof manifest.site?.titleTemplate !== "string") {
+    problems.push(`${SEO_MANIFEST_FILE}: site.titleTemplate is missing`)
+  }
+  for (const field of ["path", "alt"]) {
+    if (typeof manifest.ogImage?.[field] !== "string") {
+      problems.push(`${SEO_MANIFEST_FILE}: ogImage.${field} is missing`)
+    }
+  }
+  if (!isAbsoluteUrl(manifest.ogImage?.url)) {
+    problems.push(
+      `${SEO_MANIFEST_FILE}: ogImage.url is missing or not absolute`
+    )
+  }
+  for (const field of ["width", "height"]) {
+    if (typeof manifest.ogImage?.[field] !== "number") {
+      problems.push(`${SEO_MANIFEST_FILE}: ogImage.${field} is missing`)
+    }
+  }
+  if (
+    typeof manifest.catchAll?.title !== "string" ||
+    typeof manifest.catchAll?.description !== "string" ||
+    typeof manifest.catchAll?.robots !== "string"
+  ) {
+    problems.push(`${SEO_MANIFEST_FILE}: catchAll metadata is incomplete`)
+  }
+  if (!Array.isArray(manifest.routes) || manifest.routes.length === 0) {
+    problems.push(`${SEO_MANIFEST_FILE}: routes is missing or empty`)
+    return problems
+  }
+
+  for (const [index, route] of manifest.routes.entries()) {
+    const name = `${SEO_MANIFEST_FILE}: routes[${index}]`
+    for (const field of ["path", "file", "title", "description", "robots"]) {
+      if (typeof route?.[field] !== "string") {
+        problems.push(`${name}.${field} is missing`)
+      }
+    }
+    if (!isAbsoluteUrl(route?.canonical)) {
+      problems.push(`${name}.canonical is missing or not absolute`)
+    }
+    if (typeof route?.file === "string" && !/^[^/]+\.html$/.test(route.file)) {
+      problems.push(`${name}.file is not a flat HTML file name`)
+    }
+  }
+
+  return problems
+}
+
+/**
+ * Asserts the public document head for one manifest route: every tag present
+ * exactly once, absolute, and matching the manifest value.
+ */
+export function verifyPublicDocument(html, route, manifest) {
   const file = route.file
   const head = extractHead(html)
   if (head === null) return [`${file}: missing <head> element`]
@@ -218,28 +281,21 @@ export function verifyPublicDocument(html, routePath, siteUrl) {
   const problems = []
   checkDuplicates(file, grouped, problems)
 
-  const canonical = canonicalUrl(route.path, siteUrl)
-  const image = imageUrl(siteUrl)
-
   const title = requireOne(file, grouped, "title", problems)
   expectValue(file, "title", title, route.title, problems)
 
   const description = requireOne(file, grouped, "description", problems)
   expectValue(file, "description", description, route.description, problems)
 
-  expectHref(
-    file,
-    "canonical",
-    requireOne(file, grouped, "canonical", problems),
-    canonical,
-    problems
-  )
+  const canonical = requireOne(file, grouped, "canonical", problems)
+  expectAbsoluteHref(file, "canonical", canonical, problems)
+  expectHref(file, "canonical", canonical, route.canonical, problems)
 
   expectValue(
     file,
     "robots",
     requireOne(file, grouped, "robots", problems),
-    "index, follow",
+    route.robots,
     problems
   )
 
@@ -257,13 +313,10 @@ export function verifyPublicDocument(html, routePath, siteUrl) {
     route.description,
     problems
   )
-  expectValue(
-    file,
-    "og:url",
-    requireOne(file, grouped, "og:url", problems),
-    canonical,
-    problems
-  )
+  const ogUrl = requireOne(file, grouped, "og:url", problems)
+  expectAbsoluteContent(file, "og:url", ogUrl, problems)
+  expectValue(file, "og:url", ogUrl, route.canonical, problems)
+
   expectValue(
     file,
     "og:type",
@@ -275,35 +328,33 @@ export function verifyPublicDocument(html, routePath, siteUrl) {
     file,
     "og:site_name",
     requireOne(file, grouped, "og:site_name", problems),
-    SITE_NAME,
+    manifest.site.name,
     problems
   )
-  expectValue(
-    file,
-    "og:image",
-    requireOne(file, grouped, "og:image", problems),
-    image,
-    problems
-  )
+
+  const ogImage = requireOne(file, grouped, "og:image", problems)
+  expectAbsoluteContent(file, "og:image", ogImage, problems)
+  expectValue(file, "og:image", ogImage, manifest.ogImage.url, problems)
+
   expectValue(
     file,
     "og:image:alt",
     requireOne(file, grouped, "og:image:alt", problems),
-    OG_IMAGE_ALT,
+    manifest.ogImage.alt,
     problems
   )
   expectValue(
     file,
     "og:image:width",
     requireOne(file, grouped, "og:image:width", problems),
-    OG_IMAGE_WIDTH,
+    String(manifest.ogImage.width),
     problems
   )
   expectValue(
     file,
     "og:image:height",
     requireOne(file, grouped, "og:image:height", problems),
-    OG_IMAGE_HEIGHT,
+    String(manifest.ogImage.height),
     problems
   )
   expectValue(
@@ -327,11 +378,13 @@ export function verifyPublicDocument(html, routePath, siteUrl) {
     route.description,
     problems
   )
+  const twitterImage = requireOne(file, grouped, "twitter:image", problems)
+  expectAbsoluteContent(file, "twitter:image", twitterImage, problems)
   expectValue(
     file,
     "twitter:image",
-    requireOne(file, grouped, "twitter:image", problems),
-    image,
+    twitterImage,
+    manifest.ogImage.url,
     problems
   )
 
@@ -351,9 +404,9 @@ export function verifyPublicDocument(html, routePath, siteUrl) {
           `${file}: JSON-LD @type is ${JSON.stringify(payload["@type"])}, expected "WebApplication"`
         )
       }
-      if (payload.name !== SITE_NAME) {
+      if (payload.name !== manifest.site.name) {
         problems.push(
-          `${file}: JSON-LD name is ${JSON.stringify(payload.name)}, expected ${JSON.stringify(SITE_NAME)}`
+          `${file}: JSON-LD name is ${JSON.stringify(payload.name)}, expected ${JSON.stringify(manifest.site.name)}`
         )
       }
       if (payload.description !== route.description) {
@@ -361,9 +414,9 @@ export function verifyPublicDocument(html, routePath, siteUrl) {
           `${file}: JSON-LD description is ${JSON.stringify(payload.description)}, expected ${JSON.stringify(route.description)}`
         )
       }
-      if (payload.url !== canonical) {
+      if (payload.url !== route.canonical) {
         problems.push(
-          `${file}: JSON-LD url is ${JSON.stringify(payload.url)}, expected ${JSON.stringify(canonical)}`
+          `${file}: JSON-LD url is ${JSON.stringify(payload.url)}, expected ${JSON.stringify(route.canonical)}`
         )
       }
     }
@@ -373,11 +426,11 @@ export function verifyPublicDocument(html, routePath, siteUrl) {
 }
 
 /**
- * Asserts the §5.3 catch-all head: site defaults plus `noindex`, and no
- * canonical, `og:url`, or structured data that would be asserted for every
- * path the document serves.
+ * Asserts the catch-all head: site defaults plus `noindex`, and no canonical,
+ * `og:url`, or structured data that would be asserted for every path the
+ * document serves.
  */
-export function verifyCatchAllDocument(html, siteUrl) {
+export function verifyCatchAllDocument(html, manifest) {
   const file = "index.html"
   const head = extractHead(html)
   if (head === null) return [`${file}: missing <head> element`]
@@ -390,21 +443,21 @@ export function verifyCatchAllDocument(html, siteUrl) {
     file,
     "title",
     requireOne(file, grouped, "title", problems),
-    SITE_NAME,
+    manifest.catchAll.title,
     problems
   )
   expectValue(
     file,
     "description",
     requireOne(file, grouped, "description", problems),
-    SITE_DESCRIPTION,
+    manifest.catchAll.description,
     problems
   )
   expectValue(
     file,
     "robots",
     requireOne(file, grouped, "robots", problems),
-    "noindex",
+    manifest.catchAll.robots,
     problems
   )
 
@@ -412,14 +465,14 @@ export function verifyCatchAllDocument(html, siteUrl) {
     file,
     "og:title",
     requireOne(file, grouped, "og:title", problems),
-    SITE_NAME,
+    manifest.catchAll.title,
     problems
   )
   expectValue(
     file,
     "og:description",
     requireOne(file, grouped, "og:description", problems),
-    SITE_DESCRIPTION,
+    manifest.catchAll.description,
     problems
   )
   expectValue(
@@ -433,35 +486,32 @@ export function verifyCatchAllDocument(html, siteUrl) {
     file,
     "og:site_name",
     requireOne(file, grouped, "og:site_name", problems),
-    SITE_NAME,
+    manifest.site.name,
     problems
   )
-  expectValue(
-    file,
-    "og:image",
-    requireOne(file, grouped, "og:image", problems),
-    imageUrl(siteUrl),
-    problems
-  )
+  const ogImage = requireOne(file, grouped, "og:image", problems)
+  expectAbsoluteContent(file, "og:image", ogImage, problems)
+  expectValue(file, "og:image", ogImage, manifest.ogImage.url, problems)
+
   expectValue(
     file,
     "og:image:alt",
     requireOne(file, grouped, "og:image:alt", problems),
-    OG_IMAGE_ALT,
+    manifest.ogImage.alt,
     problems
   )
   expectValue(
     file,
     "og:image:width",
     requireOne(file, grouped, "og:image:width", problems),
-    OG_IMAGE_WIDTH,
+    String(manifest.ogImage.width),
     problems
   )
   expectValue(
     file,
     "og:image:height",
     requireOne(file, grouped, "og:image:height", problems),
-    OG_IMAGE_HEIGHT,
+    String(manifest.ogImage.height),
     problems
   )
   expectValue(
@@ -475,50 +525,56 @@ export function verifyCatchAllDocument(html, siteUrl) {
     file,
     "twitter:title",
     requireOne(file, grouped, "twitter:title", problems),
-    SITE_NAME,
+    manifest.catchAll.title,
     problems
   )
   expectValue(
     file,
     "twitter:description",
     requireOne(file, grouped, "twitter:description", problems),
-    SITE_DESCRIPTION,
+    manifest.catchAll.description,
     problems
   )
+  const twitterImage = requireOne(file, grouped, "twitter:image", problems)
+  expectAbsoluteContent(file, "twitter:image", twitterImage, problems)
   expectValue(
     file,
     "twitter:image",
-    requireOne(file, grouped, "twitter:image", problems),
-    imageUrl(siteUrl),
+    twitterImage,
+    manifest.ogImage.url,
     problems
   )
 
   if (grouped.has("canonical")) {
-    problems.push(`${file}: unexpected ${describeKey("canonical")} on the catch-all`)
+    problems.push(
+      `${file}: unexpected ${describeKey("canonical")} on the catch-all`
+    )
   }
   if (grouped.has("og:url")) {
     problems.push(`${file}: unexpected ${describeKey("og:url")} on the catch-all`)
   }
   if (grouped.has("json-ld")) {
-    problems.push(`${file}: unexpected ${describeKey("json-ld")} on the catch-all`)
+    problems.push(
+      `${file}: unexpected ${describeKey("json-ld")} on the catch-all`
+    )
   }
 
   return problems
 }
 
-export function expectedRobotsTxt(siteUrl) {
+export function expectedRobotsTxt(manifest) {
   return [
     "User-agent: *",
     "Allow: /",
-    "Disallow: /dashboard/",
-    `Sitemap: ${resolveSiteUrl(siteUrl)}/sitemap.xml`,
+    `Disallow: ${DASHBOARD_PREFIX}`,
+    `Sitemap: ${manifest.siteUrl}/sitemap.xml`,
     "",
   ].join("\n")
 }
 
-/** Asserts §5.4 byte-for-byte, naming any missing or unexpected line. */
-export function verifyRobotsTxt(content, siteUrl) {
-  const expected = expectedRobotsTxt(siteUrl)
+/** Asserts the exact crawler policy, naming any missing or unexpected line. */
+export function verifyRobotsTxt(content, manifest) {
+  const expected = expectedRobotsTxt(manifest)
   const problems = []
   const expectedLines = expected.split("\n").filter(Boolean)
   const actualLines = content
@@ -538,16 +594,16 @@ export function verifyRobotsTxt(content, siteUrl) {
   }
   if (problems.length === 0 && content !== expected) {
     problems.push(
-      `robots.txt: content does not match the expected policy for ${resolveSiteUrl(siteUrl)} (check line order and the trailing newline)`
+      `robots.txt: content does not match the expected policy for ${manifest.siteUrl} (check line order and the trailing newline)`
     )
   }
 
   return problems
 }
 
-export function expectedSitemapXml(siteUrl) {
-  const urls = PUBLIC_ROUTES.map((route) => {
-    const loc = canonicalUrl(route.path, siteUrl)
+export function expectedSitemapXml(manifest) {
+  const urls = manifest.routes.map((route) => {
+    const loc = escapeXml(route.canonical)
     return `  <url>\n    <loc>${loc}</loc>\n  </url>`
   })
   return [
@@ -560,14 +616,12 @@ export function expectedSitemapXml(siteUrl) {
 }
 
 /**
- * Asserts exactly the two public URLs, each byte-identical to the page
+ * Asserts exactly the manifest routes, each byte-identical to the page
  * canonical, and no `lastmod` (there is no real modification time).
  */
-export function verifySitemapXml(content, siteUrl) {
-  const expected = expectedSitemapXml(siteUrl)
-  const expectedLocs = PUBLIC_ROUTES.map((route) =>
-    canonicalUrl(route.path, siteUrl)
-  )
+export function verifySitemapXml(content, manifest) {
+  const expected = expectedSitemapXml(manifest)
+  const expectedLocs = manifest.routes.map((route) => route.canonical)
   const locs = [...content.matchAll(/<loc>([^<]*)<\/loc>/g)].map((match) =>
     decodeHtml(match[1].trim())
   )
@@ -593,7 +647,7 @@ export function verifySitemapXml(content, siteUrl) {
   }
   if (problems.length === 0 && content !== expected) {
     problems.push(
-      `sitemap.xml: content does not match the expected document for ${resolveSiteUrl(siteUrl)}`
+      `sitemap.xml: content does not match the expected document for ${manifest.siteUrl}`
     )
   }
 
@@ -605,7 +659,7 @@ export function verifySitemapXml(content, siteUrl) {
  * catch-all, and the dashboard response-level `noindex` header. `vite preview`
  * does not apply these, so inspecting the config is the only local proof.
  */
-export function verifyVercelConfig(config) {
+export function verifyVercelConfig(config, manifest) {
   const problems = []
   const rewrites = Array.isArray(config?.rewrites) ? config.rewrites : []
   const headers = Array.isArray(config?.headers) ? config.headers : []
@@ -619,7 +673,7 @@ export function verifyVercelConfig(config) {
     )
   }
 
-  for (const route of PUBLIC_ROUTES) {
+  for (const route of manifest.routes) {
     const index = rewrites.findIndex(
       (rule) =>
         rule?.source === route.path && rule?.destination === `/${route.file}`
@@ -635,23 +689,26 @@ export function verifyVercelConfig(config) {
     }
   }
 
+  if (!hasDashboardNoindex(headers)) {
+    problems.push(
+      `vercel.json: missing X-Robots-Tag: noindex header for "${DASHBOARD_HEADER_SOURCE}"`
+    )
+  }
+
+  return problems
+}
+
+function hasDashboardNoindex(headers) {
   const dashboard = headers.find(
-    (rule) => rule?.source === "/dashboard/:path*"
+    (rule) => rule?.source === DASHBOARD_HEADER_SOURCE
   )
-  const hasNoindex = Array.isArray(dashboard?.headers)
+  return Array.isArray(dashboard?.headers)
     ? dashboard.headers.some(
         (header) =>
           String(header?.key).toLowerCase() === "x-robots-tag" &&
           String(header?.value).toLowerCase() === "noindex"
       )
     : false
-  if (!hasNoindex) {
-    problems.push(
-      'vercel.json: missing X-Robots-Tag: noindex header for "/dashboard/:path*"'
-    )
-  }
-
-  return problems
 }
 
 function readText(file, problems) {
@@ -663,36 +720,67 @@ function readText(file, problems) {
   }
 }
 
+function readManifest(distDir, problems) {
+  const file = join(distDir, SEO_MANIFEST_FILE)
+  const text = readText(file, problems)
+  if (text === null) return null
+
+  let manifest
+  try {
+    manifest = JSON.parse(text)
+  } catch (error) {
+    problems.push(
+      `${file}: not valid JSON (${error instanceof Error ? error.message : String(error)})`
+    )
+    return null
+  }
+
+  const manifestProblems = validateManifest(manifest)
+  problems.push(...manifestProblems)
+  return manifestProblems.length === 0 ? manifest : null
+}
+
 /**
  * Reads the built artifact and returns every contract breach. The caller
  * decides how to report them; an empty array means the artifact is compliant.
  */
-export function verifyBuiltArtifact({ distDir, siteUrl, vercelPath }) {
+export function verifyBuiltArtifact({ distDir, vercelPath }) {
   const problems = []
   const read = (name) => readText(join(distDir, name), problems)
 
-  for (const route of PUBLIC_ROUTES) {
-    const html = read(route.file)
-    if (html !== null) {
-      problems.push(...verifyPublicDocument(html, route.path, siteUrl))
+  const manifest = readManifest(distDir, problems)
+
+  if (manifest !== null) {
+    for (const route of manifest.routes) {
+      const html = read(route.file)
+      if (html !== null) {
+        problems.push(...verifyPublicDocument(html, route, manifest))
+      }
     }
+
+    const indexHtml = read("index.html")
+    if (indexHtml !== null) {
+      problems.push(...verifyCatchAllDocument(indexHtml, manifest))
+    }
+
+    const robots = read("robots.txt")
+    if (robots !== null) problems.push(...verifyRobotsTxt(robots, manifest))
+
+    const sitemap = read("sitemap.xml")
+    if (sitemap !== null) problems.push(...verifySitemapXml(sitemap, manifest))
   }
-
-  const indexHtml = read("index.html")
-  if (indexHtml !== null) {
-    problems.push(...verifyCatchAllDocument(indexHtml, siteUrl))
-  }
-
-  const robots = read("robots.txt")
-  if (robots !== null) problems.push(...verifyRobotsTxt(robots, siteUrl))
-
-  const sitemap = read("sitemap.xml")
-  if (sitemap !== null) problems.push(...verifySitemapXml(sitemap, siteUrl))
 
   const vercelJson = readText(vercelPath, problems)
   if (vercelJson !== null) {
     try {
-      problems.push(...verifyVercelConfig(JSON.parse(vercelJson)))
+      const config = JSON.parse(vercelJson)
+      if (manifest !== null) {
+        problems.push(...verifyVercelConfig(config, manifest))
+      } else if (!hasDashboardNoindex(Array.isArray(config?.headers) ? config.headers : [])) {
+        problems.push(
+          `vercel.json: missing X-Robots-Tag: noindex header for "${DASHBOARD_HEADER_SOURCE}"`
+        )
+      }
     } catch (error) {
       problems.push(
         `vercel.json: not valid JSON (${error instanceof Error ? error.message : String(error)})`
@@ -706,14 +794,12 @@ export function verifyBuiltArtifact({ distDir, siteUrl, vercelPath }) {
 function parseArgs(argv) {
   const options = {
     distDir: resolve(APP_DIR, "dist"),
-    siteUrl: resolveSiteUrl(process.env.SITE_URL),
     vercelPath: resolve(APP_DIR, "vercel.json"),
   }
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index]
     if (arg === "--dist") options.distDir = resolve(argv[++index])
-    else if (arg === "--site-url") options.siteUrl = resolveSiteUrl(argv[++index])
     else if (arg === "--vercel") options.vercelPath = resolve(argv[++index])
     else throw new Error(`Unknown argument: ${arg}`)
   }
@@ -736,8 +822,8 @@ export function main(argv = process.argv.slice(2)) {
   }
 
   process.stdout.write(
-    `SEO verification passed for ${PUBLIC_ROUTES.map((route) => route.path).join(", ")}, ` +
-      `robots.txt, sitemap.xml, and vercel.json at ${options.siteUrl}.\n`
+    `SEO verification passed for the build artifacts at ${options.distDir} ` +
+      `(${SEO_MANIFEST_FILE}, public documents, index.html, robots.txt, sitemap.xml, and vercel.json).\n`
   )
   return 0
 }

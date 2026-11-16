@@ -1,6 +1,43 @@
 import { expect, test } from "@playwright/test"
 
+import { pageTitle, routeMetadata } from "../src/routes/route-metadata"
 import { login } from "./helpers"
+
+// Raw HTTP only: no browser, no JavaScript. This is the request a link-preview
+// crawler makes, and it proves the dev middleware emits the same Page metadata
+// the build writes rather than leaving it to the client component.
+test("raw HTTP documents carry the public Page metadata without JavaScript", async ({
+  request,
+}) => {
+  for (const path of ["/login", "/register"] as const) {
+    const response = await request.get(path)
+    expect(response.status()).toBe(200)
+
+    const html = await response.text()
+    const origin = new URL(response.url()).origin
+    const metadata = routeMetadata[path]
+    const title = pageTitle(metadata.title)
+    const canonical = `${origin}${path}`
+
+    expect(html).toContain(`<title data-seo="title">${title}</title>`)
+    expect(html).toContain(
+      `<meta name="description" content="${metadata.description}" data-seo="description" />`
+    )
+    expect(html).toContain(
+      `<link rel="canonical" href="${canonical}" data-seo="canonical" />`
+    )
+    expect(html).toContain(
+      '<meta name="robots" content="index, follow" data-seo="robots" />'
+    )
+    expect(html).toContain(
+      `<meta property="og:title" content="${title}" data-seo="og:title" />`
+    )
+    expect(html).toMatch(
+      /<script type="application\/ld\+json" data-seo="json-ld">[^<]*"@type":"WebApplication"/
+    )
+    expect(html).toContain(`"url":"${canonical}"`)
+  }
+})
 
 test("head follows navigation between dashboard pages and a public route", async ({
   page,
