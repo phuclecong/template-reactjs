@@ -39,6 +39,7 @@
     "react-hook-form": "^7.91.0",
     "react-i18next": "^17.1.12",
     "react-router-dom": "^7.0.2",
+    "web-vitals": "^6.2.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {

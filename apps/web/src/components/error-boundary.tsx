@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next"
 
 import { Button } from "@workspace/ui/components/button"
 
-import { normalizeError } from "@/utils/error-reporting"
+import { normalizeError } from "@/observability"
 
 function DefaultErrorFallback({ onReset }: { onReset: () => void }) {
   const { t } = useTranslation()

@@ -3,7 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   installUnhandledRejectionReporter,
   reportError,
-} from "@/utils/error-reporting"
+} from "@/observability"
+import type { LogEntry } from "@/observability"
+
+function firstConsoleError(): LogEntry {
+  return vi.mocked(console.error).mock.calls[0]?.[0] as LogEntry
+}
 
 describe("reportError", () => {
   beforeEach(() => {
@@ -14,20 +19,35 @@ describe("reportError", () => {
     vi.restoreAllMocks()
   })
 
-  it("normalizes a non-Error reason and logs it", () => {
+  it("normalizes a non-Error reason and emits an error entry", () => {
     reportError("boom")
 
-    const logged = vi.mocked(console.error).mock.calls[0]?.[0]
-    expect(logged).toBeInstanceOf(Error)
-    expect((logged as Error).message).toBe("boom")
+    expect(console.error).toHaveBeenCalledTimes(1)
+    expect(firstConsoleError()).toMatchObject({
+      kind: "log",
+      level: "error",
+      message: "boom",
+      data: {
+        error: {
+          name: "Error",
+          message: "boom",
+          stack: expect.any(String),
+        },
+      },
+    })
   })
 
-  it("includes the component stack when provided", () => {
+  it("includes the component stack in the entry data", () => {
     const error = new Error("render failed")
 
     reportError(error, { componentStack: "at Exploding" })
 
-    expect(console.error).toHaveBeenCalledWith(error, "at Exploding")
+    const entry = firstConsoleError()
+    expect(entry.data?.error).toMatchObject({
+      name: "Error",
+      message: "render failed",
+    })
+    expect(entry.data?.componentStack).toBe("at Exploding")
   })
 })
 
@@ -60,9 +80,11 @@ describe("installUnhandledRejectionReporter", () => {
       preventDefault,
     } as unknown as PromiseRejectionEvent)
 
-    const logged = vi.mocked(console.error).mock.calls[0]?.[0]
-    expect(logged).toBeInstanceOf(Error)
-    expect((logged as Error).message).toBe("boom")
+    expect(firstConsoleError()).toMatchObject({
+      kind: "log",
+      level: "error",
+      message: "boom",
+    })
     expect(preventDefault).not.toHaveBeenCalled()
   })
 })

@@ -43,3 +43,17 @@ _Avoid_: Batch update, mass edit
 **Locale**:
 A language and region pair (e.g. `en`, `vi`) used to translate the interface and format currency.
 _Avoid_: Language, region
+
+### Observability
+
+**Analytics session**:
+An anonymous, per-tab identity that groups observability entries from one browsing session. It is not the authenticated session and is never linked to a User.
+_Avoid_: Session, user session, tracking id
+
+**Business event**:
+A record that a user completed a domain action, emitted for product analysis rather than for a durable audit trail.
+_Avoid_: Analytics event, telemetry event, audit entry
+
+**Audit log**:
+A durable record of who changed what in the application, kept for accountability.
+_Avoid_: Activity log, history
