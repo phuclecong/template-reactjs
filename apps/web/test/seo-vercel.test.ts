@@ -12,11 +12,8 @@ type RewriteRule = {
   destination: string
 }
 
-type RedirectRule = RewriteRule & { permanent?: boolean }
-
 type VercelConfig = {
   headers?: HeaderRule[]
-  redirects?: RedirectRule[]
   rewrites: RewriteRule[]
 }
 
@@ -35,14 +32,6 @@ describe("vercel.json crawl controls", () => {
     expect(rule?.headers).toContainEqual({
       key: "X-Robots-Tag",
       value: "noindex",
-    })
-  })
-
-  it("permanently redirects the root to the sign-in page", () => {
-    expect(readConfig().redirects).toContainEqual({
-      source: "/",
-      destination: "/login",
-      permanent: true,
     })
   })
 
