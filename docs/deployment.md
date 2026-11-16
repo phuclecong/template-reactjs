@@ -19,40 +19,28 @@ static assets. Configure the project with:
 - **Build command:** `pnpm --filter web build` (runs `tsc -b && vite build`)
 - **Output directory:** `dist`
 
-The build emits one HTML document per public route (`login.html`,
-`register.html`) plus a catch-all `index.html` for the dashboard and unknown
-paths. `apps/web/vercel.json` resolves the public routes first and falls back to
-the catch-all:
+The app is a pure client-side SPA, so it needs a SPA fallback (every route →
+`index.html`). `apps/web/vercel.json` already sets this up:
 
 ```json
 {
-  "rewrites": [
-    { "source": "/login", "destination": "/login.html" },
-    { "source": "/register", "destination": "/register.html" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
 ```
 
 ## Environment variables
 
-| Variable       | Required       | Purpose                                                                                                                                                                                                                                         |
-| -------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SITE_URL`     | **yes (live)** | Canonical origin for the deployment (for example `https://app.example.com`), used for canonical, `og:url`, `og:image`, JSON-LD, sitemap, and robots URLs. Build-time only; it is never shipped to the browser. When unset, the build warns and uses `http://localhost:4173`. |
-| `VITE_API_URL` | optional       | Real backend origin (including the `/api` prefix). When set, the app calls it directly (CORS must be enabled on the backend); when unset, the in-browser MSW mock serves the API.                                                               |
-
-**A live host must set `SITE_URL`.** Without it, the emitted canonical and
-social URLs point at `http://localhost:4173`, which is correct for local
-preview but wrong for anything reachable by crawlers or link-preview tools.
+| Variable       | Required | Purpose                                                                                                                                      |
+| -------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_API_URL` | optional | Real backend origin (including the `/api` prefix). When set, the app calls it directly (CORS must be enabled on the backend); when unset, the in-browser MSW mock serves the API. |
 
 ## Steps
 
 1. Import the repository into Vercel.
 2. Set **Root Directory** to `apps/web`.
-3. Set `SITE_URL` to the deployment's canonical origin.
-4. (Optional) Add `VITE_API_URL` to point at a real backend; omit it to keep the
+3. (Optional) Add `VITE_API_URL` to point at a real backend; omit it to keep the
    in-browser mock.
-5. Deploy — the route rewrites in `vercel.json` are already committed.
+4. Deploy — the SPA fallback in `vercel.json` is already committed.
 
 ## Mock mode vs. real backend
 
