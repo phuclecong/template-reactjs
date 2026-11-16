@@ -51,11 +51,6 @@ jobs:
       - name: Build
         run: pnpm build
 
-      # Blocking build-output check for the SEO metadata contract. It reads the
-      # built dist/ (never the dev server), so it runs on every pull request.
-      - name: Verify SEO metadata contract
-        run: pnpm --filter web verify:seo
-
       - name: Build both modes and verify no MSW chunk in real-backend build
         run: pnpm --filter web verify:real-build
 

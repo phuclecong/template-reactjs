@@ -1,13 +1,3 @@
 {
-  "headers": [
-    {
-      "source": "/dashboard/:path*",
-      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
-    }
-  ],
-  "rewrites": [
-    { "source": "/login", "destination": "/login.html" },
-    { "source": "/register", "destination": "/register.html" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
