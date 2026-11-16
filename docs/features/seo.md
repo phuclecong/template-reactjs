@@ -11,7 +11,7 @@ The app is correct for search engines and link-preview tools on its public surfa
 
 What this feature does **not** claim is organic discoverability. The dashboard has no crawlable content: every page behind it requires a signed-in User. Search ranking is therefore not a goal, and the success measure is a green Lighthouse SEO score plus correct tags in raw, non-JS HTML (§6).
 
-No live host exists in this repository (`docs/deployment.md`), so link-preview-debugger verification is recorded as pending one.
+A production host exists at [https://template-reactjs.si0.app](https://template-reactjs.si0.app) with `SITE_URL` set to that origin (`docs/deployment.md`); external link-preview-debugger verification has not been performed.
 
 ## 2. Why the previous reference is not a baseline
 
@@ -122,7 +122,7 @@ Site name is `Dashboard`, matching the app-wide title and `shell.title` in both 
   - `vercel.json` declares the root redirect, the two rewrites before the catch-all, and the dashboard `X-Robots-Tag` header.
     This is the only check that proves the tags exist for a non-JS crawler; Lighthouse runs JavaScript and cannot tell templated head from client-written head.
 - **Byte budgets**: unchanged. The added head is markup, and the OG image is referenced but never loaded, so neither counts against the JS/CSS budgets. The client reconciliation component is the only JS addition; its cost is measured and must stay under the existing ceilings in `apps/web/perf-budgets.json`.
-- **Link previews**: verification with a real debugger is **pending a host**. The evidence run uses `SITE_URL=http://localhost:4173`, which proves the build emits absolute, correctly derived URLs but cannot be resolved by an external debugger.
+- **Link previews**: verification with an external debugger has not been performed. The evidence run uses `SITE_URL=http://localhost:4173`; the live host emits the same tags with `SITE_URL=https://template-reactjs.si0.app`.
 
 ## 7. Work items
 
@@ -223,6 +223,8 @@ The delta is the client-side SEO cost: the reconciliation component plus the sha
 
 The dev-server report that prompted this work has been deleted and is not cited as evidence.
 
+**Production deployment.** [https://template-reactjs.si0.app](https://template-reactjs.si0.app) builds with `SITE_URL=https://template-reactjs.si0.app`. Raw HTML verification on 2026-11-16: `/login` and `/register` carry that origin in canonical, `og:url`, `og:image`, and robots; `robots.txt` points at the live sitemap; the sitemap lists the two public URLs; `/` returns a permanent redirect to `/login`; `/dashboard/*` returns `X-Robots-Tag: noindex`.
+
 ## 8. Done condition
 
 - The production build scores 1.0 on Lighthouse SEO for `/login` and `/register`, one cold run each, recorded with its `SITE_URL` in §7.6.
@@ -230,4 +232,4 @@ The dev-server report that prompted this work has been deleted and is not cited 
 - Raw `dist` HTML contains the full head for both public routes and `noindex` for the catch-all — verifiable without executing JavaScript.
 - JS and CSS byte budgets are unchanged and pass; the measured cost of the reconciliation component is recorded.
 - The reference dev-server report is deleted and never cited as evidence.
-- `GLOSSARY.md`, this document, and ADR-0014 describe the shipped behaviour; link-preview-debugger verification remains recorded as pending a host.
+- `GLOSSARY.md`, this document, and ADR-0014 describe the shipped behaviour; external link-preview-debugger verification remains unperformed.
