@@ -27,6 +27,17 @@ export const TITLE_TEMPLATE = `%s | ${SITE_NAME}`
  */
 export const DEFAULT_SITE_URL = "http://localhost:4173"
 
+/**
+ * Shared social-preview image, checked in under `public/` so link crawlers get
+ * one absolute URL for every route. It is metadata only: the page never loads
+ * it. Consumers replace this one file in place.
+ */
+export const OG_IMAGE_PATH = "/og-image.png"
+export const OG_IMAGE_WIDTH = 1200
+export const OG_IMAGE_HEIGHT = 630
+export const OG_IMAGE_ALT =
+  "Dashboard: manage your tasks, users, and settings in one place."
+
 export const routeMetadata: Record<RoutePath, RouteMetadata> = {
   "/login": {
     title: "Sign in",
@@ -68,7 +79,15 @@ export function resolveSiteUrl(siteUrl: string | undefined): string {
   return trimmed.replace(/\/+$/, "")
 }
 
+/** Absolute URL for a path on the site origin. */
+export function absoluteUrl(
+  path: string,
+  siteUrl: string | undefined
+): string {
+  return `${resolveSiteUrl(siteUrl)}${path}`
+}
+
 /** Absolute canonical URL for a route; the same string is used for og:url. */
 export function canonicalUrl(path: RoutePath | "/", siteUrl: string): string {
-  return `${resolveSiteUrl(siteUrl)}${path}`
+  return absoluteUrl(path, siteUrl)
 }
