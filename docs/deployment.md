@@ -4,9 +4,11 @@ This repository is a Turborepo monorepo whose deployable unit is the `apps/web`
 React (Vite) SPA (with `@workspace/ui`, `@workspace/api`, and
 `@workspace/shared-lib` as workspace packages).
 
-> **Status:** no production environment is provisioned in this repository, and
-> none is created by the tooling. This document describes how to deploy
-> `apps/web` to [Vercel](https://vercel.com) when a host is set up. CI (see
+> **Status:** a production deployment exists at
+> [https://template-reactjs.si0.app](https://template-reactjs.si0.app)
+> (Vercel project `template-reactjs`). Production sets
+> `SITE_URL=https://template-reactjs.si0.app`. This document describes how the
+> deployment is configured and how to reproduce it. CI (see
 > [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) runs lint,
 > typecheck, test, and build on every PR, but does **not** deploy.
 
@@ -26,6 +28,15 @@ the catch-all:
 
 ```json
 {
+  "headers": [
+    {
+      "source": "/dashboard/:path*",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }]
+    }
+  ],
+  "redirects": [
+    { "source": "/", "destination": "/login", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/login", "destination": "/login.html" },
     { "source": "/register", "destination": "/register.html" },
