@@ -1,6 +1,6 @@
 import { useMemo } from "react"
 import { useTranslation } from "react-i18next"
-import { useCan } from "@refinedev/core"
+import { useCan, type CrudFilter } from "@refinedev/core"
 import { useTable } from "@refinedev/react-table"
 import { flexRender, type ColumnDef } from "@tanstack/react-table"
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from "lucide-react"
@@ -24,6 +24,7 @@ import {
 
 import { RolesEmptyState } from "@/features/roles/components/roles-empty-state"
 import { RolesErrorPanel } from "@/features/roles/components/roles-error-panel"
+import { RolesFilterBar } from "@/features/roles/components/roles-filter-bar"
 import { RolesPagination } from "@/features/roles/components/roles-pagination"
 import { ROLE_COLUMN_WIDTHS } from "@/features/roles/utils/column-widths"
 import { formatLocalDateTime } from "@/features/roles/utils"
@@ -99,10 +100,7 @@ export function RolesTable() {
     [t]
   )
 
-  const {
-    reactTable,
-    refineCore: { tableQuery, pageCount, result },
-  } = useTable<RoleRecord>({
+  const { reactTable, refineCore } = useTable<RoleRecord>({
     refineCoreProps: {
       resource: "roles",
       syncWithLocation: true,
@@ -114,6 +112,9 @@ export function RolesTable() {
     getRowId: (row) => row.id,
     enableSortingRemoval: false,
   })
+
+  const { tableQuery, pageCount, result, filters, setFilters, setCurrentPage } =
+    refineCore
 
   const rows = reactTable.getRowModel().rows
   const { pageIndex, pageSize } = reactTable.getState().pagination
@@ -130,12 +131,23 @@ export function RolesTable() {
     reactTable.setPageIndex(0)
   }
 
+  // Filter state is owned by Refine core so it syncs to the URL. Any change
+  // replaces the filters and returns to page 1; both pagination layers are
+  // updated because Refine does not reset the page for `setFilters` on its own.
+  const changeFilters = (nextFilters: CrudFilter[]) => {
+    setFilters(nextFilters, "replace")
+    setCurrentPage(1)
+    reactTable.setPageIndex(0)
+  }
+
   return (
     <div className="flex flex-col gap-4 p-6 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">{t("roles.title")}</h1>
         {canCreate ? <Button type="button">{t("roles.create")}</Button> : null}
       </div>
+
+      <RolesFilterBar filters={filters} onChange={changeFilters} />
 
       {tableQuery.isLoading ? (
         <TableSkeleton
