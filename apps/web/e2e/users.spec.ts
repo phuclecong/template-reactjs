@@ -4,7 +4,7 @@ import { login } from "./helpers"
 
 async function openUsers(page: Page) {
   await page.getByRole("link", { name: "Users" }).click()
-  await expect(page).toHaveURL(/\/dashboard\/users/)
+  await expect(page).toHaveURL(/\/users$/)
   // Wait for the Users page itself before asserting on the table, otherwise
   // the Tasks table still mounted during the route transition can match.
   await expect(

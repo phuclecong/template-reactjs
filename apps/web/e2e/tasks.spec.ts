@@ -5,10 +5,10 @@ test("tasks table loads and searches", async ({ page }) => {
   await page.getByLabel("Email").fill("admin@example.com")
   await page.getByLabel("Password").fill("adminpass")
   await page.getByRole("button", { name: "Sign in" }).click()
-  await expect(page).toHaveURL(/\/dashboard/)
+  await expect(page).toHaveURL(/\/dashboard$/)
 
   await page.locator('[data-sidebar="menu-button"]', { hasText: "Tasks" }).click()
-  await expect(page).toHaveURL(/\/dashboard\/tasks/)
+  await expect(page).toHaveURL(/\/tasks$/)
 
   await expect(page.getByRole("table")).toBeVisible()
   await expect(page.getByText("Author the OpenAPI contract")).toBeVisible()

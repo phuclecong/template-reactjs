@@ -43,13 +43,13 @@ describe("log", () => {
   })
 
   it("logs only the pathname, never the query string or hash", () => {
-    window.history.replaceState({}, "", "/dashboard/tasks?secret=hunter2#frag")
+    window.history.replaceState({}, "", "/tasks?secret=hunter2#frag")
     const entries = captureEntries()
 
     log("info", "navigated")
 
     const entry = entries[0] as LogEntry
-    expect(entry.context.path).toBe("/dashboard/tasks")
+    expect(entry.context.path).toBe("/tasks")
     expect(JSON.stringify(entry)).not.toContain("hunter2")
     expect(JSON.stringify(entry)).not.toContain("frag")
   })
