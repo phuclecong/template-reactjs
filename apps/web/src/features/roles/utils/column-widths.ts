@@ -1,9 +1,10 @@
 /**
- * Canonical pixel widths for the Roles table columns, keyed in render order.
+ * Canonical pixel widths for the Roles table columns.
  *
  * The real table (`components/roles-table.tsx`) reads each column's `size`
  * from this record, and the page skeleton (`@/components/page-skeletons`)
- * reserves the same widths so the loading layout does not shift.
+ * reserves the same widths so the loading layout does not shift. `actions` is
+ * appended only for administrators.
  */
 export const ROLE_COLUMN_WIDTHS = {
   title: 220,
@@ -11,6 +12,8 @@ export const ROLE_COLUMN_WIDTHS = {
   status: 120,
   createdAt: 180,
   updatedAt: 180,
+  /** Administrator-only row-action column. */
+  actions: 96,
 } as const
 
 /** Widths in table order, for the table loading skeleton. */
