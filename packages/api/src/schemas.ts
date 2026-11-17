@@ -37,6 +37,12 @@ export const userRecordSchema = z.object({
   name: z.string(),
   email: z.string().email(),
   role: roleSchema,
+  /**
+   * Role identity, added by the Users migration (ticket #64). Optional while
+   * the legacy `role` enum still drives User responses; the Role reference
+   * guard reads it when present so Role deletion is safe in both shapes.
+   */
+  roleId: z.string().optional(),
   password: z.string(),
   createdAt: z.string(),
 })

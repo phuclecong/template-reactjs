@@ -204,7 +204,48 @@ export interface paths {
         /** List all roles */
         get: operations["listRoles"];
         put?: never;
+        /** Create a role (administrators only) */
+        post: operations["createRole"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/roles/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update several roles at once (administrators only)
+         * @description Partial update of `description` and/or `status` on several roles. Titles cannot be bulk edited because they are unique. Per-id failures are reported in the response. System Roles cannot be set to `inactive`.
+         */
+        patch: operations["bulkUpdateRoles"];
+        trace?: never;
+    };
+    "/roles/bulk-delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Delete several roles at once (administrators only)
+         * @description Deletes several roles. Per-id failures are reported in the response. System Roles and roles held by a User cannot be deleted.
+         */
+        post: operations["bulkDeleteRoles"];
         delete?: never;
         options?: never;
         head?: never;
@@ -222,10 +263,18 @@ export interface paths {
         get: operations["getRole"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete a role (administrators only)
+         * @description A System Role or a Role held by a User cannot be deleted.
+         */
+        delete: operations["deleteRole"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Partially update a role (administrators only)
+         * @description Only the supplied fields change. `id` and `createdAt` are immutable, and server-managed timestamps cannot be set by the client. A System Role cannot be set to `inactive`.
+         */
+        patch: operations["updateRole"];
         trace?: never;
     };
     "/password": {
@@ -262,6 +311,45 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        /** @description `status` defaults to `active`. */
+        RoleCreateRequest: {
+            /** @description Trimmed before storage; must be unique case-insensitively. */
+            title: string;
+            /** @description Trimmed before storage; a blank value is stored as null. */
+            description?: string | null;
+            status?: components["schemas"]["RoleStatus"];
+        };
+        /** @description Only the supplied fields change. `id`, `createdAt`, and `updatedAt` are server-managed and cannot be set. */
+        RoleUpdateRequest: {
+            /** @description Trimmed before storage; must be unique case-insensitively. */
+            title?: string;
+            /** @description Trimmed before storage; a blank value is stored as null. */
+            description?: string | null;
+            status?: components["schemas"]["RoleStatus"];
+        };
+        /** @description At least one of description or status must be present. `title` cannot be bulk edited. */
+        RoleBulkUpdateRequest: {
+            ids: string[];
+            /** @description Trimmed before storage; null clears the description. */
+            description?: string | null;
+            status?: components["schemas"]["RoleStatus"];
+        };
+        RoleBulkUpdateResponse: {
+            updated: number;
+            failed: components["schemas"]["RoleBulkFailure"][];
+        };
+        RoleBulkDeleteRequest: {
+            ids: string[];
+        };
+        RoleBulkDeleteResponse: {
+            deleted: number;
+            failed: components["schemas"]["RoleBulkFailure"][];
+        };
+        RoleBulkFailure: {
+            id: string;
+            /** @enum {string} */
+            reason: "not_found" | "system_role" | "referenced" | "validation";
         };
         /** @enum {string} */
         Status: "todo" | "in-progress" | "done" | "blocked";
@@ -894,6 +982,88 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
         };
     };
+    createRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoleCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created role. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Role"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    bulkUpdateRoles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoleBulkUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Result of the bulk update; per-id failures are reported. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleBulkUpdateResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    bulkDeleteRoles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoleBulkDeleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Result of the bulk delete; per-id failures are reported. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleBulkDeleteResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
     getRole: {
         parameters: {
             query?: never;
@@ -916,6 +1086,61 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    deleteRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    updateRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoleUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated role. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Role"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     updatePassword: {
