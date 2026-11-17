@@ -31,3 +31,5 @@ export type {
   UserRecord,
 } from "./collections"
 export type { TokenClaims } from "./auth"
+/** Generated contract types (ADR-0001); consumers must not redeclare shapes. */
+export type { components, operations, paths } from "./generated/api"

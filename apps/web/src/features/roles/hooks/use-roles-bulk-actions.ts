@@ -5,34 +5,23 @@ import {
   useInvalidate,
   type HttpError,
 } from "@refinedev/core"
-import type { RoleStatus } from "@workspace/api/schemas"
+import type { components } from "@workspace/api/contract"
 import { track } from "@/observability"
 import { apiUrl } from "@/utils/api-url"
 import { describeError } from "@/utils/http-error"
 
+type RoleBulkFailure = components["schemas"]["RoleBulkFailure"]
+type RoleBulkUpdateResponse = components["schemas"]["RoleBulkUpdateResponse"]
+type RoleBulkDeleteResponse = components["schemas"]["RoleBulkDeleteResponse"]
+
 /** The fields a bulk edit may change. Titles are never sent. */
-export type RoleBulkPatch = {
-  description?: string | null
-  status?: RoleStatus
-}
-
-export type RoleBulkFailure = {
-  id: string
-  reason: "not_found" | "referenced" | "system_role" | "validation"
-}
-
-export type RoleBulkUpdateResponse = {
-  updated: number
-  failed: RoleBulkFailure[]
-}
-
-export type RoleBulkDeleteResponse = {
-  deleted: number
-  failed: RoleBulkFailure[]
-}
+export type RoleBulkPatch = Omit<
+  components["schemas"]["RoleBulkUpdateRequest"],
+  "ids"
+>
 
 type SelectedRole = { id: string; title: string }
-type BulkUpdateRequest = { ids: string[] } & RoleBulkPatch
+type BulkUpdateRequest = components["schemas"]["RoleBulkUpdateRequest"]
 
 type ApplyOptions = {
   /** Runs once the mutation finishes, whether it succeeds or fails. */
