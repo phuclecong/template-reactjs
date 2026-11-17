@@ -33,9 +33,9 @@ test("navigates to Roles and renders the server-paged default view", async ({
     page.getByRole("button", { name: "Create role", exact: true })
   ).toBeVisible()
 
-  // Administrators get the five data columns plus the row-action column;
-  // sortable headers are buttons, Description is not.
-  await expect(page.getByRole("columnheader")).toHaveCount(6)
+  // Administrators get the five data columns, the selection column, and the
+  // row-action column; sortable headers are buttons, Description is not.
+  await expect(page.getByRole("columnheader")).toHaveCount(7)
   for (const header of ["Title", "Status", "Created", "Updated"]) {
     await expect(
       page.getByRole("button", { name: header, exact: true })

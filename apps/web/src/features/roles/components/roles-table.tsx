@@ -7,6 +7,7 @@ import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from "lucide-react"
 import type { RoleRecord } from "@workspace/api/schemas"
 import { TableSkeleton } from "@workspace/shared-lib/components/table-skeleton"
 import { Button } from "@workspace/ui/components/button"
+import { Checkbox } from "@workspace/ui/components/checkbox"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import { StatusBadge } from "@workspace/ui/components/status-badge"
 import {
@@ -27,11 +28,15 @@ import {
   RoleFormDrawer,
   type RoleFormDrawerHandle,
 } from "@/features/roles/components/role-form-drawer"
+import { RolesBulkBar } from "@/features/roles/components/roles-bulk-bar"
 import { RolesEmptyState } from "@/features/roles/components/roles-empty-state"
 import { RolesErrorPanel } from "@/features/roles/components/roles-error-panel"
 import { RolesFilterBar } from "@/features/roles/components/roles-filter-bar"
 import { RolesPagination } from "@/features/roles/components/roles-pagination"
-import { ROLE_COLUMN_WIDTHS } from "@/features/roles/utils/column-widths"
+import {
+  ROLE_COLUMN_WIDTHS,
+  ROLE_SELECT_COLUMN_WIDTH,
+} from "@/features/roles/utils/column-widths"
 import { formatLocalDateTime, isSystemRole } from "@/features/roles/utils"
 import { track } from "@/observability"
 import { describeError } from "@/utils/http-error"
@@ -70,8 +75,8 @@ function RoleDeleteAction({
 /**
  * Reference Refine table (ADR-0015): `useTable` from `@refinedev/react-table`
  * owns server pagination, sorting, and URL sync. Create and Edit route into the
- * shared `RoleFormDrawer`; filters and bulk controls belong to later tickets
- * around this data layer.
+ * shared `RoleFormDrawer`. Administrators also get a page-scoped selection
+ * column and the bulk bar; Members get neither.
  */
 export function RolesTable() {
   const { t } = useTranslation()
@@ -86,12 +91,45 @@ export function RolesTable() {
   })
   const canCreate = canCreateRole?.can === true
   const canEdit = canEditRole?.can === true
+  const { data: canBulkRole } = useCan({
+    resource: "roles",
+    action: "delete",
+  })
+  const canBulk = canBulkRole?.can === true
 
   const [deleteTarget, setDeleteTarget] = useState<RoleRecord | null>(null)
   const deleteMutation = useDelete<RoleRecord>({})
 
-  const columns = useMemo<ColumnDef<RoleRecord>[]>(
-    () => [
+  const columns = useMemo<ColumnDef<RoleRecord>[]>(() => {
+    const selectColumn: ColumnDef<RoleRecord> = {
+      id: "select",
+      size: ROLE_SELECT_COLUMN_WIDTH,
+      enableSorting: false,
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllPageRowsSelected()}
+          indeterminate={
+            table.getIsSomePageRowsSelected() &&
+            !table.getIsAllPageRowsSelected()
+          }
+          onCheckedChange={(checked) =>
+            table.toggleAllPageRowsSelected(!!checked)
+          }
+          aria-label={t("roles.bulk.selectAll")}
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(checked) => row.toggleSelected(!!checked)}
+          aria-label={t("roles.bulk.selectRow", {
+            title: row.original.title,
+          })}
+        />
+      ),
+    }
+
+    const dataColumns: ColumnDef<RoleRecord>[] = [
       {
         accessorKey: "title",
         header: t("roles.columns.title"),
@@ -170,9 +208,13 @@ export function RolesTable() {
           )
         },
       },
-    ],
-    [t]
-  )
+    ]
+
+    // The selection column is always defined and visibility-gated per role.
+    // Rebuilding the columns when access resolves would re-run Refine's filter
+    // effect and reset a page restored from the URL.
+    return [selectColumn, ...dataColumns]
+  }, [t])
 
   const { reactTable, refineCore } = useTable<RoleRecord>({
     refineCoreProps: {
@@ -185,14 +227,22 @@ export function RolesTable() {
     columns,
     getRowId: (row) => row.id,
     enableSortingRemoval: false,
-    // Row actions start hidden so members never see them. Toggling visibility
-    // (rather than rebuilding the columns) keeps the restored page intact.
-    initialState: { columnVisibility: { actions: false } },
+    enableRowSelection: canBulk,
+    // Row actions and selection start hidden so members never see them.
+    // Toggling visibility (rather than rebuilding the columns) keeps the
+    // restored page intact.
+    initialState: { columnVisibility: { actions: false, select: false } },
   })
 
+  // Merge visibility rather than replace it: actions and selection are gated by
+  // different permissions, so the two updates must not clobber each other.
   useEffect(() => {
-    reactTable.setColumnVisibility({ actions: canEdit })
-  }, [reactTable, canEdit])
+    reactTable.setColumnVisibility((previous) => ({
+      ...previous,
+      actions: canEdit,
+      select: canBulk,
+    }))
+  }, [reactTable, canEdit, canBulk])
 
   const { tableQuery, pageCount, result, filters, setFilters, setCurrentPage } =
     refineCore
@@ -203,11 +253,23 @@ export function RolesTable() {
   const total = result.total ?? 0
   const totalPages = Math.max(1, pageCount)
 
+  // Selection is uncontrolled TanStack state, mirrored here for the bulk bar.
+  // A selection must never outlive the rows it names, so every handler that can
+  // change the visible rows clears it before the new state lands.
+  const rowSelection = reactTable.getState().rowSelection
+  const clearSelection = () => reactTable.resetRowSelection()
+
+  const selectedRoles = rows
+    .filter((row) => rowSelection[row.id] === true)
+    .map((row) => row.original)
+
   const goToPage = (nextPage: number) => {
+    clearSelection()
     reactTable.setPageIndex(Math.max(0, nextPage - 1))
   }
 
   const changePageSize = (nextPageSize: number) => {
+    clearSelection()
     reactTable.setPageSize(nextPageSize)
     reactTable.setPageIndex(0)
   }
@@ -216,6 +278,7 @@ export function RolesTable() {
   // replaces the filters and returns to page 1; both pagination layers are
   // updated because Refine does not reset the page for `setFilters` on its own.
   const changeFilters = (nextFilters: CrudFilter[]) => {
+    clearSelection()
     setFilters(nextFilters, "replace")
     setCurrentPage(1)
     reactTable.setPageIndex(0)
@@ -265,6 +328,10 @@ export function RolesTable() {
 
       <RolesFilterBar filters={filters} onChange={changeFilters} />
 
+      {canBulk && selectedRoles.length > 0 ? (
+        <RolesBulkBar selectedRoles={selectedRoles} onDone={clearSelection} />
+      ) : null}
+
       {tableQuery.isLoading ? (
         <TableSkeleton
           columnWidths={Object.values(ROLE_COLUMN_WIDTHS)}
@@ -310,7 +377,12 @@ export function RolesTable() {
                           {header.isPlaceholder ? null : header.column.getCanSort() ? (
                             <button
                               type="button"
-                              onClick={header.column.getToggleSortingHandler()}
+                              onClick={(event) => {
+                                clearSelection()
+                                header.column.getToggleSortingHandler()?.(
+                                  event
+                                )
+                              }}
                               className="inline-flex items-center gap-1 text-left"
                             >
                               {flexRender(

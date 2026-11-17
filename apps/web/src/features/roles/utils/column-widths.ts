@@ -16,6 +16,9 @@ export const ROLE_COLUMN_WIDTHS = {
   actions: 150,
 } as const
 
+/** Width of the administrator-only selection checkbox column. */
+export const ROLE_SELECT_COLUMN_WIDTH = 40
+
 /** Widths in table order, for the table loading skeleton. */
 export const ROLE_SKELETON_COLUMN_WIDTHS: number[] =
   Object.values(ROLE_COLUMN_WIDTHS)
