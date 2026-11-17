@@ -328,10 +328,6 @@ export function RolesTable() {
 
       <RolesFilterBar filters={filters} onChange={changeFilters} />
 
-      {canBulk && selectedRoles.length > 0 ? (
-        <RolesBulkBar selectedRoles={selectedRoles} onDone={clearSelection} />
-      ) : null}
-
       {tableQuery.isLoading ? (
         <TableSkeleton
           columnWidths={Object.values(ROLE_COLUMN_WIDTHS)}
@@ -448,6 +444,15 @@ export function RolesTable() {
           />
         </>
       )}
+
+      {/*
+       * The bulk bar follows the table and pagination in document order. When
+       * it sat above the table, activating a row's checkbox inserted controls
+       * behind the keyboard user's focus; now forward tabbing reaches them.
+       */}
+      {canBulk && selectedRoles.length > 0 ? (
+        <RolesBulkBar selectedRoles={selectedRoles} onDone={clearSelection} />
+      ) : null}
 
       <RoleFormDrawer ref={drawerRef} />
 
