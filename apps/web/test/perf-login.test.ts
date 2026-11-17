@@ -64,7 +64,7 @@ describe("perf login step", () => {
     const page = fakePage()
     const browser = fakeBrowser([page])
 
-    await login(browser, { url: "http://localhost:4173/dashboard/tasks" })
+    await login(browser, { url: "http://localhost:4173/tasks" })
 
     expect(page.goto).not.toHaveBeenCalled()
     expect(page.evaluateOnNewDocument).toHaveBeenCalledTimes(1)
@@ -76,7 +76,7 @@ describe("perf login step", () => {
 
   it("seeds Lighthouse's page target as soon as it is created", async () => {
     const browser = fakeBrowser()
-    await login(browser, { url: "http://localhost:4173/dashboard/tasks" })
+    await login(browser, { url: "http://localhost:4173/tasks" })
 
     const audited = fakePage()
     browser.emit("targetcreated", {
@@ -92,7 +92,7 @@ describe("perf login step", () => {
 
   it("ignores non-page targets", async () => {
     const browser = fakeBrowser()
-    await login(browser, { url: "http://localhost:4173/dashboard/tasks" })
+    await login(browser, { url: "http://localhost:4173/tasks" })
 
     const page = fakePage()
     browser.emit("targetcreated", {
@@ -103,14 +103,33 @@ describe("perf login step", () => {
     expect(page.evaluateOnNewDocument).not.toHaveBeenCalled()
   })
 
-  it("leaves the anonymous /login route untouched", async () => {
-    const page = fakePage()
-    const browser = fakeBrowser([page])
+  it.each(["/dashboard", "/tasks", "/users", "/settings"])(
+    "seeds every authenticated route (%s)",
+    async (route) => {
+      const page = fakePage()
+      const browser = fakeBrowser([page])
 
-    await login(browser, { url: "http://localhost:4173/login" })
+      await login(browser, { url: `http://localhost:4173${route}` })
 
-    expect(page.goto).not.toHaveBeenCalled()
-    expect(page.evaluateOnNewDocument).not.toHaveBeenCalled()
-    expect(browser.on).not.toHaveBeenCalled()
-  })
+      expect(page.evaluateOnNewDocument).toHaveBeenCalledTimes(1)
+      expect(browser.on).toHaveBeenCalledWith(
+        "targetcreated",
+        expect.any(Function)
+      )
+    }
+  )
+
+  it.each(["/login", "/register"])(
+    "leaves the anonymous %s route untouched",
+    async (route) => {
+      const page = fakePage()
+      const browser = fakeBrowser([page])
+
+      await login(browser, { url: `http://localhost:4173${route}` })
+
+      expect(page.goto).not.toHaveBeenCalled()
+      expect(page.evaluateOnNewDocument).not.toHaveBeenCalled()
+      expect(browser.on).not.toHaveBeenCalled()
+    }
+  )
 })

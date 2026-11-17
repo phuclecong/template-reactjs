@@ -11,9 +11,10 @@
  * warm `/api` cache, contrary to the measurement contract (§5).
  *
  * Instead, inject the deterministic mock session into the audited page target
- * before any app module runs. `/dashboard/*` is then authenticated, while the
- * mock worker and the 150-task seed still start on the first `/api` request
- * inside the audit — the cold first visit the spec measures.
+ * before any app module runs. The authenticated routes (`/dashboard`, `/tasks`,
+ * `/users`, `/settings`) are then authenticated, while the mock worker and the
+ * 150-task seed still start on the first `/api` request inside the audit — the
+ * cold first visit the spec measures.
  *
  * The mock token is the same `mock.<base64url(claims)>` string
  * `packages/api/src/auth.ts` signs, and the user matches `ensureSeedUsers`.
@@ -23,7 +24,12 @@
  * sessionStorage for the audit. localStorage is deliberately left empty.
  */
 
-const DASHBOARD_PREFIX = "/dashboard"
+const AUTHENTICATED_ROUTES = new Set([
+  "/dashboard",
+  "/tasks",
+  "/users",
+  "/settings",
+])
 const SESSION_KEY = "auth.session"
 
 // These literals intentionally duplicate the TypeScript seed
@@ -67,9 +73,10 @@ function injectSession(page, session) {
 module.exports = async function login(browser, context) {
   const route = new URL(context.url).pathname
 
-  // `/login` is the unauthenticated entry route; it must stay anonymous and
-  // must not have a session or worker of any kind.
-  if (!route.startsWith(DASHBOARD_PREFIX)) return
+  // Only the authenticated routes are seeded. `/login` and `/register` are the
+  // unauthenticated entry routes; they must stay anonymous and must not have a
+  // session or worker of any kind.
+  if (!AUTHENTICATED_ROUTES.has(route)) return
 
   const session = buildSession()
   const seed = (page) =>
