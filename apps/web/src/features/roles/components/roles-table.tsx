@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useCan, type CrudFilter } from "@refinedev/core"
+import { useCan, useDelete, type CrudFilter } from "@refinedev/core"
 import { useTable } from "@refinedev/react-table"
 import { flexRender, type ColumnDef } from "@tanstack/react-table"
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from "lucide-react"
 import type { RoleRecord } from "@workspace/api/schemas"
 import { TableSkeleton } from "@workspace/shared-lib/components/table-skeleton"
 import { Button } from "@workspace/ui/components/button"
+import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import { StatusBadge } from "@workspace/ui/components/status-badge"
 import {
   Table,
@@ -31,9 +32,40 @@ import { RolesErrorPanel } from "@/features/roles/components/roles-error-panel"
 import { RolesFilterBar } from "@/features/roles/components/roles-filter-bar"
 import { RolesPagination } from "@/features/roles/components/roles-pagination"
 import { ROLE_COLUMN_WIDTHS } from "@/features/roles/utils/column-widths"
-import { formatLocalDateTime } from "@/features/roles/utils"
+import { formatLocalDateTime, isSystemRole } from "@/features/roles/utils"
+import { track } from "@/observability"
+import { describeError } from "@/utils/http-error"
 
 const DEFAULT_PAGE_SIZE = 30
+
+/**
+ * The Delete action owns its access check so the `columns` memo stays stable
+ * and access-independent: changing its identity after mount would reset the
+ * restored pagination. System Roles are excluded by the caller; the server
+ * enforces the same rule.
+ */
+function RoleDeleteAction({
+  role,
+  label,
+  onDelete,
+}: {
+  role: RoleRecord
+  label: string
+  onDelete: (role: RoleRecord) => void
+}) {
+  const { data: canDelete } = useCan({ resource: "roles", action: "delete" })
+  if (canDelete?.can !== true) return null
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
+      onClick={() => onDelete(role)}
+    >
+      {label}
+    </Button>
+  )
+}
 
 /**
  * Reference Refine table (ADR-0015): `useTable` from `@refinedev/react-table`
@@ -54,6 +86,9 @@ export function RolesTable() {
   })
   const canCreate = canCreateRole?.can === true
   const canEdit = canEditRole?.can === true
+
+  const [deleteTarget, setDeleteTarget] = useState<RoleRecord | null>(null)
+  const deleteMutation = useDelete<RoleRecord>({})
 
   const columns = useMemo<ColumnDef<RoleRecord>[]>(
     () => [
@@ -112,16 +147,28 @@ export function RolesTable() {
         size: ROLE_COLUMN_WIDTHS.actions,
         enableSorting: false,
         enableHiding: true,
-        cell: ({ row }) => (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => drawerRef.current?.openEdit(row.original.id)}
-          >
-            {t("roles.edit")}
-          </Button>
-        ),
+        cell: ({ row }) => {
+          const role = row.original
+          return (
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => drawerRef.current?.openEdit(role.id)}
+              >
+                {t("roles.edit")}
+              </Button>
+              {!isSystemRole(role.id) ? (
+                <RoleDeleteAction
+                  role={role}
+                  label={t("roles.delete")}
+                  onDelete={setDeleteTarget}
+                />
+              ) : null}
+            </div>
+          )
+        },
       },
     ],
     [t]
@@ -172,6 +219,34 @@ export function RolesTable() {
     setFilters(nextFilters, "replace")
     setCurrentPage(1)
     reactTable.setPageIndex(0)
+  }
+
+  // Single-row delete: confirm in the name of the Role, then let Refine surface
+  // success/error notifications and invalidate the list. System Roles and
+  // referenced Roles are rejected server-side; the row stays put on error.
+  const confirmDelete = () => {
+    if (!deleteTarget) return
+    const roleId = deleteTarget.id
+    deleteMutation.mutate(
+      {
+        resource: "roles",
+        id: roleId,
+        invalidates: ["list"],
+        successNotification: { message: t("roles.deleted"), type: "success" },
+        errorNotification: (error) => ({
+          message: t("roles.deleteFailed"),
+          type: "error",
+          description: describeError(error),
+        }),
+      },
+      {
+        onSuccess: () => {
+          track("role.deleted", { roleId })
+          setDeleteTarget(null)
+        },
+        onError: () => setDeleteTarget(null),
+      }
+    )
   }
 
   return (
@@ -303,6 +378,19 @@ export function RolesTable() {
       )}
 
       <RoleFormDrawer ref={drawerRef} />
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title={t("roles.deleteTitle")}
+        description={t("roles.deleteBody", {
+          title: deleteTarget?.title ?? "",
+        })}
+        confirmLabel={t("common.delete")}
+        cancelLabel={t("common.cancel")}
+        loading={deleteMutation.mutation.isPending}
+        onConfirm={confirmDelete}
+      />
     </div>
   )
 }
