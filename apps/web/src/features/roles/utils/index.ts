@@ -6,13 +6,6 @@ export function isSystemRole(roleId: string): boolean {
   return (SYSTEM_ROLE_IDS as readonly string[]).includes(roleId)
 }
 
-/** Administrator identity is holding the `rol_admin` System Role. */
-export function isAdministrator(
-  user: { roleId: string } | null | undefined
-): boolean {
-  return user?.roleId === "rol_admin"
-}
-
 /**
  * Formats a server instant in the runtime's local timezone as
  * `YYYY-MM-DD HH:mm`. The Roles table deliberately uses a fixed, unambiguous

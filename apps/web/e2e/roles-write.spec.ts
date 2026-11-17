@@ -5,21 +5,12 @@ import {
   type Page,
 } from "@playwright/test"
 
-import { login } from "./helpers"
+import { formatLocalDateTime, login } from "./helpers"
 
 type ConsoleEntry = {
   kind?: string
   event?: string
   data?: Record<string, unknown>
-}
-
-/** Mirror the screen's local-time rendering of a server instant. */
-function formatLocalDateTime(iso: string): string {
-  const date = new Date(iso)
-  const pad = (value: number) => String(value).padStart(2, "0")
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-    date.getDate()
-  )} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 async function findEvent(

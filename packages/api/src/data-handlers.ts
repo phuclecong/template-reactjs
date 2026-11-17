@@ -861,6 +861,9 @@ async function bulkDeleteRoles(request: Request): Promise<Response> {
     )
   }
 
+  // One pass over Users per action instead of one full scan per selected id.
+  const heldRoleIds = new Set(users.all().map((user) => user.roleId))
+
   let deleted = 0
   const failed: BulkFailure[] = []
   for (const id of ids) {
@@ -873,7 +876,7 @@ async function bulkDeleteRoles(request: Request): Promise<Response> {
       failed.push({ id, reason: "system_role" })
       continue
     }
-    if (isRoleReferenced(id)) {
+    if (heldRoleIds.has(id)) {
       failed.push({ id, reason: "referenced" })
       continue
     }

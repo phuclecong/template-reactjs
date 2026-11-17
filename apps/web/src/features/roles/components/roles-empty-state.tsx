@@ -3,9 +3,8 @@ import { Button } from "@workspace/ui/components/button"
 
 /**
  * Empty state for a Roles list with no matches. Administrators get the create
- * affordance; members see only the message. The create button is rendered from
- * the caller's access check, so later tickets can wire the drawer without
- * changing this component.
+ * affordance; members see only the message. Visibility is decided by the
+ * caller's access check and `onCreate` opens the shared role drawer.
  */
 export function RolesEmptyState({
   canCreate,

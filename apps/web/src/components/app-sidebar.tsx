@@ -1,4 +1,5 @@
 import * as React from "react"
+import type { RoleSummary } from "@workspace/api/schemas"
 import { useLocation } from "react-router-dom"
 import { IntentLink } from "@/components/intent-link"
 import { useTranslation } from "react-i18next"
@@ -44,7 +45,7 @@ import {
 interface AppSidebarUser {
   name: string
   email: string
-  role: { id: string; title: string; status: "active" | "inactive" }
+  role: RoleSummary
 }
 
 /**

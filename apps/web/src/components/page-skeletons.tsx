@@ -102,25 +102,33 @@ export function AppShellSkeleton() {
   )
 }
 
+/** Per-route table shape and loading copy for `TablePageSkeleton`. */
+const TABLE_PAGE_DETAILS = {
+  tasks: {
+    columnWidths: TASK_SKELETON_COLUMN_WIDTHS,
+    loadingKey: "tasks.loading",
+  },
+  users: {
+    columnWidths: USER_SKELETON_COLUMN_WIDTHS,
+    loadingKey: "users.loading",
+  },
+  roles: {
+    columnWidths: ROLE_SKELETON_COLUMN_WIDTHS,
+    loadingKey: "roles.loading",
+  },
+} as const
+
 /** Table page skeleton for the Tasks, Users, and Roles route chunks. */
 export function TablePageSkeleton({
   kind,
 }: {
-  kind: "tasks" | "users" | "roles"
+  kind: keyof typeof TABLE_PAGE_DETAILS
 }) {
   const { t } = useTranslation()
   const isTasks = kind === "tasks"
   const isRoles = kind === "roles"
-  const columnWidths = isTasks
-    ? TASK_SKELETON_COLUMN_WIDTHS
-    : isRoles
-      ? ROLE_SKELETON_COLUMN_WIDTHS
-      : USER_SKELETON_COLUMN_WIDTHS
-  const loadingLabel = isTasks
-    ? t("tasks.loading")
-    : isRoles
-      ? t("roles.loading")
-      : t("users.loading")
+  const { columnWidths, loadingKey } = TABLE_PAGE_DETAILS[kind]
+  const loadingLabel = t(loadingKey)
 
   return (
     <div className="flex flex-col gap-4 p-6 text-sm">

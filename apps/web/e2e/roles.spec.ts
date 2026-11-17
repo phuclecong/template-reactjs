@@ -1,15 +1,6 @@
 import { expect, test, type Page } from "@playwright/test"
 
-import { login } from "./helpers"
-
-/** Render an ISO instant the way the Roles screen does: local `YYYY-MM-DD HH:mm`. */
-function formatLocalDateTime(iso: string): string {
-  const date = new Date(iso)
-  const pad = (value: number) => String(value).padStart(2, "0")
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-    date.getDate()
-  )} ${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
+import { formatLocalDateTime, login } from "./helpers"
 
 async function openRoles(page: Page) {
   await page.getByRole("link", { name: "Roles" }).click()
