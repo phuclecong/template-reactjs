@@ -10,7 +10,8 @@ describe("generated client types", () => {
       id: string
       name: string
       email: string
-      role: "admin" | "member"
+      roleId: string
+      role: { id: string; title: string; status: "active" | "inactive" }
       createdAt: string
     }>()
 
@@ -28,6 +29,62 @@ describe("generated client types", () => {
     expectTypeOf<BulkRequest>().toHaveProperty("status")
     expectTypeOf<BulkResponse>().toHaveProperty("updated")
     expectTypeOf<BulkResponse>().toHaveProperty("failed")
+  })
+
+  it("matches the contract for user role assignment by identity", () => {
+    type UpdateRoleRequest = components["schemas"]["UpdateRoleRequest"]
+    type RoleSummary = components["schemas"]["RoleSummary"]
+
+    expectTypeOf<UpdateRoleRequest>().toMatchTypeOf<{ roleId: string }>()
+    expectTypeOf<RoleSummary>().toMatchTypeOf<{
+      id: string
+      title: string
+      status: "active" | "inactive"
+    }>()
+  })
+
+  it("matches the contract for Role and RoleStatus", () => {
+    type Role = components["schemas"]["Role"]
+    type RoleStatus = components["schemas"]["RoleStatus"]
+
+    expectTypeOf<Role>().toMatchTypeOf<{
+      id: string
+      title: string
+      description: string | null
+      status: "active" | "inactive"
+      createdAt: string
+      updatedAt: string
+    }>()
+    expectTypeOf<RoleStatus>().toEqualTypeOf<"active" | "inactive">()
+  })
+
+  it("matches the contract for role writes", () => {
+    type Create = components["schemas"]["RoleCreateRequest"]
+    type Update = components["schemas"]["RoleUpdateRequest"]
+    type BulkUpdate = components["schemas"]["RoleBulkUpdateRequest"]
+    type BulkUpdateResponse = components["schemas"]["RoleBulkUpdateResponse"]
+    type BulkDelete = components["schemas"]["RoleBulkDeleteRequest"]
+    type BulkDeleteResponse = components["schemas"]["RoleBulkDeleteResponse"]
+    type Failure = components["schemas"]["RoleBulkFailure"]
+
+    expectTypeOf<Create>().toMatchTypeOf<{
+      title: string
+      description?: string | null
+      status?: "active" | "inactive"
+    }>()
+    expectTypeOf<Update>().toMatchTypeOf<{
+      title?: string
+      description?: string | null
+      status?: "active" | "inactive"
+    }>()
+    expectTypeOf<BulkUpdate["ids"]>().toEqualTypeOf<string[]>()
+    expectTypeOf<BulkUpdate>().toHaveProperty("description")
+    expectTypeOf<BulkUpdateResponse["updated"]>().toEqualTypeOf<number>()
+    expectTypeOf<BulkDelete["ids"]>().toEqualTypeOf<string[]>()
+    expectTypeOf<BulkDeleteResponse["deleted"]>().toEqualTypeOf<number>()
+    expectTypeOf<Failure["reason"]>().toEqualTypeOf<
+      "not_found" | "system_role" | "referenced" | "validation"
+    >()
   })
 
   it("accepts nullable string dueDate on every write request", () => {

@@ -7,3 +7,5 @@ export type {
 } from "./use-table-state"
 export { useDialog } from "./use-dialog"
 export type { DialogState } from "./use-dialog"
+export { useEnums } from "./use-enums"
+export type { EnumOption, EnumOptionMap } from "./use-enums"

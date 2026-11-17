@@ -1,0 +1,15 @@
+/*
+ * Storybook's Tailwind entry.
+ *
+ * `globals.css` holds the tokens and layers only. Each consumer declares the
+ * sources it needs: the app (`apps/web/src/styles/app.css`) scans production
+ * code only, while Storybook scans stories and tests too, because its stories
+ * use presentational components (Avatar, AlertDialog) and layout utilities the
+ * app never imports. Keeping the two source sets apart stops story-only
+ * utilities from shipping in the app's blocking stylesheet.
+ */
+@import "./globals.css";
+
+@source "../../../../apps/**/*.{ts,tsx}";
+@source "../../../../packages/**/*.{ts,tsx}";
+@source "../**/*.{ts,tsx}";

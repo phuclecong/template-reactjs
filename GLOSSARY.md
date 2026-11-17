@@ -17,8 +17,16 @@ A person with an account in the application. Every User holds a Role.
 _Avoid_: Account, member
 
 **Role**:
-A named level of access — `admin` or `member` — that determines what a User may do.
-_Avoid_: Permission group, level
+A named, described grouping of access that a User holds; `admin` and `member` are the seeded Roles. Renaming a Role does not change which Users hold it.
+_Avoid_: Permission group, access level, level
+
+**Role status**:
+The lifecycle state of a Role: `active` or `inactive`.
+_Avoid_: Role state, enabled/disabled
+
+**System Role**:
+A seeded Role the application depends on — `admin` or `member`. A System Role cannot be deleted or deactivated.
+_Avoid_: Built-in role, default role
 
 **Assignee**:
 The User responsible for a Task.
@@ -32,16 +40,16 @@ _Avoid_: Claim, reassign
 The date and time by which a Task should be completed, stored as a UTC instant and displayed in the user's local timezone. Optional; a Task without one has no due date.
 _Avoid_: Deadline
 
-**Status**:
+**Task status**:
 The lifecycle state of a Task: `todo`, `in-progress`, `done`, or `blocked`.
-_Avoid_: State, phase
+_Avoid_: Status, state, phase
 
 **Priority**:
 The relative urgency of a Task: `low`, `medium`, or `high`.
 _Avoid_: Severity, importance
 
 **Bulk action**:
-A single change applied to many Tasks at once, setting their Status, Priority, Assignee, or Due date.
+A single user action that applies a change to many records at once.
 _Avoid_: Batch update, mass edit
 
 **Locale**:

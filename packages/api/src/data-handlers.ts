@@ -1,9 +1,12 @@
 import { http, HttpResponse, type JsonBodyType } from "msw"
 import {
+  dateTimeSchema,
   dueDateWriteSchema,
+  roles,
   tasks,
   users,
-  type Role,
+  type RoleEntity,
+  type RoleStatus,
   type TaskEntity,
   type TaskPriority,
   type TaskStatus,
@@ -68,10 +71,6 @@ function pathParam(
   return value?.[0]
 }
 
-function isRole(value: unknown): value is Role {
-  return value === "admin" || value === "member"
-}
-
 function isStatus(value: unknown): value is TaskStatus {
   return (
     value === "todo" ||
@@ -113,7 +112,7 @@ function toPublicTask(task: TaskEntity): TaskEntity {
   return { ...task, dueDate: normalizeStoredDueDate(task.dueDate) }
 }
 
-const sortableUserFields = ["name", "email", "role", "createdAt"] as const
+const sortableUserFields = ["name", "email", "roleId", "createdAt"] as const
 type SortableUserField = (typeof sortableUserFields)[number]
 
 function isSortableUserField(value: string | null): value is SortableUserField {
@@ -135,7 +134,7 @@ function compareUserValues(
   return String(av).localeCompare(String(bv))
 }
 
-/** Lists users with simple-rest compatible `_start`/`_end`/`_sort`/`_order`/`q`/`role`. */
+/** Lists users with simple-rest compatible `_start`/`_end`/`_sort`/`_order`/`q`/`roleId`. */
 function listUsers(request: Request): Response {
   if (!getAuthUser(request)) {
     return fail("unauthorized", "Authentication required.", 401)
@@ -143,7 +142,7 @@ function listUsers(request: Request): Response {
 
   const url = new URL(request.url)
   const q = url.searchParams.get("q")?.trim().toLowerCase()
-  const role = url.searchParams.get("role")
+  const roleId = url.searchParams.get("roleId")
   const start = Number(url.searchParams.get("_start") ?? 0)
   const endParam = url.searchParams.get("_end")
   const end = endParam ? Number(endParam) : undefined
@@ -161,8 +160,8 @@ function listUsers(request: Request): Response {
         user.email.toLowerCase().includes(q)
     )
   }
-  if (role && isRole(role)) {
-    items = items.filter((user) => user.role === role)
+  if (roleId) {
+    items = items.filter((user) => user.roleId === roleId)
   }
 
   items.sort((a, b) => {
@@ -228,9 +227,7 @@ function listTasks(request: Request): Response {
   }
   const userIds = new Set(users.all().map((user) => user.id))
   if (
-    assigneeIds.some(
-      (value) => value !== "unassigned" && !userIds.has(value)
-    )
+    assigneeIds.some((value) => value !== "unassigned" && !userIds.has(value))
   ) {
     return fail(
       "invalid_request",
@@ -360,7 +357,7 @@ async function bulkUpdateTasks(request: Request): Promise<Response> {
       failed.push({ id, reason: "not_found" })
       continue
     }
-    if (actor.role !== "admin" && target.assigneeId !== actor.id) {
+    if (!isAdministrator(actor) && target.assigneeId !== actor.id) {
       failed.push({ id, reason: "forbidden" })
       continue
     }
@@ -379,6 +376,518 @@ async function bulkUpdateTasks(request: Request): Promise<Response> {
   }
 
   return ok({ updated, failed })
+}
+
+function isRoleStatus(value: unknown): value is RoleStatus {
+  return value === "active" || value === "inactive"
+}
+
+const sortableRoleFields = [
+  "title",
+  "status",
+  "createdAt",
+  "updatedAt",
+] as const
+type SortableRoleField = (typeof sortableRoleFields)[number]
+
+function isSortableRoleField(value: string | null): value is SortableRoleField {
+  return (
+    value !== null && (sortableRoleFields as readonly string[]).includes(value)
+  )
+}
+
+function compareRoleValues(
+  a: RoleEntity,
+  b: RoleEntity,
+  field: SortableRoleField
+): number {
+  if (field === "createdAt" || field === "updatedAt") {
+    return Date.parse(a[field]) - Date.parse(b[field])
+  }
+  return a[field].localeCompare(b[field])
+}
+
+/**
+ * Parses a Role date filter bound. Returns `null` when absent, `undefined` when
+ * invalid, or the epoch milliseconds to compare against. Only ISO 8601
+ * date-time instants are accepted.
+ */
+function parseRoleDateBound(raw: string | null): number | null | undefined {
+  if (raw === null || raw === "") return null
+  const parsed = dateTimeSchema.safeParse(raw)
+  if (!parsed.success) return undefined
+  return Date.parse(parsed.data)
+}
+
+/** Lists roles with simple-rest compatible `_start`/`_end`/`_sort`/`_order`. */
+function listRoles(request: Request): Response {
+  if (!getAuthUser(request)) {
+    return fail("unauthorized", "Authentication required.", 401)
+  }
+
+  const url = new URL(request.url)
+  const titleLike = url.searchParams.get("title_like")?.toLowerCase()
+  const descriptionLike = url.searchParams
+    .get("description_like")
+    ?.toLowerCase()
+  const statuses = url.searchParams
+    .getAll("status")
+    .filter((value) => value !== "")
+  if (statuses.some((value) => !isRoleStatus(value))) {
+    return fail(
+      "invalid_request",
+      "status must be one of: active, inactive.",
+      400
+    )
+  }
+  const createdAtGte = parseRoleDateBound(url.searchParams.get("createdAt_gte"))
+  if (createdAtGte === undefined) {
+    return fail(
+      "invalid_request",
+      "createdAt_gte must be an ISO 8601 date-time.",
+      400
+    )
+  }
+  const createdAtLte = parseRoleDateBound(url.searchParams.get("createdAt_lte"))
+  if (createdAtLte === undefined) {
+    return fail(
+      "invalid_request",
+      "createdAt_lte must be an ISO 8601 date-time.",
+      400
+    )
+  }
+  const updatedAtGte = parseRoleDateBound(url.searchParams.get("updatedAt_gte"))
+  if (updatedAtGte === undefined) {
+    return fail(
+      "invalid_request",
+      "updatedAt_gte must be an ISO 8601 date-time.",
+      400
+    )
+  }
+  const updatedAtLte = parseRoleDateBound(url.searchParams.get("updatedAt_lte"))
+  if (updatedAtLte === undefined) {
+    return fail(
+      "invalid_request",
+      "updatedAt_lte must be an ISO 8601 date-time.",
+      400
+    )
+  }
+  const start = Number(url.searchParams.get("_start") ?? 0)
+  const endParam = url.searchParams.get("_end")
+  const end = endParam ? Number(endParam) : undefined
+  const sortParam = url.searchParams.get("_sort")
+  const descending = url.searchParams.get("_order") === "desc"
+  const sortField: SortableRoleField = isSortableRoleField(sortParam)
+    ? sortParam
+    : "title"
+
+  let items = roles.all().slice()
+  if (titleLike) {
+    items = items.filter((role) => role.title.toLowerCase().includes(titleLike))
+  }
+  if (descriptionLike) {
+    items = items.filter(
+      (role) =>
+        role.description != null &&
+        role.description.toLowerCase().includes(descriptionLike)
+    )
+  }
+  if (statuses.length > 0) {
+    // OR within the field; other fields are ANDed below.
+    items = items.filter((role) => statuses.includes(role.status))
+  }
+  if (createdAtGte != null) {
+    items = items.filter((role) => Date.parse(role.createdAt) >= createdAtGte)
+  }
+  if (createdAtLte != null) {
+    items = items.filter((role) => Date.parse(role.createdAt) <= createdAtLte)
+  }
+  if (updatedAtGte != null) {
+    items = items.filter((role) => Date.parse(role.updatedAt) >= updatedAtGte)
+  }
+  if (updatedAtLte != null) {
+    items = items.filter((role) => Date.parse(role.updatedAt) <= updatedAtLte)
+  }
+
+  items.sort((a, b) => {
+    const result = compareRoleValues(a, b, sortField)
+    return descending ? -result : result
+  })
+
+  const total = items.length
+  const page = end === undefined ? items : items.slice(start, end)
+  return HttpResponse.json(page as JsonBodyType, {
+    status: 200,
+    headers: { "x-total-count": String(total) },
+  })
+}
+
+/** Returns a Role by id, or 404. Any authenticated caller may read it. */
+function getRole(request: Request, id: string | undefined): Response {
+  if (!getAuthUser(request)) {
+    return fail("unauthorized", "Authentication required.", 401)
+  }
+  const role = id ? roles.findFirst((query) => query.where({ id })) : undefined
+  if (!role) return fail("not_found", "Role not found.", 404)
+  return ok(role)
+}
+
+const ROLE_TITLE_MAX = 100
+const ROLE_DESCRIPTION_MAX = 500
+const systemRoleIds = new Set(["rol_admin", "rol_member"])
+
+/** Administrator access is holding the `rol_admin` System Role. */
+function isAdministrator(user: UserEntity): boolean {
+  return user.roleId === "rol_admin"
+}
+
+function userHoldsRole(user: UserEntity, roleId: string): boolean {
+  return user.roleId === roleId
+}
+
+function isRoleReferenced(roleId: string): boolean {
+  return users.all().some((user) => userHoldsRole(user, roleId))
+}
+
+function isSystemRole(roleId: string): boolean {
+  return systemRoleIds.has(roleId)
+}
+
+/** Finds a Role whose trimmed title matches case-insensitively. */
+function findRoleByTitle(
+  title: string,
+  excludeId?: string
+): RoleEntity | undefined {
+  const key = title.toLowerCase()
+  return roles
+    .all()
+    .find(
+      (role) => role.id !== excludeId && role.title.trim().toLowerCase() === key
+    )
+}
+
+type Normalized<T> = { ok: true; value: T } | { ok: false }
+
+function normalizeRoleTitle(raw: unknown): Normalized<string> {
+  if (typeof raw !== "string") return { ok: false }
+  const value = raw.trim()
+  if (value.length < 1 || value.length > ROLE_TITLE_MAX) return { ok: false }
+  return { ok: true, value }
+}
+
+/** Trims a description; a blank value becomes null. */
+function normalizeRoleDescription(raw: unknown): Normalized<string | null> {
+  if (raw === undefined || raw === null) return { ok: true, value: null }
+  if (typeof raw !== "string") return { ok: false }
+  const value = raw.trim()
+  if (value.length > ROLE_DESCRIPTION_MAX) return { ok: false }
+  return { ok: true, value: value === "" ? null : value }
+}
+
+type AdminGuard = { actor: UserEntity } | { response: Response }
+
+/** Enforces the Administrator-only write rule. */
+function requireAdministrator(request: Request): AdminGuard {
+  const actor = getAuthUser(request)
+  if (!actor) {
+    return { response: fail("unauthorized", "Authentication required.", 401) }
+  }
+  if (!isAdministrator(actor)) {
+    return {
+      response: fail("forbidden", "Administrator role required.", 403),
+    }
+  }
+  return { actor }
+}
+
+async function createRole(request: Request): Promise<Response> {
+  const guard = requireAdministrator(request)
+  if ("response" in guard) return guard.response
+
+  const body = await readJson(request)
+  if (!body) return fail("invalid_request", "A JSON body is required.", 400)
+
+  const title = normalizeRoleTitle(body.title)
+  if (!title.ok) {
+    return fail(
+      "invalid_request",
+      "title is required and must be 1-100 characters after trimming.",
+      400
+    )
+  }
+  const description = normalizeRoleDescription(body.description)
+  if (!description.ok) {
+    return fail(
+      "invalid_request",
+      "description must be at most 500 characters after trimming.",
+      400
+    )
+  }
+  const status = body.status === undefined ? "active" : body.status
+  if (!isRoleStatus(status)) {
+    return fail(
+      "invalid_request",
+      "status must be one of: active, inactive.",
+      400
+    )
+  }
+  if (findRoleByTitle(title.value)) {
+    return fail(
+      "duplicate_title",
+      "A role with this title already exists.",
+      409
+    )
+  }
+
+  const timestamp = new Date().toISOString()
+  const role = await roles.create({
+    id: `rol_${crypto.randomUUID()}`,
+    title: title.value,
+    description: description.value,
+    status,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  })
+  return ok(role, 201)
+}
+
+async function updateRole(
+  request: Request,
+  id: string | undefined
+): Promise<Response> {
+  const guard = requireAdministrator(request)
+  if ("response" in guard) return guard.response
+
+  const target = id
+    ? roles.findFirst((query) => query.where({ id }))
+    : undefined
+  if (!target) return fail("not_found", "Role not found.", 404)
+
+  const body = await readJson(request)
+  if (!body) return fail("invalid_request", "A JSON body is required.", 400)
+
+  let title: string | undefined
+  if (body.title !== undefined) {
+    const normalized = normalizeRoleTitle(body.title)
+    if (!normalized.ok) {
+      return fail(
+        "invalid_request",
+        "title must be 1-100 characters after trimming.",
+        400
+      )
+    }
+    if (findRoleByTitle(normalized.value, target.id)) {
+      return fail(
+        "duplicate_title",
+        "A role with this title already exists.",
+        409
+      )
+    }
+    title = normalized.value
+  }
+
+  let description: string | null | undefined
+  if (body.description !== undefined) {
+    const normalized = normalizeRoleDescription(body.description)
+    if (!normalized.ok) {
+      return fail(
+        "invalid_request",
+        "description must be at most 500 characters after trimming.",
+        400
+      )
+    }
+    description = normalized.value
+  }
+
+  let status: RoleStatus | undefined
+  if (body.status !== undefined) {
+    if (!isRoleStatus(body.status)) {
+      return fail(
+        "invalid_request",
+        "status must be one of: active, inactive.",
+        400
+      )
+    }
+    if (body.status === "inactive" && isSystemRole(target.id)) {
+      return fail("system_role", "System roles cannot be set to inactive.", 409)
+    }
+    status = body.status
+  }
+
+  const updated = await roles.update(target, {
+    data(draft) {
+      // `id` and `createdAt` are immutable; `updatedAt` is server-managed.
+      if (title !== undefined) draft.title = title
+      if (description !== undefined) draft.description = description
+      if (status !== undefined) draft.status = status
+      draft.updatedAt = new Date().toISOString()
+    },
+    strict: true,
+  })
+  return ok(updated)
+}
+
+function deleteRole(request: Request, id: string | undefined): Response {
+  const guard = requireAdministrator(request)
+  if ("response" in guard) return guard.response
+
+  const target = id
+    ? roles.findFirst((query) => query.where({ id }))
+    : undefined
+  if (!target) return fail("not_found", "Role not found.", 404)
+  if (isSystemRole(target.id)) {
+    return fail("system_role", "System roles cannot be deleted.", 409)
+  }
+  if (isRoleReferenced(target.id)) {
+    return fail(
+      "referenced",
+      "This role is assigned to a user and cannot be deleted.",
+      409
+    )
+  }
+  roles.delete(target)
+  return new HttpResponse(null, { status: 204 })
+}
+
+/** Parses a non-empty array of distinct role ids, or returns null. */
+function parseRoleIds(raw: unknown): string[] | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null
+  if (!raw.every((id): id is string => typeof id === "string" && id !== "")) {
+    return null
+  }
+  return [...new Set(raw)]
+}
+
+interface BulkFailure {
+  id: string
+  reason: "not_found" | "system_role" | "referenced" | "validation"
+}
+
+async function bulkUpdateRoles(request: Request): Promise<Response> {
+  const guard = requireAdministrator(request)
+  if ("response" in guard) return guard.response
+
+  const body = await readJson(request)
+  if (!body) return fail("invalid_request", "A JSON body is required.", 400)
+
+  const ids = parseRoleIds(body.ids)
+  if (!ids) {
+    return fail(
+      "invalid_request",
+      "A non-empty ids array of strings is required.",
+      400
+    )
+  }
+  if ("title" in body) {
+    return fail("invalid_request", "title cannot be bulk edited.", 400)
+  }
+
+  const hasDescription = body.description !== undefined
+  const hasStatus = body.status !== undefined
+  if (!hasDescription && !hasStatus) {
+    return fail(
+      "invalid_request",
+      "At least one of description or status is required.",
+      400
+    )
+  }
+  if (hasStatus && !isRoleStatus(body.status)) {
+    return fail(
+      "invalid_request",
+      "status must be one of: active, inactive.",
+      400
+    )
+  }
+
+  let description: string | null = null
+  let descriptionValid = true
+  if (hasDescription) {
+    if (body.description !== null && typeof body.description !== "string") {
+      return fail(
+        "invalid_request",
+        "description must be a string or null.",
+        400
+      )
+    }
+    const normalized = normalizeRoleDescription(body.description)
+    if (normalized.ok) {
+      description = normalized.value
+    } else {
+      descriptionValid = false
+    }
+  }
+  const status = hasStatus ? (body.status as RoleStatus) : undefined
+
+  let updated = 0
+  const failed: BulkFailure[] = []
+  for (const id of ids) {
+    const target = roles.findFirst((query) => query.where({ id }))
+    if (!target) {
+      failed.push({ id, reason: "not_found" })
+      continue
+    }
+    if (!descriptionValid) {
+      failed.push({ id, reason: "validation" })
+      continue
+    }
+    if (status === "inactive" && isSystemRole(id)) {
+      failed.push({ id, reason: "system_role" })
+      continue
+    }
+    await roles.update(target, {
+      data(draft) {
+        if (hasDescription) draft.description = description
+        if (status !== undefined) draft.status = status
+        draft.updatedAt = new Date().toISOString()
+      },
+      strict: true,
+    })
+    updated += 1
+  }
+
+  return ok({ updated, failed })
+}
+
+async function bulkDeleteRoles(request: Request): Promise<Response> {
+  const guard = requireAdministrator(request)
+  if ("response" in guard) return guard.response
+
+  const body = await readJson(request)
+  if (!body) return fail("invalid_request", "A JSON body is required.", 400)
+
+  const ids = parseRoleIds(body.ids)
+  if (!ids) {
+    return fail(
+      "invalid_request",
+      "A non-empty ids array of strings is required.",
+      400
+    )
+  }
+
+  // One pass over Users per action instead of one full scan per selected id.
+  const heldRoleIds = new Set(users.all().map((user) => user.roleId))
+
+  let deleted = 0
+  const failed: BulkFailure[] = []
+  for (const id of ids) {
+    const target = roles.findFirst((query) => query.where({ id }))
+    if (!target) {
+      failed.push({ id, reason: "not_found" })
+      continue
+    }
+    if (isSystemRole(id)) {
+      failed.push({ id, reason: "system_role" })
+      continue
+    }
+    if (heldRoleIds.has(id)) {
+      failed.push({ id, reason: "referenced" })
+      continue
+    }
+    roles.delete(target)
+    deleted += 1
+  }
+
+  return ok({ deleted, failed })
 }
 
 export const dataHandlers = [
@@ -411,7 +920,7 @@ export const dataHandlers = [
   http.patch("*/api/users/:id/role", async ({ request, params }) => {
     const actor = getAuthUser(request)
     if (!actor) return fail("unauthorized", "Authentication required.", 401)
-    if (actor.role !== "admin") {
+    if (!isAdministrator(actor)) {
       return fail("forbidden", "Admin role required.", 403)
     }
     const id = pathParam(params.id)
@@ -421,17 +930,24 @@ export const dataHandlers = [
     if (!target) return fail("not_found", "User not found.", 404)
 
     const body = await readJson(request)
-    if (!body || !isRole(body.role)) {
+    const roleId = body?.roleId
+    if (typeof roleId !== "string" || roleId === "") {
+      return fail("invalid_request", "A roleId is required.", 400)
+    }
+    const role = roles.findFirst((query) => query.where({ id: roleId }))
+    if (!role) {
+      return fail("invalid_request", "The role does not exist.", 400)
+    }
+    if (role.status !== "active") {
       return fail(
         "invalid_request",
-        'A role of "admin" or "member" is required.',
+        "An inactive role cannot be assigned.",
         400
       )
     }
-    const role = body.role
     const updated = await users.update(target, {
       data(draft) {
-        draft.role = role
+        draft.roleId = roleId
       },
       strict: true,
     })
@@ -441,7 +957,7 @@ export const dataHandlers = [
   http.delete("*/api/users/:id", ({ request, params }) => {
     const actor = getAuthUser(request)
     if (!actor) return fail("unauthorized", "Authentication required.", 401)
-    if (actor.role !== "admin") {
+    if (!isAdministrator(actor)) {
       return fail("forbidden", "Admin role required.", 403)
     }
     const id = pathParam(params.id)
@@ -502,7 +1018,7 @@ export const dataHandlers = [
       ? tasks.findFirst((query) => query.where({ id }))
       : undefined
     if (!target) return fail("not_found", "Task not found.", 404)
-    if (actor.role !== "admin" && target.assigneeId !== actor.id) {
+    if (!isAdministrator(actor) && target.assigneeId !== actor.id) {
       return fail("forbidden", "You can only update your own tasks.", 403)
     }
 
@@ -551,12 +1067,35 @@ export const dataHandlers = [
       ? tasks.findFirst((query) => query.where({ id }))
       : undefined
     if (!target) return fail("not_found", "Task not found.", 404)
-    if (actor.role !== "admin" && target.assigneeId !== actor.id) {
+    if (!isAdministrator(actor) && target.assigneeId !== actor.id) {
       return fail("forbidden", "You can only delete your own tasks.", 403)
     }
     tasks.delete(target)
     return new HttpResponse(null, { status: 204 })
   }),
+
+  // ---- roles ----
+  http.get("*/api/roles", ({ request }) => listRoles(request)),
+
+  http.post("*/api/roles", ({ request }) => createRole(request)),
+
+  http.patch("*/api/roles/bulk", ({ request }) => bulkUpdateRoles(request)),
+
+  http.post("*/api/roles/bulk-delete", ({ request }) =>
+    bulkDeleteRoles(request)
+  ),
+
+  http.get("*/api/roles/:id", ({ request, params }) =>
+    getRole(request, pathParam(params.id))
+  ),
+
+  http.patch("*/api/roles/:id", ({ request, params }) =>
+    updateRole(request, pathParam(params.id))
+  ),
+
+  http.delete("*/api/roles/:id", ({ request, params }) =>
+    deleteRole(request, pathParam(params.id))
+  ),
 
   // ---- password ----
   http.put("*/api/password", async ({ request }) => {

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import { dueDateWriteSchema, taskRecordSchema } from "../src/collections"
+import {
+  dueDateWriteSchema,
+  roleRecordSchema,
+  taskRecordSchema,
+} from "../src/collections"
 
 function record(dueDate: string | null | undefined) {
   return {
@@ -34,6 +38,43 @@ describe("taskRecordSchema dueDate", () => {
   })
 })
 
+describe("roleRecordSchema", () => {
+  function role(overrides: Record<string, unknown> = {}) {
+    return {
+      id: "rol_admin",
+      title: "Administrator",
+      description: "Full access.",
+      status: "active",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+      ...overrides,
+    }
+  }
+
+  it("accepts active and inactive statuses", () => {
+    expect(roleRecordSchema.safeParse(role()).success).toBe(true)
+    expect(
+      roleRecordSchema.safeParse(role({ status: "inactive" })).success
+    ).toBe(true)
+  })
+
+  it("accepts a null description", () => {
+    expect(
+      roleRecordSchema.safeParse(role({ description: null })).success
+    ).toBe(true)
+  })
+
+  it("rejects an unknown status", () => {
+    expect(
+      roleRecordSchema.safeParse(role({ status: "archived" })).success
+    ).toBe(false)
+  })
+
+  it("requires the contract fields", () => {
+    expect(roleRecordSchema.safeParse({ id: "rol_x" }).success).toBe(false)
+  })
+})
+
 describe("dueDateWriteSchema", () => {
   it("accepts a UTC instant", () => {
     expect(
@@ -58,8 +99,8 @@ describe("dueDateWriteSchema", () => {
 
   it("rejects an invalid date-time", () => {
     expect(dueDateWriteSchema.safeParse("not-a-date").success).toBe(false)
-    expect(dueDateWriteSchema.safeParse("2026-02-31T00:00:00.000Z").success).toBe(
-      false
-    )
+    expect(
+      dueDateWriteSchema.safeParse("2026-02-31T00:00:00.000Z").success
+    ).toBe(false)
   })
 })

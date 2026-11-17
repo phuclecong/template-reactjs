@@ -1,4 +1,5 @@
 import * as React from "react"
+import type { RoleSummary } from "@workspace/api/schemas"
 import { useLocation } from "react-router-dom"
 import { IntentLink } from "@/components/intent-link"
 import { useTranslation } from "react-i18next"
@@ -9,6 +10,7 @@ import {
   LayoutDashboardIcon,
   LogOutIcon,
   SettingsIcon,
+  ShieldIcon,
   UsersIcon,
 } from "lucide-react"
 import {
@@ -43,7 +45,7 @@ import {
 interface AppSidebarUser {
   name: string
   email: string
-  role: "admin" | "member"
+  role: RoleSummary
 }
 
 /**
@@ -68,6 +70,12 @@ const NAV_SECTIONS = [
         labelKey: "shell.nav.users",
         url: "/users",
         icon: UsersIcon,
+      },
+      {
+        key: "roles",
+        labelKey: "shell.nav.roles",
+        url: "/roles",
+        icon: ShieldIcon,
       },
     ],
   },
@@ -114,9 +122,7 @@ export function AppSidebar({
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              render={
-                <IntentLink to="/dashboard" onClick={handleNavigate} />
-              }
+              render={<IntentLink to="/dashboard" onClick={handleNavigate} />}
             >
               <LayoutDashboardIcon />
               <span className="truncate">{t("shell.title")}</span>
@@ -180,7 +186,7 @@ export function AppSidebar({
                 <div className="ml-2 grid flex-1 text-left leading-tight">
                   <span className="truncate text-sm">{user.name}</span>
                   <span className="truncate text-xs text-muted-foreground">
-                    {user.role}
+                    {user.role.title}
                   </span>
                 </div>
               </DropdownMenuTrigger>

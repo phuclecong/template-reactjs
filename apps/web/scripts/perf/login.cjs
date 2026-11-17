@@ -12,7 +12,7 @@
  *
  * Instead, inject the deterministic mock session into the audited page target
  * before any app module runs. The authenticated routes (`/dashboard`, `/tasks`,
- * `/users`, `/settings`) are then authenticated, while the mock worker and the
+ * `/users`, `/roles`, `/settings`) are then authenticated, while the mock worker and the
  * 150-task seed still start on the first `/api` request inside the audit — the
  * cold first visit the spec measures.
  *
@@ -28,6 +28,7 @@ const AUTHENTICATED_ROUTES = new Set([
   "/dashboard",
   "/tasks",
   "/users",
+  "/roles",
   "/settings",
 ])
 const SESSION_KEY = "auth.session"
@@ -36,12 +37,13 @@ const SESSION_KEY = "auth.session"
 // (`packages/api/src/auth.ts` / `ensureSeedUsers`) so this one-shot Puppeteer
 // script can run outside the app bundle. `apps/web/test/perf-login.test.ts`
 // pins them against `signToken` and the seeded user, so drift fails CI.
-const TOKEN_CLAIMS = { sub: "usr_admin", role: "admin", type: "access" }
+const TOKEN_CLAIMS = { sub: "usr_admin", roleId: "rol_admin", type: "access" }
 const SEEDED_ADMIN = {
   id: "usr_admin",
   name: "Ada Admin",
   email: "admin@example.com",
-  role: "admin",
+  roleId: "rol_admin",
+  role: { id: "rol_admin", title: "Administrator", status: "active" },
 }
 
 function base64UrlEncode(input) {

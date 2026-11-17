@@ -50,13 +50,18 @@ describe("perf login step", () => {
     const session = JSON.parse(login.buildSession())
 
     expect(session.token).toBe(
-      signToken({ sub: "usr_admin", role: "admin", type: "access" })
+      signToken({ sub: "usr_admin", roleId: "rol_admin", type: "access" })
     )
     expect(session.user).toEqual({
       id: "usr_admin",
       name: "Ada Admin",
       email: "admin@example.com",
-      role: "admin",
+      roleId: "rol_admin",
+      role: {
+        id: "rol_admin",
+        title: "Administrator",
+        status: "active",
+      },
     })
   })
 
@@ -103,7 +108,7 @@ describe("perf login step", () => {
     expect(page.evaluateOnNewDocument).not.toHaveBeenCalled()
   })
 
-  it.each(["/dashboard", "/tasks", "/users", "/settings"])(
+  it.each(["/dashboard", "/tasks", "/users", "/roles", "/settings"])(
     "seeds every authenticated route (%s)",
     async (route) => {
       const page = fakePage()

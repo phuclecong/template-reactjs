@@ -6,10 +6,7 @@ import {
   useUpdate,
   type HttpError,
 } from "@refinedev/core"
-import {
-  taskPrioritySchema,
-  taskStatusSchema,
-} from "@workspace/api/schemas"
+import { taskPrioritySchema, taskStatusSchema } from "@workspace/api/schemas"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -35,9 +32,8 @@ import {
 } from "@workspace/ui/components/select"
 import { track } from "@/observability"
 import { describeError } from "@/utils/http-error"
+import { useEnums } from "@workspace/shared-lib/hooks"
 import {
-  PRIORITY_OPTIONS,
-  STATUS_OPTIONS,
   dueDateToFormValue,
   formValueToDueDate,
   type TaskInput,
@@ -101,6 +97,10 @@ export function TaskFormDialog({
   onClose: () => void
 }) {
   const { t, i18n } = useTranslation()
+  const {
+    TASK_STATUS_OPTIONS: statusOptions,
+    TASK_PRIORITY_OPTIONS: priorityOptions,
+  } = useEnums()
   const isEdit = task !== null
   const id = useId()
   const locale = resolveLocale(i18n.language)
@@ -261,9 +261,9 @@ export function TaskFormDialog({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {STATUS_OPTIONS.map((status) => (
-                        <SelectItem key={status} value={status}>
-                          {t(`tasks.status.${status}`)}
+                      {statusOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -293,9 +293,9 @@ export function TaskFormDialog({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="">{t("taskDialog.none")}</SelectItem>
-                      {PRIORITY_OPTIONS.map((priority) => (
-                        <SelectItem key={priority} value={priority}>
-                          {t(`tasks.priority.${priority}`)}
+                      {priorityOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
                         </SelectItem>
                       ))}
                     </SelectContent>

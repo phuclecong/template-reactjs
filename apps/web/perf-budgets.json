@@ -1,10 +1,6 @@
 {
-  "/login": {
-    "jsBytes": 315333,
-    "cssBytes": 14875
-  },
-  "/tasks": {
-    "jsBytes": 560228,
-    "cssBytes": 14875
+  "*": {
+    "jsBytes": 500000,
+    "cssBytes": 15000
   }
 }

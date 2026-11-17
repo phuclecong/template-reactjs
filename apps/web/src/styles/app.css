@@ -1,0 +1,26 @@
+/*
+ * The app's Tailwind entry.
+ *
+ * `@workspace/ui/globals.css` provides the design tokens and base layers; the
+ * `@source` globs below decide which class names Tailwind emits. Scan only the
+ * code this build can render: tests, specs, and stories never ship, and
+ * presentational components the app does not import (Avatar, AlertDialog) are
+ * exercised only in Storybook. Those utilities are part of the render-blocking
+ * stylesheet, so including them would spend the CSS budget on dead rules.
+ * Storybook keeps the broader scan in
+ * `packages/ui/src/styles/storybook.css`.
+ */
+@import "@workspace/ui/globals.css";
+
+@source "../**/*.{ts,tsx}";
+@source "../../../../packages/ui/src/**/*.{ts,tsx}";
+@source "../../../../packages/shared-lib/src/**/*.{ts,tsx}";
+@source "../../../../packages/date-utils/src/**/*.{ts,tsx}";
+@source "../../../../packages/api/src/**/*.{ts,tsx}";
+
+@source not "../../../../packages/ui/src/**/*.test.{ts,tsx}";
+@source not "../../../../packages/ui/src/**/*.spec.{ts,tsx}";
+@source not "../../../../packages/ui/src/**/*.stories.{ts,tsx}";
+@source not "../../../../packages/shared-lib/src/**/*.test.{ts,tsx}";
+@source not "../../../../packages/ui/src/components/avatar.tsx";
+@source not "../../../../packages/ui/src/components/alert-dialog.tsx";

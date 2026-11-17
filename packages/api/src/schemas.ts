@@ -6,7 +6,7 @@ import { z } from "zod"
  * schema values without dragging `@msw/data` and the mock collections into
  * their chunks.
  */
-export const roleSchema = z.enum(["admin", "member"])
+export const roleStatusSchema = z.enum(["active", "inactive"])
 export const taskStatusSchema = z.enum([
   "todo",
   "in-progress",
@@ -15,15 +15,33 @@ export const taskStatusSchema = z.enum([
 ])
 export const taskPrioritySchema = z.enum(["low", "medium", "high"])
 
-export type Role = z.infer<typeof roleSchema>
+export type RoleStatus = z.infer<typeof roleStatusSchema>
 export type TaskStatus = z.infer<typeof taskStatusSchema>
 export type TaskPriority = z.infer<typeof taskPrioritySchema>
+
+/** A persisted Role record, matching the `Role` contract schema. */
+export const roleRecordSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string().nullable(),
+  status: roleStatusSchema,
+  createdAt: z.string().datetime({ offset: true }),
+  updatedAt: z.string().datetime({ offset: true }),
+})
+
+/** The Role identity and display summary embedded in a User response. */
+export const roleSummarySchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  status: roleStatusSchema,
+})
 
 export const userRecordSchema = z.object({
   id: z.string(),
   name: z.string(),
   email: z.string().email(),
-  role: roleSchema,
+  /** The identity of the Role the User holds; every User holds exactly one. */
+  roleId: z.string(),
   password: z.string(),
   createdAt: z.string(),
 })
@@ -48,6 +66,9 @@ export const dueDateWriteSchema = z
   .nullable()
   .optional()
 
+/** An ISO 8601 date-time instant with an explicit offset (or `Z`). */
+export const dateTimeSchema = z.string().datetime({ offset: true })
+
 export const taskRecordSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -62,3 +83,5 @@ export const taskRecordSchema = z.object({
 
 export type UserRecord = z.infer<typeof userRecordSchema>
 export type TaskRecord = z.infer<typeof taskRecordSchema>
+export type RoleRecord = z.infer<typeof roleRecordSchema>
+export type RoleSummary = z.infer<typeof roleSummarySchema>

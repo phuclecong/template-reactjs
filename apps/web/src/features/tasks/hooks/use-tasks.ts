@@ -65,7 +65,8 @@ export function useTasks({
           : t("tasks.unassigned"),
         dueDate: task.dueDate ?? null,
         canModify:
-          currentUser.role === "admin" || task.assigneeId === currentUser.id,
+          currentUser.roleId === "rol_admin" ||
+          task.assigneeId === currentUser.id,
       })),
     [tasksQuery.result.data, assigneeMap, currentUser, t]
   )

@@ -1,6 +1,15 @@
 export { handlers, specHandlers } from "./handlers"
 export { dataHandlers } from "./data-handlers"
-export { ensureSeedUsers, resetDb, seedDb, tasks, users } from "./collections"
+export {
+  ensureSeedRoles,
+  ensureSeedUsers,
+  resetDb,
+  roleSeeds,
+  roles,
+  seedDb,
+  tasks,
+  users,
+} from "./collections"
 export {
   getUserByAccessToken,
   loginUser,
@@ -10,7 +19,10 @@ export {
 } from "./service"
 export type { AuthResponseBody, PublicUser, ServiceResult } from "./service"
 export type {
-  Role,
+  RoleEntity,
+  RoleRecord,
+  RoleStatus,
+  RoleSummary,
   TaskEntity,
   TaskPriority,
   TaskRecord,
@@ -19,3 +31,5 @@ export type {
   UserRecord,
 } from "./collections"
 export type { TokenClaims } from "./auth"
+/** Generated contract types (ADR-0001); consumers must not redeclare shapes. */
+export type { components, operations, paths } from "./generated/api"

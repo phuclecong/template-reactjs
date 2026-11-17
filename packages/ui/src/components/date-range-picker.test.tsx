@@ -100,7 +100,10 @@ describe("DateRangePicker interactions", () => {
     render(<Harness onChange={onChange} />)
 
     await user.click(screen.getByRole("button", { name: "Due date" }))
-    expect(document.querySelectorAll(".rdp-month")).toHaveLength(2)
+    // The calendar body is a lazy chunk; wait for it to mount.
+    await waitFor(() =>
+      expect(document.querySelectorAll(".rdp-month")).toHaveLength(2)
+    )
     await user.click(
       screen.getByRole("button", { name: /January 5th, 2026/ })
     )

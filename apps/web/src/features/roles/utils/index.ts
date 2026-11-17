@@ -1,0 +1,23 @@
+/** Seeded System Roles; their ids are immutable and deletion is forbidden. */
+export const SYSTEM_ROLE_IDS = ["rol_admin", "rol_member"] as const
+
+/** A System Role cannot be deleted or deactivated by the client. */
+export function isSystemRole(roleId: string): boolean {
+  return (SYSTEM_ROLE_IDS as readonly string[]).includes(roleId)
+}
+
+/**
+ * Formats a server instant in the runtime's local timezone as
+ * `YYYY-MM-DD HH:mm`. The Roles table deliberately uses a fixed, unambiguous
+ * shape rather than locale month names so the two supported locales render the
+ * same timestamp layout.
+ */
+export function formatLocalDateTime(value: string | null | undefined): string {
+  if (!value) return ""
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ""
+  const pad = (part: number) => String(part).padStart(2, "0")
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+    date.getDate()
+  )} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}

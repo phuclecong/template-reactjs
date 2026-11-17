@@ -15,6 +15,21 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // MSW's browser build eagerly constructs a cookie jar backed by
+      // `tough-cookie` -> `tldts` (250 kB minified) even though the mock API
+      // never uses cookies. Alias it to an inert jar so the mock worker stays
+      // off the critical path. See `src/utils/stubs/tough-cookie.ts`.
+      "tough-cookie": path.resolve(
+        __dirname,
+        "./src/utils/stubs/tough-cookie.ts"
+      ),
+      // `simple-rest` imports axios even though this app passes the fetch
+      // client in `@/utils/http-client`. The stub satisfies module evaluation
+      // and throws if the unused default transport is ever called.
+      axios: path.resolve(__dirname, "./src/utils/stubs/axios.ts"),
+      // `@refinedev/core` also imports papaparse eagerly for its unused
+      // `useExport` hook. The stub throws if export is ever invoked.
+      papaparse: path.resolve(__dirname, "./src/utils/stubs/papaparse.ts"),
     },
     // pnpm monorepo: `@workspace/ui` and `@workspace/shared-lib` are linked via
     // symlink and each declares its own `react`/`react-dom`. Force a single

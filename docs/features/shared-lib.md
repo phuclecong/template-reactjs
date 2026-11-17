@@ -10,6 +10,31 @@ Create `packages/shared-lib`, `packages/shared-lib/components`, and `packages/sh
 
 ## Extractions
 
-- `FilterCombobox` (multi- and single-select) was extracted from the Tasks feature into `packages/shared-lib/src/components/filter-combobox.tsx`; it and its `FilterOption` type are exported from `@workspace/shared-lib/components`.
+- `ComboboxFilter` (multi- and single-select) was extracted from the Tasks feature into `packages/shared-lib/src/components/combobox-filter.tsx`; it and its `FilterOption` type are exported from `@workspace/shared-lib/components`.
 - `parseFilterValues` and `joinFilterValues` moved from the Tasks feature into `packages/shared-lib/src/utils/filter-values.ts` and are exported from `@workspace/shared-lib/utils`.
 - Both the Tasks and Users filter bars consume the shared component and helpers; feature code keeps only its translated options, labels, and call-site wiring.
+- `EmptyList` and `ErrorPanel` were extracted from the Roles feature into
+  `packages/shared-lib/src/components/` and exported from
+  `@workspace/shared-lib/components`. They are presentational: callers pass
+  translated copy, and feature code keeps the access check (`action`) and the
+  retry wiring.
+- Global enum choices live behind `useEnums()` in
+  `packages/shared-lib/src/hooks/use-enums.ts`; the separate
+  `@workspace/shared-lib/enums` module was removed. The values derive from the
+  API contract schemas, and the hook returns translated options keyed by
+  constant name:
+  `const { ROLE_STATUS_OPTIONS: statusOptions } = useEnums()`. Labels resolve
+  as `<prefix>.<value>` from prefixes declared in the hook. It replaces the
+  feature-local `useRoleStatusOptions` and the inline status/priority option
+  maps in the Tasks filter bar, bulk actions, and form dialog; the per-feature
+  `STATUS_OPTIONS` / `PRIORITY_OPTIONS` constants are gone.
+- `DateRangeFilter` wraps the design-system `DateRangePicker` and owns the
+  shared `dateRange.*` mode/preset translations, so Tasks and Roles pass only
+  their feature-specific label, placeholder, clear label, and value wiring. The
+  feature-scoped `dueDate*` and `date*` mode/preset keys were removed.
+- `TableGrid` and `TablePagination` now own the sortable header/body rendering
+  and the page-size/page-link footer that `DataTable` and the Refine-based
+  Roles table had duplicated. `TableGrid` accepts a TanStack table instance
+  (from either `useReactTable` or Refine's `useTable`) and an optional `onSort`
+  hook; `TablePagination` takes the pagination state and callbacks plus an
+  optional translated `summary`. `RolesPagination` was removed.

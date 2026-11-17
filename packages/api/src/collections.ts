@@ -2,8 +2,10 @@ import { Collection } from "@msw/data"
 import { persist } from "@msw/data/extensions/persist"
 
 import {
+  roleRecordSchema,
   taskRecordSchema,
   userRecordSchema,
+  type RoleRecord,
   type TaskPriority,
   type TaskStatus,
 } from "./schemas"
@@ -24,10 +26,15 @@ export const tasks = new Collection({
   schema: taskRecordSchema,
   extensions: [persist()],
 })
+export const roles = new Collection({
+  schema: roleRecordSchema,
+  extensions: [persist()],
+})
 
 // A record as stored by @msw/data: the schema shape plus internal symbol keys.
 export type UserEntity = Awaited<ReturnType<typeof users.create>>
 export type TaskEntity = Awaited<ReturnType<typeof tasks.create>>
+export type RoleEntity = Awaited<ReturnType<typeof roles.create>>
 
 function nowIso(): string {
   return new Date().toISOString()
@@ -68,7 +75,7 @@ export async function ensureSeedUsers(): Promise<void> {
       id: "usr_admin",
       name: "Ada Admin",
       email: "admin@example.com",
-      role: "admin",
+      roleId: "rol_admin",
       password: "adminpass",
       createdAt: nowIso(),
     })
@@ -78,16 +85,69 @@ export async function ensureSeedUsers(): Promise<void> {
       id: "usr_member",
       name: "Mia Member",
       email: "member@example.com",
-      role: "member",
+      roleId: "rol_member",
       password: "memberpass",
       createdAt: nowIso(),
     })
   }
 }
 
+/**
+ * The Role seed: the two System Roles plus 58 demo Roles, for 60 total.
+ * Demo Roles have no Users and carry deterministic, varied statuses and
+ * timestamps so filter and sort behavior is reproducible.
+ */
+export function roleSeeds(): RoleRecord[] {
+  const systemRoles: RoleRecord[] = [
+    {
+      id: "rol_admin",
+      title: "Administrator",
+      description: "Full access to every resource.",
+      status: "active",
+      createdAt: "2025-12-01T00:00:00.000Z",
+      updatedAt: "2026-06-01T00:00:00.000Z",
+    },
+    {
+      id: "rol_member",
+      title: "Member",
+      description: "Read-only access to the dashboard.",
+      status: "active",
+      createdAt: "2025-12-02T00:00:00.000Z",
+      updatedAt: "2026-06-02T00:00:00.000Z",
+    },
+  ]
+
+  const demoRoles: RoleRecord[] = []
+  for (let i = 0; i < 58; i++) {
+    const num = i + 1
+    demoRoles.push({
+      id: `rol_demo_${String(num).padStart(2, "0")}`,
+      title: `Demo Role ${String(num).padStart(2, "0")}`,
+      description: i % 4 === 0 ? null : `Description for demo role ${num}`,
+      status: i % 2 === 0 ? "active" : "inactive",
+      // Distinct instants spread across January–February 2026.
+      createdAt: new Date(Date.UTC(2026, 0, 1 + i, 12, 0, 0)).toISOString(),
+      // Distinct instants spread across March–April 2026.
+      updatedAt: new Date(Date.UTC(2026, 2, 1 + i, 9, 30, 0)).toISOString(),
+    })
+  }
+
+  return [...systemRoles, ...demoRoles]
+}
+
+/** Ensures the Role seed exists without touching any other Roles. */
+export async function ensureSeedRoles(): Promise<void> {
+  for (const seed of roleSeeds()) {
+    if (!roles.findFirst((query) => query.where({ id: seed.id }))) {
+      await roles.create(seed)
+    }
+  }
+}
+
 /** Seeds users and a large Task set (assumes an empty store; call after clear). */
 export async function seedDb(): Promise<void> {
   await ensureSeedUsers()
+  await ensureSeedRoles()
 
   // The first two tasks are kept stable (ids, assignees, titles) because the
   // smoke tests reference them directly.
@@ -136,5 +196,6 @@ export async function seedDb(): Promise<void> {
 export async function resetDb(): Promise<void> {
   users.clear()
   tasks.clear()
+  roles.clear()
   await seedDb()
 }

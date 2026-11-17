@@ -1,33 +1,27 @@
-import { useMemo } from "react"
 import { useTranslation } from "react-i18next"
-import { FilterCombobox } from "@workspace/shared-lib/components"
+import {
+  ComboboxFilter,
+  type FilterOption,
+} from "@workspace/shared-lib/components"
 import { Input } from "@workspace/ui/components/input"
-import { ROLE_OPTIONS } from "@/features/users/utils"
 import { Button } from "@workspace/ui/components/button"
 
 export function UsersFilterBar({
   searchValue,
   onSearchChange,
-  role,
+  roleId,
+  roleOptions,
   onRoleChange,
   onClear,
 }: {
   searchValue: string
   onSearchChange: (value: string) => void
-  role: string
-  onRoleChange: (role: string) => void
+  roleId: string
+  roleOptions: readonly FilterOption[]
+  onRoleChange: (roleId: string) => void
   onClear: () => void
 }) {
   const { t } = useTranslation()
-
-  const roleOptions = useMemo(
-    () =>
-      ROLE_OPTIONS.map((option) => ({
-        value: option,
-        label: t(`users.role.${option}`),
-      })),
-    [t]
-  )
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -38,10 +32,10 @@ export function UsersFilterBar({
         placeholder={t("users.searchPlaceholder")}
         className="w-56"
       />
-      <FilterCombobox
+      <ComboboxFilter
         multiple={false}
         options={roleOptions}
-        value={role}
+        value={roleId}
         onValueChange={onRoleChange}
         ariaLabel={t("users.filters.role")}
         placeholder={t("users.filters.role")}

@@ -4,8 +4,6 @@ import type { DateRange } from "react-day-picker"
 import { cn } from "cn"
 
 import { Button } from "@workspace/ui/components/button"
-import { Calendar } from "@workspace/ui/components/calendar"
-import { FocusableCalendarDayButton } from "@workspace/ui/components/calendar-focus"
 import {
   Popover,
   PopoverContent,
@@ -19,7 +17,6 @@ import {
 } from "@workspace/ui/components/sheet"
 import { useIsMobile } from "@workspace/ui/hooks/use-mobile"
 import {
-  calendarLocale,
   dateOnlyToLocalDate,
   formatDateRange,
   localDateToDateOnly,
@@ -66,6 +63,13 @@ export type DateRangePickerProps = {
   "aria-describedby"?: string
 }
 
+// The calendar body (and `react-day-picker`) is deferred until a picker opens;
+// the filter bar renders on first paint but the calendar is only needed after
+// a click. See `date-range-calendar.tsx`.
+const DateRangeCalendar = React.lazy(
+  () => import("@workspace/ui/components/date-range-calendar")
+)
+
 const MODES: DateRangePickerMode[] = ["between", "from", "until"]
 const PRESETS: DateRangePreset[] = ["today", "last7Days", "thisMonth"]
 
@@ -105,31 +109,13 @@ export function getPresetDateRange(
   }
 
   return {
-    from: localDateToDateOnly(new Date(today.getFullYear(), today.getMonth(), 1)),
+    from: localDateToDateOnly(
+      new Date(today.getFullYear(), today.getMonth(), 1)
+    ),
     to: localDateToDateOnly(
       new Date(today.getFullYear(), today.getMonth() + 1, 0)
     ),
   }
-}
-
-function toCalendarSelection(
-  mode: DateRangePickerMode,
-  fromValue: string,
-  toValue: string
-): DateRange | undefined {
-  if (mode === "from") {
-    const from = dateOnlyToLocalDate(fromValue)
-    return from ? { from, to: undefined } : undefined
-  }
-
-  if (mode === "until") {
-    const to = dateOnlyToLocalDate(toValue)
-    return to ? { from: undefined, to } : undefined
-  }
-
-  const from = dateOnlyToLocalDate(fromValue) ?? undefined
-  const to = dateOnlyToLocalDate(toValue) ?? undefined
-  return from || to ? { from, to } : undefined
 }
 
 /**
@@ -151,7 +137,7 @@ export const DateRangePicker = React.forwardRef<
     placeholder = "",
     clearLabel = "Clear",
     className,
-    labels,
+    labels = [],
     "aria-label": ariaLabel,
     "aria-invalid": ariaInvalid,
     "aria-describedby": ariaDescribedBy,
@@ -172,10 +158,6 @@ export const DateRangePicker = React.forwardRef<
     ...labels,
   }
 
-  const selected = React.useMemo(
-    () => toCalendarSelection(mode, value.from, value.to),
-    [mode, value.from, value.to]
-  )
   const displayMonth = React.useMemo(
     () =>
       dateOnlyToLocalDate(value.from) ??
@@ -253,10 +235,7 @@ export const DateRangePicker = React.forwardRef<
       aria-label={ariaLabel}
       aria-invalid={ariaInvalid}
       aria-describedby={ariaDescribedBy}
-      className={cn(
-        "h-8 w-56 justify-between gap-2 font-normal",
-        className
-      )}
+      className={cn("h-8 w-56 justify-between gap-2 font-normal", className)}
     >
       <span className={cn("truncate", !text && "text-muted-foreground")}>
         {text || placeholder}
@@ -302,19 +281,19 @@ export const DateRangePicker = React.forwardRef<
         </div>
       )}
 
-      <Calendar
-        mode="range"
-        selected={selected}
-        defaultMonth={displayMonth}
-        onSelect={selectRange}
-        numberOfMonths={isMobile ? 1 : 2}
-        locale={calendarLocale(locale)}
-        captionLayout="dropdown"
-        startMonth={startMonth}
-        endMonth={endMonth}
-        components={{ DayButton: FocusableCalendarDayButton }}
-        autoFocus
-      />
+      <React.Suspense fallback={<div className="h-72 w-64" aria-hidden />}>
+        <DateRangeCalendar
+          mode={mode}
+          from={value.from}
+          to={value.to}
+          locale={locale}
+          numberOfMonths={isMobile ? 1 : 2}
+          defaultMonth={displayMonth}
+          startMonth={startMonth}
+          endMonth={endMonth}
+          onSelect={selectRange}
+        />
+      </React.Suspense>
 
       <div className="flex justify-end border-t pt-2">
         <Button type="button" variant="ghost" size="sm" onClick={clear}>
@@ -328,7 +307,10 @@ export const DateRangePicker = React.forwardRef<
     return (
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger render={trigger} />
-        <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto p-3">
+        <SheetContent
+          side="bottom"
+          className="max-h-[90vh] overflow-y-auto p-3"
+        >
           <SheetTitle className="sr-only">
             {ariaLabel ?? placeholder}
           </SheetTitle>

@@ -80,7 +80,7 @@ Decision record: `docs/adr/0008-multi-value-table-filters.md`
 - Selected values render as chips inside the field. Chips wrap onto multiple
   lines rather than truncating or scrolling.
 - Each chip's remove control has a translated accessible name. Because the
-  registry chip's built-in removal control is icon-only, `FilterCombobox`
+  registry chip's built-in removal control is icon-only, `ComboboxFilter`
   renders a labelled button with `showRemove={false}`.
 - The Users Role filter is single-select and stays scalar. Empty means "all".
 - There are no separate toolbar filter chips. Chips live in the field; the
@@ -91,8 +91,8 @@ Decision record: `docs/adr/0008-multi-value-table-filters.md`
 - The combobox primitive is vendored, unedited, in
   `packages/ui/src/components/combobox.tsx` (ADR-0009). Keep it unedited so
   registry upgrades stay a clean diff.
-- The reusable filter composition is repo-owned: `FilterCombobox` lives in
-  `packages/shared-lib/src/components/filter-combobox.tsx` and is imported from
+- The reusable filter composition is repo-owned: `ComboboxFilter` lives in
+  `packages/shared-lib/src/components/combobox-filter.tsx` and is imported from
   `@workspace/shared-lib/components`. It handles both multi-select and
   single-select through a required `multiple` mode, takes translated
   `{ value, label }` options plus the scalar URL value, and consumes the
@@ -100,7 +100,7 @@ Decision record: `docs/adr/0008-multi-value-table-filters.md`
   `combobox.removeChip`, `common.clear`).
 - A future feature extends the shared component instead of reimplementing the
   combobox wiring; it supplies translated options, aria-labels, and
-  placeholders, while `FilterCombobox` owns the shared keys for the empty
+  placeholders, while `ComboboxFilter` owns the shared keys for the empty
   state, chip removal, and the single-select clear control.
 
 ### Multi-value contract

@@ -12,13 +12,18 @@ Default five canonical roles: `needs-triage`, `needs-info`, `ready-for-agent`, `
 
 Single-context: one `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
-### Commit message or PR generation:
+### Commit messages and PR descriptions
 
-Do not add:
+Write the commit message or PR description, then stop. Always:
 
-- `Co-Authored-By: Claude Code <noreply@anthropic.com>`
-- Generated with Claude Code
+- Never add `Co-Authored-By: Claude Code <noreply@anthropic.com>`.
+- Never add `Generated with Claude Code`.
+- Never commit or push on your own — leave the changes uncommitted for the human to review.
 
-### Final step: do not auto commit or push code to git
+### Hooks
 
-Keep generated commit message but do not commit or push code automatically, I need to have a final review.
+Use existing Refine core hooks instead of writing custom ones.
+
+1. Search `docs/refine-doc/core/src/hooks/index.ts` for a hook matching the behavior you need.
+2. Confirm its usage in `docs/refine-doc/docs/` before implementing.
+3. Write a custom hook only when no Refine hook covers the behavior, and note in your summary why none fit.

@@ -31,7 +31,8 @@ function authBody(overrides: Record<string, unknown> = {}) {
       id: "usr_1",
       name: "Ada Admin",
       email: "admin@example.com",
-      role: "admin",
+      roleId: "rol_admin",
+      role: { id: "rol_admin", title: "Administrator", status: "active" },
       createdAt: "2026-01-01T00:00:00.000Z",
     },
     ...overrides,
@@ -51,13 +52,16 @@ describe("authProvider", () => {
     expect(result.success).toBe(true)
     expect(result.redirectTo).toBe("/dashboard")
     expect(getAuthToken()).toBe("mock.access")
-    expect(getAuthUser()?.role).toBe("admin")
+    expect(getAuthUser()?.roleId).toBe("rol_admin")
   })
 
   it("login surfaces invalid credentials as an error", async () => {
     login.mockResolvedValue({
       status: 401,
-      body: { code: "invalid_credentials", message: "Incorrect email or password." },
+      body: {
+        code: "invalid_credentials",
+        message: "Incorrect email or password.",
+      },
     })
 
     const result = await authProvider.login({
@@ -89,7 +93,7 @@ describe("authProvider", () => {
     const result = await authProvider.check()
 
     expect(result.authenticated).toBe(true)
-    expect(getAuthUser()?.role).toBe("admin")
+    expect(getAuthUser()?.roleId).toBe("rol_admin")
     expect(getAuthToken()).toBe("mock.access")
   })
 
@@ -108,7 +112,7 @@ describe("authProvider", () => {
 
     const identity = await authProvider.getIdentity?.()
 
-    expect(identity).toMatchObject({ id: "usr_1", role: "admin" })
+    expect(identity).toMatchObject({ id: "usr_1", roleId: "rol_admin" })
   })
 
   it("register creates an account and stores the session", async () => {
@@ -119,7 +123,8 @@ describe("authProvider", () => {
           id: "usr_2",
           name: "New User",
           email: "new@example.com",
-          role: "member",
+          roleId: "rol_member",
+          role: { id: "rol_member", title: "Member", status: "active" },
           createdAt: "2026-01-01T00:00:00.000Z",
         },
       }),
@@ -131,9 +136,13 @@ describe("authProvider", () => {
       password: "secret",
     })
 
-    expect(register).toHaveBeenCalledWith("New User", "new@example.com", "secret")
+    expect(register).toHaveBeenCalledWith(
+      "New User",
+      "new@example.com",
+      "secret"
+    )
     expect(result?.success).toBe(true)
     expect(result?.redirectTo).toBe("/dashboard")
-    expect(getAuthUser()?.role).toBe("member")
+    expect(getAuthUser()?.roleId).toBe("rol_member")
   })
 })
