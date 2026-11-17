@@ -53,6 +53,10 @@ export function App() {
               element={<Navigate to="/users" replace />}
             />
             <Route
+              path="/dashboard/roles"
+              element={<Navigate to="/roles" replace />}
+            />
+            <Route
               path="/dashboard/settings"
               element={<Navigate to="/settings" replace />}
             />
@@ -92,6 +96,15 @@ export function App() {
                     <LazyRoute
                       path="/users"
                       fallback={<TablePageSkeleton kind="users" />}
+                    />
+                  }
+                />
+                <Route
+                  path="/roles"
+                  element={
+                    <LazyRoute
+                      path="/roles"
+                      fallback={<TablePageSkeleton kind="roles" />}
                     />
                   }
                 />

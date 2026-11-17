@@ -32,6 +32,10 @@ export const routeLoaders = {
     import("@/routes/users").then((module) => ({
       default: module.UsersPage,
     })),
+  "/roles": () =>
+    import("@/routes/roles").then((module) => ({
+      default: module.RolesPage,
+    })),
   "/settings": () =>
     import("@/routes/settings").then((module) => ({
       default: module.SettingsPage,

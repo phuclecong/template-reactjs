@@ -26,6 +26,7 @@ export const vi: Translation = {
     nav: {
       tasks: "Công việc",
       users: "Người dùng",
+      roles: "Vai trò",
       settings: "Cài đặt",
     },
     section: {
@@ -177,6 +178,27 @@ export const vi: Translation = {
     deleted: "Đã xóa người dùng",
     failedDelete: "Không thể xóa người dùng",
     roleLabel: "Vai trò của {{name}}",
+  },
+  roles: {
+    title: "Vai trò",
+    create: "Tạo vai trò",
+    loading: "Đang tải vai trò…",
+    empty: "Không tìm thấy vai trò nào.",
+    emptyHint: "Các vai trò bạn tạo sẽ xuất hiện ở đây.",
+    error: "Không thể tải vai trò.",
+    retry: "Thử lại",
+    total: "{{total}} vai trò",
+    columns: {
+      title: "Tiêu đề",
+      description: "Mô tả",
+      status: "Trạng thái",
+      createdAt: "Ngày tạo",
+      updatedAt: "Cập nhật",
+    },
+    status: {
+      active: "đang hoạt động",
+      inactive: "ngừng hoạt động",
+    },
   },
   settings: {
     title: "Cài đặt",

@@ -27,6 +27,7 @@ import type { DashboardUser } from "@/providers/auth-provider"
 const SEGMENT_LABELS: Record<string, string> = {
   tasks: "shell.nav.tasks",
   users: "shell.nav.users",
+  roles: "shell.nav.roles",
   settings: "shell.nav.settings",
 }
 
