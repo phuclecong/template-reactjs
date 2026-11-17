@@ -116,10 +116,11 @@ paths:
           schema:
             type: string
           description: Case-insensitive substring match on the user's name or email.
-        - name: role
+        - name: roleId
           in: query
           schema:
-            $ref: "#/components/schemas/UserRole"
+            type: string
+          description: Exact match on the Role identity the User holds.
         - name: _start
           in: query
           schema:
@@ -134,7 +135,7 @@ paths:
           in: query
           schema:
             type: string
-          description: "Field to sort by: `name`, `email`, `role`, or `createdAt`. Defaults to `name`."
+          description: "Field to sort by: `name`, `email`, `roleId`, or `createdAt`. Defaults to `name`."
         - name: _order
           in: query
           schema:
@@ -712,9 +713,6 @@ paths:
 
 components:
   schemas:
-    UserRole:
-      type: string
-      enum: [admin, member]
     RoleStatus:
       type: string
       enum: [active, inactive]
@@ -857,9 +855,20 @@ components:
           type: string
           description: Stable machine-readable code. One of validation_error, unauthorized, forbidden, not_found, conflict, too_many_requests, internal_error.
           example: not_found
+    RoleSummary:
+      type: object
+      description: The Role identity and display summary embedded in a User.
+      required: [id, title, status]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        status:
+          $ref: "#/components/schemas/RoleStatus"
     User:
       type: object
-      required: [id, name, email, role, createdAt]
+      required: [id, name, email, roleId, role, createdAt]
       properties:
         id:
           type: string
@@ -868,8 +877,11 @@ components:
         email:
           type: string
           format: email
+        roleId:
+          type: string
+          description: The identity of the Role the User holds.
         role:
-          $ref: "#/components/schemas/UserRole"
+          $ref: "#/components/schemas/RoleSummary"
         createdAt:
           type: string
           format: date-time
@@ -913,18 +925,23 @@ components:
           type: string
     RefreshResponse:
       type: object
-      required: [accessToken, refreshToken]
+      required: [accessToken, refreshToken, user]
       properties:
         accessToken:
           type: string
         refreshToken:
           type: string
+        user:
+          $ref: "#/components/schemas/User"
     UpdateRoleRequest:
       type: object
-      required: [role]
+      required: [roleId]
       properties:
-        role:
-          $ref: "#/components/schemas/UserRole"
+        roleId:
+          type: string
+          description: >-
+            The identity of an existing, active Role to assign. Unknown or
+            inactive Roles are rejected with 400.
     Task:
       type: object
       required: [id, title, status, createdAt, updatedAt]

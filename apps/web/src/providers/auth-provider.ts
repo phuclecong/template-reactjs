@@ -1,6 +1,6 @@
 import type { AuthActionResponse, AuthProvider } from "@refinedev/core"
 import { login, register } from "@/utils/auth-client"
-import type { PublicUser } from "@workspace/api/service"
+import type { PublicUser, RoleSummary } from "@workspace/api/service"
 
 /**
  * Refine authProvider (ADR-0002, ADR-0003). Login/register/logout call the auth
@@ -15,7 +15,8 @@ export interface SessionUser {
   id: string
   name: string
   email: string
-  role: "admin" | "member"
+  roleId: string
+  role: RoleSummary
 }
 
 /** The identity subset the dashboard shell and sidebar render in the footer. */
@@ -28,6 +29,16 @@ interface PersistedSession {
   user: SessionUser
 }
 
+function isRoleSummary(value: unknown): value is RoleSummary {
+  if (typeof value !== "object" || value === null) return false
+  const candidate = value as Record<string, unknown>
+  return (
+    typeof candidate.id === "string" &&
+    typeof candidate.title === "string" &&
+    (candidate.status === "active" || candidate.status === "inactive")
+  )
+}
+
 function readPersistedSession(): PersistedSession | null {
   try {
     const raw = sessionStorage.getItem(SESSION_KEY)
@@ -38,7 +49,8 @@ function readPersistedSession(): PersistedSession | null {
       typeof parsed.user?.id === "string" &&
       typeof parsed.user?.name === "string" &&
       typeof parsed.user?.email === "string" &&
-      (parsed.user?.role === "admin" || parsed.user?.role === "member")
+      typeof parsed.user?.roleId === "string" &&
+      isRoleSummary(parsed.user?.role)
     ) {
       return parsed as PersistedSession
     }
@@ -105,6 +117,7 @@ function toSessionUser(user: PublicUser): SessionUser {
     id: user.id,
     name: user.name,
     email: user.email,
+    roleId: user.roleId,
     role: user.role,
   }
 }
@@ -157,9 +170,11 @@ export const authProvider: AuthProvider = {
     // Only force a logout when the request was rejected as *unauthenticated*.
     // Domain 401s — e.g. a wrong current-password on the password form — carry a
     // different `code` and must not end the session.
-    const code = (error as {
-      response?: { data?: { code?: unknown } }
-    })?.response?.data?.code
+    const code = (
+      error as {
+        response?: { data?: { code?: unknown } }
+      }
+    )?.response?.data?.code
     if (code === "unauthorized") return { logout: true, redirectTo: "/login" }
     return { logout: false }
   },
@@ -169,6 +184,6 @@ export const authProvider: AuthProvider = {
   },
 
   async getPermissions() {
-    return inMemoryUser?.role ?? null
+    return inMemoryUser?.roleId ?? null
   },
 }

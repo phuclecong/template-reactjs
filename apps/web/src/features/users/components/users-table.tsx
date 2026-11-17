@@ -5,10 +5,11 @@ import {
   useDelete,
   useInvalidate,
   useList,
+  useSelect,
   type HttpError,
 } from "@refinedev/core"
 import type { ColumnDef } from "@tanstack/react-table"
-import type { Role } from "@workspace/api/schemas"
+import type { RoleRecord } from "@workspace/api/schemas"
 import { DataTable } from "@workspace/shared-lib/components"
 import { useDialog, useTableState } from "@workspace/shared-lib/hooks"
 import { Button } from "@workspace/ui/components/button"
@@ -21,13 +22,16 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import { UsersFilterBar } from "@/features/users/components/users-filter-bar"
-import { ROLE_OPTIONS, toUserCrudFilters } from "@/features/users/utils"
+import { toUserCrudFilters } from "@/features/users/utils"
 import { USER_COLUMN_WIDTHS } from "@/features/users/utils/column-widths"
 import type { CurrentUser, UserRow } from "@/features/users/utils"
 import { apiUrl } from "@/utils/api-url"
 import { describeError } from "@/utils/http-error"
 
-const FILTER_KEYS = ["role"] as const
+const FILTER_KEYS = ["roleId"] as const
+
+/** Fetch every Role so the assignment control can offer the whole catalogue. */
+const ROLE_PAGE_SIZE = 100
 
 export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
   const { t } = useTranslation()
@@ -47,11 +51,31 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
     updateParams,
   } = useTableState({ defaultSortField: "name", filterKeys: FILTER_KEYS })
 
-  const role = filterValues.role
-  const hasActiveFilters = Boolean(q || role)
-  const filters = useMemo(
-    () => toUserCrudFilters(q, filterValues),
-    [q, filterValues]
+  const roleId = filterValues.roleId
+  const hasActiveFilters = Boolean(q || roleId)
+  const filters = useMemo(() => toUserCrudFilters(q, { roleId }), [q, roleId])
+
+  // Role options come from the Roles resource, not a hard-coded enum.
+  const roleSelect = useSelect<RoleRecord>({
+    resource: "roles",
+    pagination: {
+      currentPage: 1,
+      pageSize: ROLE_PAGE_SIZE,
+      mode: "server",
+    },
+    sorters: [{ field: "title", order: "asc" }],
+  })
+  const roleRecords = useMemo(
+    () => roleSelect.query.data?.data ?? [],
+    [roleSelect.query.data]
+  )
+  const roleOptions = useMemo(
+    () => roleRecords.map((role) => ({ value: role.id, label: role.title })),
+    [roleRecords]
+  )
+  const roleById = useMemo(
+    () => new Map(roleRecords.map((role) => [role.id, role])),
+    [roleRecords]
   )
 
   const usersQuery = useList<UserRow>({
@@ -65,7 +89,11 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
   const pageCount = Math.max(1, Math.ceil(total / pageSize))
 
   const invalidate = useInvalidate()
-  const roleMutation = useCustomMutation<UserRow, HttpError, { role: Role }>({})
+  const roleMutation = useCustomMutation<
+    UserRow,
+    HttpError,
+    { roleId: string }
+  >({})
   const deleteMutation = useDelete<UserRow>({})
 
   const deleteDialog = useDialog<UserRow>()
@@ -73,16 +101,16 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
   // (a `useCallback`) rather than on the fresh `deleteDialog` object.
   const openDelete = deleteDialog.open
 
-  const isAdmin = currentUser.role === "admin"
+  const isAdmin = currentUser.roleId === "rol_admin"
 
   const changeRole = useCallback(
-    (user: UserRow, role: Role) => {
-      if (role === user.role) return
+    (user: UserRow, nextRoleId: string) => {
+      if (nextRoleId === user.roleId) return
       roleMutation.mutate(
         {
           url: `${apiUrl}/users/${user.id}/role`,
           method: "patch",
-          values: { role },
+          values: { roleId: nextRoleId },
           successNotification: {
             message: t("users.roleUpdated"),
             type: "success",
@@ -133,31 +161,47 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
         size: USER_COLUMN_WIDTHS.email,
       },
       {
-        accessorKey: "role",
+        accessorKey: "roleId",
         header: t("users.columns.role"),
         size: USER_COLUMN_WIDTHS.role,
-        cell: ({ row }) =>
-          isAdmin ? (
+        cell: ({ row }) => {
+          const user = row.original
+          if (!isAdmin) return user.role.title
+          return (
             <Select
-              value={row.original.role}
-              onValueChange={(value) => changeRole(row.original, value as Role)}
+              value={user.roleId}
+              onValueChange={(value) => {
+                if (typeof value === "string") changeRole(user, value)
+              }}
             >
               <SelectTrigger
-                aria-label={t("users.roleLabel", { name: row.original.name })}
+                aria-label={t("users.roleLabel", { name: user.name })}
               >
-                <SelectValue />
+                <SelectValue>
+                  {(value: string | null) =>
+                    (value ? roleById.get(value)?.title : null) ??
+                    user.role.title
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {ROLE_OPTIONS.map((role) => (
-                  <SelectItem key={role} value={role}>
-                    {t(`users.role.${role}`)}
+                {roleRecords.map((role) => (
+                  <SelectItem
+                    key={role.id}
+                    value={role.id}
+                    // Inactive Roles stay visible for the User who already
+                    // holds one but are unavailable for a new assignment.
+                    disabled={
+                      role.status === "inactive" && role.id !== user.roleId
+                    }
+                  >
+                    {role.title}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          ) : (
-            t(`users.role.${row.original.role}`)
-          ),
+          )
+        },
       },
     ]
 
@@ -181,21 +225,20 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
     }
 
     return cols
-  }, [t, isAdmin, changeRole, openDelete])
+  }, [t, isAdmin, changeRole, openDelete, roleRecords, roleById])
 
   return (
     <div className="flex flex-col gap-4 p-6 text-sm">
-      {/* <h1 className="text-lg font-medium">{t("users.title")}</h1> */}
-
       <UsersFilterBar
         searchValue={searchValue}
         onSearchChange={onSearchChange}
-        role={role}
-        onRoleChange={(value) => updateParams({ role: value, page: "" })}
+        roleId={roleId}
+        roleOptions={roleOptions}
+        onRoleChange={(value) => updateParams({ roleId: value, page: "" })}
         onClear={() =>
           updateParams({
             q: "",
-            role: "",
+            roleId: "",
           })
         }
       />

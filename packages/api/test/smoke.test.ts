@@ -76,11 +76,21 @@ describe("auth", () => {
     const registered = (await register.json()) as {
       accessToken: string
       refreshToken: string
-      user: { id: string; email: string; role: string }
+      user: {
+        id: string
+        email: string
+        roleId: string
+        role: { id: string; title: string; status: string }
+      }
     }
     expect(registered.accessToken).toBeTruthy()
     expect(registered.refreshToken).toBeTruthy()
-    expect(registered.user.role).toBe("member")
+    expect(registered.user.roleId).toBe("rol_member")
+    expect(registered.user.role).toEqual({
+      id: "rol_member",
+      title: "Member",
+      status: "active",
+    })
     expect(registered.user.email).toBe("new@example.com")
 
     const loginRes = await api("/api/auth/login", {
@@ -88,6 +98,14 @@ describe("auth", () => {
       body: { email: "new@example.com", password: "secret" },
     })
     expect(loginRes.status).toBe(200)
+    const loggedIn = (await loginRes.json()) as {
+      user: { roleId: string; role: { id: string; title: string } }
+    }
+    expect(loggedIn.user.roleId).toBe("rol_member")
+    expect(loggedIn.user.role).toMatchObject({
+      id: "rol_member",
+      title: "Member",
+    })
   })
 
   it("rejects a duplicate email with 409", async () => {
@@ -113,8 +131,18 @@ describe("auth", () => {
       body: { refreshToken },
     })
     expect(res.status).toBe(200)
-    const data = (await res.json()) as { accessToken: string }
+    const data = (await res.json()) as {
+      accessToken: string
+      refreshToken: string
+      user: { roleId: string; role: { id: string; title: string } }
+    }
     expect(data.accessToken).toBeTruthy()
+    expect(data.refreshToken).toBeTruthy()
+    expect(data.user.roleId).toBe("rol_member")
+    expect(data.user.role).toMatchObject({
+      id: "rol_member",
+      title: "Member",
+    })
   })
 
   it("logs out", async () => {
@@ -133,18 +161,96 @@ describe("users", () => {
     expect(res.status).toBe(401)
   })
 
-  it("lists users without exposing passwords", async () => {
+  it("lists users with a role id and embedded summary, without passwords", async () => {
     const { accessToken } = await login("admin@example.com", "adminpass")
     const res = await api("/api/users", { token: accessToken })
     expect(res.status).toBe(200)
-    const list = (await res.json()) as Array<Record<string, unknown>>
+    const list = (await res.json()) as Array<{
+      id: string
+      email: string
+      roleId: string
+      role: { id: string; title: string; status: string }
+      password?: unknown
+    }>
     expect(list.length).toBe(2)
+    const admin = list.find((user) => user.id === "usr_admin")
+    expect(admin).toMatchObject({
+      roleId: "rol_admin",
+      role: { id: "rol_admin", title: "Administrator", status: "active" },
+    })
+    const member = list.find((user) => user.id === "usr_member")
+    expect(member).toMatchObject({
+      roleId: "rol_member",
+      role: { id: "rol_member", title: "Member", status: "active" },
+    })
     for (const user of list) {
       expect(user).not.toHaveProperty("password")
-      expect(user).toHaveProperty("id")
-      expect(user).toHaveProperty("email")
-      expect(user).toHaveProperty("role")
+      expect(typeof user.roleId).toBe("string")
+      expect(typeof user.role.id).toBe("string")
+      expect(typeof user.role.title).toBe("string")
+      expect(["active", "inactive"]).toContain(user.role.status)
     }
+  })
+
+  it("keeps describing an inactive Role a User already holds", async () => {
+    await users.create({
+      id: "usr_inactive_holder",
+      name: "Inactive Holder",
+      email: "inactive@example.com",
+      roleId: "rol_demo_02",
+      password: "inactivepass",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    })
+
+    const { accessToken } = await login("admin@example.com", "adminpass")
+    const res = await api("/api/users?roleId=rol_demo_02", {
+      token: accessToken,
+    })
+    expect(res.status).toBe(200)
+    const list = (await res.json()) as Array<{
+      id: string
+      roleId: string
+      role: { id: string; title: string; status: string }
+    }>
+    expect(list).toHaveLength(1)
+    expect(list[0]).toMatchObject({
+      id: "usr_inactive_holder",
+      roleId: "rol_demo_02",
+      role: {
+        id: "rol_demo_02",
+        title: "Demo Role 02",
+        status: "inactive",
+      },
+    })
+  })
+
+  it("filters users by role identity", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+
+    const members = await api("/api/users?roleId=rol_member", {
+      token: accessToken,
+    })
+    expect(members.status).toBe(200)
+    expect(members.headers.get("x-total-count")).toBe("1")
+    const memberList = (await members.json()) as Array<{ id: string }>
+    expect(memberList.map((user) => user.id)).toEqual(["usr_member"])
+
+    const admins = await api("/api/users?roleId=rol_admin", {
+      token: accessToken,
+    })
+    expect(admins.headers.get("x-total-count")).toBe("1")
+    const adminList = (await admins.json()) as Array<{ id: string }>
+    expect(adminList.map((user) => user.id)).toEqual(["usr_admin"])
+  })
+
+  it("sorts users by role identity", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+    const res = await api("/api/users?_sort=roleId&_order=asc", {
+      token: accessToken,
+    })
+    expect(res.status).toBe(200)
+    const list = (await res.json()) as Array<{ roleId: string }>
+    expect(list.map((user) => user.roleId)).toEqual(["rol_admin", "rol_member"])
   })
 
   it("forbids a member from changing a role (403)", async () => {
@@ -152,21 +258,76 @@ describe("users", () => {
     const res = await api("/api/users/usr_admin/role", {
       method: "PATCH",
       token: accessToken,
-      body: { role: "member" },
+      body: { roleId: "rol_member" },
     })
     expect(res.status).toBe(403)
   })
 
-  it("lets an admin change a role", async () => {
+  it("lets an admin change a user's role by identity", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+    const res = await api("/api/users/usr_member/role", {
+      method: "PATCH",
+      token: accessToken,
+      body: { roleId: "rol_admin" },
+    })
+    expect(res.status).toBe(200)
+    const updated = (await res.json()) as {
+      roleId: string
+      role: { id: string; title: string; status: string }
+    }
+    expect(updated.roleId).toBe("rol_admin")
+    expect(updated.role).toEqual({
+      id: "rol_admin",
+      title: "Administrator",
+      status: "active",
+    })
+  })
+
+  it("rejects an unknown role identity with 400", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+    const res = await api("/api/users/usr_member/role", {
+      method: "PATCH",
+      token: accessToken,
+      body: { roleId: "rol_missing" },
+    })
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as { code: string }).code).toBe(
+      "invalid_request"
+    )
+  })
+
+  it("rejects assigning an inactive role with 400", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+    // Demo Role 02 is seeded inactive.
+    const res = await api("/api/users/usr_member/role", {
+      method: "PATCH",
+      token: accessToken,
+      body: { roleId: "rol_demo_02" },
+    })
+    expect(res.status).toBe(400)
+    expect(((await res.json()) as { code: string }).code).toBe(
+      "invalid_request"
+    )
+  })
+
+  it("requires a role identity on the update request", async () => {
     const { accessToken } = await login("admin@example.com", "adminpass")
     const res = await api("/api/users/usr_member/role", {
       method: "PATCH",
       token: accessToken,
       body: { role: "admin" },
     })
-    expect(res.status).toBe(200)
-    const updated = (await res.json()) as { role: string }
-    expect(updated.role).toBe("admin")
+    expect(res.status).toBe(400)
+  })
+
+  it("returns 404 when changing the role of a missing user", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+    const res = await api("/api/users/usr_missing/role", {
+      method: "PATCH",
+      token: accessToken,
+      body: { roleId: "rol_admin" },
+    })
+    expect(res.status).toBe(404)
   })
 
   it("forbids a member from deleting a user (403)", async () => {
@@ -1618,7 +1779,6 @@ describe("role writes", () => {
         id: "usr_holder",
         name: "Role Holder",
         email: "holder@example.com",
-        role: "member",
         roleId: "rol_demo_06",
         password: "holderpass",
         createdAt: "2026-01-01T00:00:00.000Z",
@@ -1828,7 +1988,6 @@ describe("role writes", () => {
         id: "usr_holder",
         name: "Role Holder",
         email: "holder@example.com",
-        role: "member",
         roleId: "rol_demo_11",
         password: "holderpass",
         createdAt: "2026-01-01T00:00:00.000Z",

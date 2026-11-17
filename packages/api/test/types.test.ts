@@ -10,7 +10,8 @@ describe("generated client types", () => {
       id: string
       name: string
       email: string
-      role: "admin" | "member"
+      roleId: string
+      role: { id: string; title: string; status: "active" | "inactive" }
       createdAt: string
     }>()
 
@@ -28,6 +29,18 @@ describe("generated client types", () => {
     expectTypeOf<BulkRequest>().toHaveProperty("status")
     expectTypeOf<BulkResponse>().toHaveProperty("updated")
     expectTypeOf<BulkResponse>().toHaveProperty("failed")
+  })
+
+  it("matches the contract for user role assignment by identity", () => {
+    type UpdateRoleRequest = components["schemas"]["UpdateRoleRequest"]
+    type RoleSummary = components["schemas"]["RoleSummary"]
+
+    expectTypeOf<UpdateRoleRequest>().toMatchTypeOf<{ roleId: string }>()
+    expectTypeOf<RoleSummary>().toMatchTypeOf<{
+      id: string
+      title: string
+      status: "active" | "inactive"
+    }>()
   })
 
   it("matches the contract for Role and RoleStatus", () => {

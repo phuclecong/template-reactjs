@@ -299,8 +299,6 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /** @enum {string} */
-        UserRole: "admin" | "member";
-        /** @enum {string} */
         RoleStatus: "active" | "inactive";
         Role: {
             id: string;
@@ -381,12 +379,20 @@ export interface components {
              */
             code?: string;
         };
+        /** @description The Role identity and display summary embedded in a User. */
+        RoleSummary: {
+            id: string;
+            title: string;
+            status: components["schemas"]["RoleStatus"];
+        };
         User: {
             id: string;
             name: string;
             /** Format: email */
             email: string;
-            role: components["schemas"]["UserRole"];
+            /** @description The identity of the Role the User holds. */
+            roleId: string;
+            role: components["schemas"]["RoleSummary"];
             /** Format: date-time */
             createdAt: string;
         };
@@ -414,9 +420,11 @@ export interface components {
         RefreshResponse: {
             accessToken: string;
             refreshToken: string;
+            user: components["schemas"]["User"];
         };
         UpdateRoleRequest: {
-            role: components["schemas"]["UserRole"];
+            /** @description The identity of an existing, active Role to assign. Unknown or inactive Roles are rejected with 400. */
+            roleId: string;
         };
         Task: {
             id: string;
@@ -658,12 +666,13 @@ export interface operations {
             query?: {
                 /** @description Case-insensitive substring match on the user's name or email. */
                 q?: string;
-                role?: components["schemas"]["UserRole"];
+                /** @description Exact match on the Role identity the User holds. */
+                roleId?: string;
                 /** @description Number of matching users to skip before returning results. Defaults to 0. */
                 _start?: number;
                 /** @description Exclusive upper bound on the result slice. When omitted, all matching users after `_start` are returned. */
                 _end?: number;
-                /** @description Field to sort by: `name`, `email`, `role`, or `createdAt`. Defaults to `name`. */
+                /** @description Field to sort by: `name`, `email`, `roleId`, or `createdAt`. Defaults to `name`. */
                 _sort?: string;
                 /** @description Sort direction. Defaults to `asc`. */
                 _order?: "asc" | "desc";

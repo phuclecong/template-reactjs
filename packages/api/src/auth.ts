@@ -1,8 +1,7 @@
-import type { Role } from "./collections"
-
 export interface TokenClaims {
   sub: string
-  role: Role
+  /** The identity of the Role the User held when the token was issued. */
+  roleId: string
   type: "access" | "refresh"
 }
 
@@ -34,7 +33,7 @@ export function verifyToken(token: string): TokenClaims | null {
     const claims = JSON.parse(base64UrlDecode(token.slice(5))) as TokenClaims
     if (
       typeof claims.sub !== "string" ||
-      (claims.role !== "admin" && claims.role !== "member") ||
+      typeof claims.roleId !== "string" ||
       (claims.type !== "access" && claims.type !== "refresh")
     ) {
       return null

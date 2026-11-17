@@ -6,8 +6,6 @@ import { z } from "zod"
  * schema values without dragging `@msw/data` and the mock collections into
  * their chunks.
  */
-/** The closed `admin | member` user role enum, pending the Users migration. */
-export const roleSchema = z.enum(["admin", "member"])
 export const roleStatusSchema = z.enum(["active", "inactive"])
 export const taskStatusSchema = z.enum([
   "todo",
@@ -17,7 +15,6 @@ export const taskStatusSchema = z.enum([
 ])
 export const taskPrioritySchema = z.enum(["low", "medium", "high"])
 
-export type Role = z.infer<typeof roleSchema>
 export type RoleStatus = z.infer<typeof roleStatusSchema>
 export type TaskStatus = z.infer<typeof taskStatusSchema>
 export type TaskPriority = z.infer<typeof taskPrioritySchema>
@@ -32,17 +29,19 @@ export const roleRecordSchema = z.object({
   updatedAt: z.string().datetime({ offset: true }),
 })
 
+/** The Role identity and display summary embedded in a User response. */
+export const roleSummarySchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  status: roleStatusSchema,
+})
+
 export const userRecordSchema = z.object({
   id: z.string(),
   name: z.string(),
   email: z.string().email(),
-  role: roleSchema,
-  /**
-   * Role identity, added by the Users migration (ticket #64). Optional while
-   * the legacy `role` enum still drives User responses; the Role reference
-   * guard reads it when present so Role deletion is safe in both shapes.
-   */
-  roleId: z.string().optional(),
+  /** The identity of the Role the User holds; every User holds exactly one. */
+  roleId: z.string(),
   password: z.string(),
   createdAt: z.string(),
 })
@@ -85,3 +84,4 @@ export const taskRecordSchema = z.object({
 export type UserRecord = z.infer<typeof userRecordSchema>
 export type TaskRecord = z.infer<typeof taskRecordSchema>
 export type RoleRecord = z.infer<typeof roleRecordSchema>
+export type RoleSummary = z.infer<typeof roleSummarySchema>

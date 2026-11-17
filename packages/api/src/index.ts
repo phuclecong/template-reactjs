@@ -19,10 +19,10 @@ export {
 } from "./service"
 export type { AuthResponseBody, PublicUser, ServiceResult } from "./service"
 export type {
-  Role,
   RoleEntity,
   RoleRecord,
   RoleStatus,
+  RoleSummary,
   TaskEntity,
   TaskPriority,
   TaskRecord,
