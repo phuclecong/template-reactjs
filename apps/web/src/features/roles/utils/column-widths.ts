@@ -12,8 +12,8 @@ export const ROLE_COLUMN_WIDTHS = {
   status: 120,
   createdAt: 180,
   updatedAt: 180,
-  /** Administrator-only row-action column. */
-  actions: 96,
+  /** Administrator-only row-action column; holds Edit and Delete. */
+  actions: 150,
 } as const
 
 /** Widths in table order, for the table loading skeleton. */

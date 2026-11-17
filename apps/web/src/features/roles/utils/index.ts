@@ -1,3 +1,11 @@
+/** Seeded System Roles; their ids are immutable and deletion is forbidden. */
+export const SYSTEM_ROLE_IDS = ["rol_admin", "rol_member"] as const
+
+/** A System Role cannot be deleted or deactivated by the client. */
+export function isSystemRole(roleId: string): boolean {
+  return (SYSTEM_ROLE_IDS as readonly string[]).includes(roleId)
+}
+
 /** Administrator identity is holding the `rol_admin` System Role. */
 export function isAdministrator(
   user: { roleId: string } | null | undefined

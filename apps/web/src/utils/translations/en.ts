@@ -201,6 +201,11 @@ export const en = {
     },
     actions: "Actions",
     edit: "Edit",
+    delete: "Delete",
+    deleteTitle: "Delete role?",
+    deleteBody: "Delete {{title}}? This cannot be undone.",
+    deleted: "Role deleted",
+    deleteFailed: "Could not delete the role.",
     created: "Role created",
     updated: "Role updated",
     form: {

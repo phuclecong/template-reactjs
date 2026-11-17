@@ -201,6 +201,11 @@ export const vi: Translation = {
     },
     actions: "Hành động",
     edit: "Sửa",
+    delete: "Xóa",
+    deleteTitle: "Xóa vai trò?",
+    deleteBody: "Xóa {{title}}? Không thể hoàn tác.",
+    deleted: "Đã xóa vai trò",
+    deleteFailed: "Không thể xóa vai trò.",
     created: "Đã tạo vai trò",
     updated: "Đã cập nhật vai trò",
     form: {
