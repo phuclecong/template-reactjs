@@ -3,6 +3,7 @@ import { TableSkeleton } from "@workspace/shared-lib/components/table-skeleton"
 import { DEFAULT_PAGE_SIZE } from "@workspace/shared-lib/hooks/table-defaults"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 
+import { ROLE_SKELETON_COLUMN_WIDTHS } from "@/features/roles/utils/column-widths"
 import { TASK_SKELETON_COLUMN_WIDTHS } from "@/features/tasks/utils/column-widths"
 import { USER_SKELETON_COLUMN_WIDTHS } from "@/features/users/utils/column-widths"
 
@@ -101,21 +102,46 @@ export function AppShellSkeleton() {
   )
 }
 
-/** Table page skeleton for the Tasks and Users route chunks and identity wait. */
-export function TablePageSkeleton({ kind }: { kind: "tasks" | "users" }) {
+/** Table page skeleton for the Tasks, Users, and Roles route chunks. */
+export function TablePageSkeleton({
+  kind,
+}: {
+  kind: "tasks" | "users" | "roles"
+}) {
   const { t } = useTranslation()
   const isTasks = kind === "tasks"
+  const isRoles = kind === "roles"
+  const columnWidths = isTasks
+    ? TASK_SKELETON_COLUMN_WIDTHS
+    : isRoles
+      ? ROLE_SKELETON_COLUMN_WIDTHS
+      : USER_SKELETON_COLUMN_WIDTHS
+  const loadingLabel = isTasks
+    ? t("tasks.loading")
+    : isRoles
+      ? t("roles.loading")
+      : t("users.loading")
 
   return (
     <div className="flex flex-col gap-4 p-6 text-sm">
-      <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
-        <Skeleton className="h-8 w-72" />
-        <Skeleton className="h-8 w-56" />
-        <Skeleton className="h-8 w-56" />
-        <Skeleton className="h-8 w-56" />
-        <Skeleton className="h-8 w-48" />
-        <Bar height={28} width={80} />
-      </div>
+      {isRoles ? (
+        <div
+          className="flex flex-wrap items-center justify-between gap-2"
+          aria-hidden="true"
+        >
+          <Bar height={28} width={96} />
+          <Bar height={32} width={120} />
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
+          <Skeleton className="h-8 w-72" />
+          <Skeleton className="h-8 w-56" />
+          <Skeleton className="h-8 w-56" />
+          <Skeleton className="h-8 w-56" />
+          <Skeleton className="h-8 w-48" />
+          <Bar height={28} width={80} />
+        </div>
+      )}
       {isTasks ? (
         <div className="flex items-center gap-2" aria-hidden="true">
           <div className="ml-auto flex items-center gap-2">
@@ -125,11 +151,9 @@ export function TablePageSkeleton({ kind }: { kind: "tasks" | "users" }) {
         </div>
       ) : null}
       <TableSkeleton
-        columnWidths={
-          isTasks ? TASK_SKELETON_COLUMN_WIDTHS : USER_SKELETON_COLUMN_WIDTHS
-        }
+        columnWidths={columnWidths}
         rowCount={DEFAULT_PAGE_SIZE}
-        label={t(isTasks ? "tasks.loading" : "users.loading")}
+        label={loadingLabel}
       />
     </div>
   )

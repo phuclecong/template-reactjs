@@ -14,7 +14,9 @@ export const accessControlProvider: AccessControlProvider = {
     const user = await ensureAuthUser()
     if (!user) return { can: false }
     if (user.roleId === "rol_admin") return { can: true }
-    if (resource === "users") return { can: action === "list" }
+    if (resource === "users" || resource === "roles") {
+      return { can: action === "list" }
+    }
     return { can: true }
   },
 }

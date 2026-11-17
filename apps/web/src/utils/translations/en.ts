@@ -27,6 +27,7 @@ export const en = {
     nav: {
       tasks: "Tasks",
       users: "Users",
+      roles: "Roles",
       settings: "Settings",
     },
     section: {
@@ -177,6 +178,27 @@ export const en = {
     deleted: "User deleted",
     failedDelete: "Failed to delete user",
     roleLabel: "Role for {{name}}",
+  },
+  roles: {
+    title: "Roles",
+    create: "Create role",
+    loading: "Loading roles…",
+    empty: "No roles found.",
+    emptyHint: "Roles you create will appear here.",
+    error: "Could not load roles.",
+    retry: "Try again",
+    total: "{{total}} roles",
+    columns: {
+      title: "Title",
+      description: "Description",
+      status: "Status",
+      createdAt: "Created",
+      updatedAt: "Updated",
+    },
+    status: {
+      active: "active",
+      inactive: "inactive",
+    },
   },
   settings: {
     title: "Settings",

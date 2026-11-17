@@ -9,6 +9,7 @@ import {
   LayoutDashboardIcon,
   LogOutIcon,
   SettingsIcon,
+  ShieldIcon,
   UsersIcon,
 } from "lucide-react"
 import {
@@ -68,6 +69,12 @@ const NAV_SECTIONS = [
         labelKey: "shell.nav.users",
         url: "/users",
         icon: UsersIcon,
+      },
+      {
+        key: "roles",
+        labelKey: "shell.nav.roles",
+        url: "/roles",
+        icon: ShieldIcon,
       },
     ],
   },
