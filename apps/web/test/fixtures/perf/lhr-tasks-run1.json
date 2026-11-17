@@ -1,6 +1,6 @@
 {
-  "requestedUrl": "http://localhost:4173/dashboard/tasks",
-  "finalDisplayedUrl": "http://localhost:4173/dashboard/tasks",
+  "requestedUrl": "http://localhost:4173/tasks",
+  "finalDisplayedUrl": "http://localhost:4173/tasks",
   "categories": {
     "performance": {
       "score": 0.84

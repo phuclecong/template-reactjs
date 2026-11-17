@@ -60,13 +60,13 @@ const NAV_SECTIONS = [
       {
         key: "tasks",
         labelKey: "shell.nav.tasks",
-        url: "/dashboard/tasks",
+        url: "/tasks",
         icon: ClipboardListIcon,
       },
       {
         key: "users",
         labelKey: "shell.nav.users",
-        url: "/dashboard/users",
+        url: "/users",
         icon: UsersIcon,
       },
     ],
@@ -78,7 +78,7 @@ const NAV_SECTIONS = [
       {
         key: "settings",
         labelKey: "shell.nav.settings",
-        url: "/dashboard/settings",
+        url: "/settings",
         icon: SettingsIcon,
       },
     ],
@@ -115,7 +115,7 @@ export function AppSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton
               render={
-                <IntentLink to="/dashboard/tasks" onClick={handleNavigate} />
+                <IntentLink to="/dashboard" onClick={handleNavigate} />
               }
             >
               <LayoutDashboardIcon />
@@ -147,7 +147,10 @@ export function AppSidebar({
                     {section.items.map((item) => (
                       <SidebarMenuItem key={item.key}>
                         <SidebarMenuButton
-                          isActive={pathname === item.url}
+                          isActive={
+                            pathname === item.url ||
+                            pathname.startsWith(`${item.url}/`)
+                          }
                           tooltip={t(item.labelKey)}
                           render={
                             <IntentLink

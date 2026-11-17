@@ -71,7 +71,7 @@ describe("service-worker masking guard", () => {
 
   it("fails at the 256 B boundary but accepts an honest 511 B chunk", () => {
     const report = (transferSize: number) => ({
-      requestedUrl: "http://localhost:4173/dashboard/tasks",
+      requestedUrl: "http://localhost:4173/tasks",
       audits: {
         "network-requests": {
           details: {
@@ -141,7 +141,7 @@ describe("summarizeReports", () => {
   it("keeps the authenticated route separate", () => {
     const summary = summarizeReports(tasksRuns)
 
-    expect(summary.route).toBe("/dashboard/tasks")
+    expect(summary.route).toBe("/tasks")
     expect(summary.jsBytes).toBe(1_210_000)
     expect(summary.cssBytes).toBe(55_000)
     expect(summary.lcpMs).toBe(3200)
@@ -154,7 +154,7 @@ describe("summarizeReports", () => {
       finalDisplayedUrl: "http://localhost:4173/login",
     }))
 
-    expect(summarizeReports(bounced).route).toBe("/dashboard/tasks")
+    expect(summarizeReports(bounced).route).toBe("/tasks")
   })
 
   it("refuses to mix runs from different routes", () => {
@@ -167,7 +167,7 @@ describe("summarizeReports", () => {
 describe("compareToBudgets", () => {
   const budgets = {
     "/login": { jsBytes: 1_012_000, cssBytes: 50_000 },
-    "/dashboard/tasks": { jsBytes: 1_220_000, cssBytes: 55_000 },
+    "/tasks": { jsBytes: 1_220_000, cssBytes: 55_000 },
   }
 
   it("passes when the measured bytes equal the ceiling", () => {
@@ -186,7 +186,7 @@ describe("compareToBudgets", () => {
         ],
       },
       {
-        route: "/dashboard/tasks",
+        route: "/tasks",
         passed: true,
         entries: [
           { metric: "jsBytes", measured: 1_210_000, ceiling: 1_220_000, passed: true },
@@ -218,8 +218,8 @@ describe("compareToBudgets", () => {
 describe("routeFromUrl", () => {
   it("returns the pathname for a measured URL", () => {
     expect(routeFromUrl("http://localhost:4173/login")).toBe("/login")
-    expect(routeFromUrl("http://localhost:4173/dashboard/tasks")).toBe(
-      "/dashboard/tasks"
+    expect(routeFromUrl("http://localhost:4173/tasks")).toBe(
+      "/tasks"
     )
   })
 

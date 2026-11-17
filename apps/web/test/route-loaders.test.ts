@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 const loads = vi.hoisted(() => ({
   login: 0,
   register: 0,
+  dashboard: 0,
   tasks: 0,
   users: 0,
   settings: 0,
@@ -22,6 +23,10 @@ vi.mock("@/routes/login", () => {
 vi.mock("@/routes/register", () => {
   loads.register += 1
   return { RegisterPage: page() }
+})
+vi.mock("@/routes/dashboard", () => {
+  loads.dashboard += 1
+  return { DashboardPage: page() }
 })
 vi.mock("@/routes/tasks", () => {
   loads.tasks += 1
@@ -47,6 +52,7 @@ describe("route loaders", () => {
     expect(loads).toEqual({
       login: 0,
       register: 0,
+      dashboard: 0,
       tasks: 0,
       users: 0,
       settings: 0,
@@ -55,26 +61,27 @@ describe("route loaders", () => {
   })
 
   it("loads only the prefetched route", async () => {
-    await prefetchRoute("/dashboard/tasks")
+    await prefetchRoute("/tasks")
 
     expect(loads.tasks).toBe(1)
     expect(loads.users).toBe(0)
     expect(loads.settings).toBe(0)
+    expect(loads.dashboard).toBe(0)
     expect(loads.login).toBe(0)
     expect(loads.register).toBe(0)
   })
 
   it("leaves worker startup to the first /api request, not route loading", async () => {
-    await prefetchRoute("/dashboard/tasks")
-    await routeLoaders["/dashboard/tasks"]()
+    await prefetchRoute("/tasks")
+    await routeLoaders["/tasks"]()
     await prefetchRoute("/login")
 
     expect(ensureMockWorker).not.toHaveBeenCalled()
   })
 
   it("wraps each named route export as the default component lazy expects", async () => {
-    const tasks = await routeLoaders["/dashboard/tasks"]()
-    const settings = await routeLoaders["/dashboard/settings"]()
+    const tasks = await routeLoaders["/tasks"]()
+    const settings = await routeLoaders["/settings"]()
 
     expect(typeof tasks.default).toBe("function")
     expect(typeof settings.default).toBe("function")
@@ -83,5 +90,12 @@ describe("route loaders", () => {
   it("ignores paths that have no route chunk", async () => {
     await expect(prefetchRoute("/dashboard/unknown")).resolves.toBeUndefined()
     await expect(prefetchRoute("toString")).resolves.toBeUndefined()
+  })
+
+  it("resolves a legacy path without loading a chunk", async () => {
+    const before = { ...loads }
+
+    await expect(prefetchRoute("/dashboard/tasks")).resolves.toBeUndefined()
+    expect(loads).toEqual(before)
   })
 })

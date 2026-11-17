@@ -44,6 +44,19 @@ export function App() {
         <Providers>
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route
+              path="/dashboard/tasks"
+              element={<Navigate to="/tasks" replace />}
+            />
+            <Route
+              path="/dashboard/users"
+              element={<Navigate to="/users" replace />}
+            />
+            <Route
+              path="/dashboard/settings"
+              element={<Navigate to="/settings" replace />}
+            />
+
             <Route element={<RedirectIfAuthed />}>
               <Route
                 path="/login"
@@ -59,34 +72,34 @@ export function App() {
               />
             </Route>
             <Route element={<ProtectedRoute />}>
-              <Route path="/dashboard" element={<DashboardLayout />}>
+              <Route element={<DashboardLayout />}>
                 <Route
-                  index
-                  element={<Navigate to="/dashboard/tasks" replace />}
+                  path="/dashboard"
+                  element={<LazyRoute path="/dashboard" fallback={null} />}
                 />
                 <Route
-                  path="tasks"
+                  path="/tasks"
                   element={
                     <LazyRoute
-                      path="/dashboard/tasks"
+                      path="/tasks"
                       fallback={<TablePageSkeleton kind="tasks" />}
                     />
                   }
                 />
                 <Route
-                  path="users"
+                  path="/users"
                   element={
                     <LazyRoute
-                      path="/dashboard/users"
+                      path="/users"
                       fallback={<TablePageSkeleton kind="users" />}
                     />
                   }
                 />
                 <Route
-                  path="settings"
+                  path="/settings"
                   element={
                     <LazyRoute
-                      path="/dashboard/settings"
+                      path="/settings"
                       fallback={<SettingsPageSkeleton />}
                     />
                   }
