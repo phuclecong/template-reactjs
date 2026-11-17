@@ -1,7 +1,7 @@
 import type { Decorator, Preview } from "@storybook/react"
 import { useEffect, type ReactNode } from "react"
 
-import "../src/styles/globals.css"
+import "../src/styles/storybook.css"
 
 /**
  * Global light/dark theme toolbar. The design system's tokens are

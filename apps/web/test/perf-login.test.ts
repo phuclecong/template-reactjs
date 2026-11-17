@@ -108,7 +108,7 @@ describe("perf login step", () => {
     expect(page.evaluateOnNewDocument).not.toHaveBeenCalled()
   })
 
-  it.each(["/dashboard", "/tasks", "/users", "/settings"])(
+  it.each(["/dashboard", "/tasks", "/users", "/roles", "/settings"])(
     "seeds every authenticated route (%s)",
     async (route) => {
       const page = fakePage()

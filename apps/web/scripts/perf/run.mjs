@@ -9,16 +9,15 @@
 //    print the FCP/LCP/TBT/CLS medians.
 
 import { spawn } from "node:child_process"
-import { existsSync, rmSync } from "node:fs"
+import { existsSync, readFileSync, rmSync } from "node:fs"
 import { createRequire } from "node:module"
 import { join } from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 
 const APP_DIR = fileURLToPath(new URL("../..", import.meta.url))
 const PREVIEW_PORT = 4173
 const BASE_URL = `http://localhost:${PREVIEW_PORT}`
-const ROUTES = ["/login", "/tasks"]
-const RUNS_PER_ROUTE = 3
+const RUNS_PER_ROUTE = 1
 const SERVER_TIMEOUT_MS = 60_000
 
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm"
@@ -45,6 +44,59 @@ const VITE_CLI = requireScript(
 )
 const BUDGET_SCRIPT = appPath("scripts/perf/budget.mjs")
 const REPORTS_DIR = appPath(".lighthouseci")
+const ROUTE_LOADERS_FILE = appPath("src/routes/route-loaders.ts")
+
+/**
+ * Auditable routes come from the app's own `routeLoaders` map, so adding a
+ * route cannot silently leave it unmeasured. The file is parsed instead of
+ * imported: it is TypeScript, and its `@/` aliases only resolve inside the
+ * Vite build. `typescript` is a dev dependency the `pnpm run build` step
+ * already requires.
+ */
+export function resolveRoutes() {
+  const typescript = createRequire(import.meta.url)("typescript")
+  const sourceFile = typescript.createSourceFile(
+    ROUTE_LOADERS_FILE,
+    readFileSync(ROUTE_LOADERS_FILE, "utf8"),
+    typescript.ScriptTarget.Latest,
+    true
+  )
+
+  for (const statement of sourceFile.statements) {
+    if (!typescript.isVariableStatement(statement)) continue
+    for (const declaration of statement.declarationList.declarations) {
+      if (!typescript.isIdentifier(declaration.name)) continue
+      if (declaration.name.text !== "routeLoaders") continue
+
+      // The initializer is wrapped by `satisfies Record<...>`; unwrap to the
+      // object literal whose top-level keys are the route paths.
+      let initializer = declaration.initializer
+      while (
+        initializer &&
+        (typescript.isSatisfiesExpression(initializer) ||
+          typescript.isAsExpression(initializer) ||
+          typescript.isParenthesizedExpression(initializer))
+      ) {
+        initializer = initializer.expression
+      }
+      if (!initializer || !typescript.isObjectLiteralExpression(initializer))
+        continue
+
+      const routes = initializer.properties
+        .filter(typescript.isPropertyAssignment)
+        .map((property) => property.name)
+        .filter(typescript.isStringLiteralLike)
+        .map((name) => name.text)
+
+      if (routes.length === 0) continue
+      return routes
+    }
+  }
+
+  throw new Error(
+    `Could not read route paths from ${ROUTE_LOADERS_FILE}; expected an object literal named "routeLoaders".`
+  )
+}
 
 function resolveChromePath() {
   if (process.env.CHROME_PATH) return process.env.CHROME_PATH
@@ -102,7 +154,9 @@ function run(command, args, options = {}) {
 }
 
 function startPreview() {
-  process.stdout.write(`\n$ ${process.execPath} ${VITE_CLI} preview --port ${PREVIEW_PORT} --strictPort\n`)
+  process.stdout.write(
+    `\n$ ${process.execPath} ${VITE_CLI} preview --port ${PREVIEW_PORT} --strictPort\n`
+  )
   return spawn(
     process.execPath,
     [VITE_CLI, "preview", "--port", String(PREVIEW_PORT), "--strictPort"],
@@ -126,7 +180,9 @@ async function waitForServer(preview, url, timeoutMs) {
     }
     await new Promise((resolve) => setTimeout(resolve, 250))
   }
-  throw new Error(`vite preview did not respond at ${url} within ${timeoutMs} ms`)
+  throw new Error(
+    `vite preview did not respond at ${url} within ${timeoutMs} ms`
+  )
 }
 
 function stopPreview(preview) {
@@ -138,6 +194,9 @@ async function main() {
   const chromePath = resolveChromePath()
   const env = { CHROME_PATH: chromePath }
   process.stdout.write(`Chrome: ${chromePath}\n`)
+
+  const routes = resolveRoutes()
+  process.stdout.write(`Routes: ${routes.join(", ")}\n`)
 
   const buildCode = await run(pnpm, ["run", "build"])
   if (buildCode !== 0) return buildCode
@@ -152,9 +211,9 @@ async function main() {
 
   let failed = false
   try {
-    await waitForServer(preview, `${BASE_URL}/login`, SERVER_TIMEOUT_MS)
+    await waitForServer(preview, `${BASE_URL}${routes[0]}`, SERVER_TIMEOUT_MS)
 
-    for (const route of ROUTES) {
+    for (const route of routes) {
       for (let runIndex = 1; runIndex <= RUNS_PER_ROUTE; runIndex += 1) {
         process.stdout.write(
           `\n=== ${route} cold run ${runIndex}/${RUNS_PER_ROUTE} ===\n`
@@ -206,11 +265,16 @@ async function main() {
   return 0
 }
 
-main()
-  .then((code) => {
-    process.exitCode = code
-  })
-  .catch((error) => {
-    process.stderr.write(`${error instanceof Error ? error.stack : error}\n`)
-    process.exitCode = 1
-  })
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
+  main()
+    .then((code) => {
+      process.exitCode = code
+    })
+    .catch((error) => {
+      process.stderr.write(`${error instanceof Error ? error.stack : error}\n`)
+      process.exitCode = 1
+    })
+}

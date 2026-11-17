@@ -180,9 +180,9 @@ test("status filter selects one or several statuses", async ({ page }) => {
 
   // No selection is the default: both active and inactive Roles are listed.
   await expect(page.getByText("60 roles")).toBeVisible()
-  await expect(page.getByText("active", { exact: true }).first()).toBeVisible()
+  await expect(page.getByText("Active", { exact: true }).first()).toBeVisible()
   await expect(
-    page.getByText("inactive", { exact: true }).first()
+    page.getByText("Inactive", { exact: true }).first()
   ).toBeVisible()
   expect(readFilters(page)).toHaveLength(0)
 
@@ -191,7 +191,7 @@ test("status filter selects one or several statuses", async ({ page }) => {
   await expect(page.getByText("29 roles")).toBeVisible()
   await expect(page.locator("tbody tr")).toHaveCount(29)
   await expect(
-    page.locator("tbody").getByText("inactive", { exact: true })
+    page.locator("tbody").getByText("Inactive", { exact: true })
   ).toHaveCount(29)
 
   // Adding a second status widens the match to either value (OR within the

@@ -12,7 +12,7 @@
  *
  * Instead, inject the deterministic mock session into the audited page target
  * before any app module runs. The authenticated routes (`/dashboard`, `/tasks`,
- * `/users`, `/settings`) are then authenticated, while the mock worker and the
+ * `/users`, `/roles`, `/settings`) are then authenticated, while the mock worker and the
  * 150-task seed still start on the first `/api` request inside the audit — the
  * cold first visit the spec measures.
  *
@@ -28,6 +28,7 @@ const AUTHENTICATED_ROUTES = new Set([
   "/dashboard",
   "/tasks",
   "/users",
+  "/roles",
   "/settings",
 ])
 const SESSION_KEY = "auth.session"

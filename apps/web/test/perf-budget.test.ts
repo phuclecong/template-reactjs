@@ -6,6 +6,7 @@ import {
   compareToBudgets,
   median,
   routeFromUrl,
+  routesToCompare,
   summarizeReports,
   sumTransferBytes,
 } from "../scripts/perf/budget.mjs"
@@ -212,6 +213,62 @@ describe("compareToBudgets", () => {
     expect(() => compareToBudgets([summarizeReports(loginRuns)], {})).toThrow(
       /No perf budget/
     )
+  })
+
+  it("applies the default budget to a route without an entry", () => {
+    const comparison = compareToBudgets([summarizeReports(tasksRuns)], {
+      "*": { jsBytes: 1_220_000, cssBytes: 55_000 },
+    })
+
+    expect(comparison).toEqual([
+      {
+        route: "/tasks",
+        passed: true,
+        entries: [
+          { metric: "jsBytes", measured: 1_210_000, ceiling: 1_220_000, passed: true },
+          { metric: "cssBytes", measured: 55_000, ceiling: 55_000, passed: true },
+        ],
+      },
+    ])
+  })
+
+  it("lets a route entry override selected metrics from the default", () => {
+    const comparison = compareToBudgets([summarizeReports(loginRuns)], {
+      "*": { jsBytes: 2_000_000, cssBytes: 40_000 },
+      "/login": { jsBytes: 1_000_000 },
+    })
+
+    expect(comparison[0]?.entries).toEqual([
+      { metric: "jsBytes", measured: 1_012_000, ceiling: 1_000_000, passed: false },
+      { metric: "cssBytes", measured: 50_000, ceiling: 40_000, passed: false },
+    ])
+  })
+})
+
+describe("routesToCompare", () => {
+  it("keeps budget-file order and ignores the default key", () => {
+    expect(
+      routesToCompare({ "*": {}, "/tasks": {}, "/login": {} }, [
+        "/login",
+        "/tasks",
+      ])
+    ).toEqual(["/tasks", "/login"])
+  })
+
+  it("adds report routes covered by the default, sorted after explicit ones", () => {
+    expect(
+      routesToCompare({ "/login": {}, "*": {} }, [
+        "/settings",
+        "/tasks",
+        "/login",
+      ])
+    ).toEqual(["/login", "/settings", "/tasks"])
+  })
+
+  it("ignores report routes when there is no default", () => {
+    expect(routesToCompare({ "/login": {} }, ["/login", "/tasks"])).toEqual([
+      "/login",
+    ])
   })
 })
 

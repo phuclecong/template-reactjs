@@ -16,11 +16,17 @@ function InteractiveDateRangePicker(props: DateRangePickerProps) {
   return <DateRangePicker {...props} value={value} onChange={setValue} />
 }
 
-function clickCalendarDay(date: Date) {
+async function clickCalendarDay(date: Date) {
   const label = date.toLocaleDateString("en-US")
-  const cell = document.querySelector<HTMLElement>(`[data-day="${label}"]`)
-  if (!cell) throw new Error(`No calendar day found for ${label}`)
-  return userEvent.click(cell)
+  // The calendar body is a lazy chunk; wait for it to mount before clicking.
+  const cell = await waitFor(() => {
+    const element = document.querySelector<HTMLElement>(
+      `[data-day="${label}"]`
+    )
+    if (!element) throw new Error(`No calendar day found for ${label}`)
+    return element
+  })
+  await userEvent.click(cell)
 }
 
 const meta = {
@@ -69,7 +75,7 @@ export const FromOnly: Story = {
       within(document.body).getByRole("button", { name: "From" })
     )
     await userEvent.click(
-      within(document.body).getByRole("button", {
+      await within(document.body).findByRole("button", {
         name: /January 8th, 2026/,
       })
     )
@@ -91,7 +97,7 @@ export const UntilOnly: Story = {
       within(document.body).getByRole("button", { name: "Until" })
     )
     await userEvent.click(
-      within(document.body).getByRole("button", {
+      await within(document.body).findByRole("button", {
         name: /January 8th, 2026/,
       })
     )

@@ -40,9 +40,7 @@ test("navigates to Roles and renders the server-paged default view", async ({
   ).toBeVisible()
 
   // Defaults (page 1, size 30, updatedAt descending) are omitted from the URL.
-  await expect
-    .poll(() => new URL(page.url()).searchParams.toString())
-    .toBe("")
+  await expect.poll(() => new URL(page.url()).searchParams.toString()).toBe("")
 
   // updatedAt descending puts the newest System Role first, then the older one.
   const rows = page.locator("tbody tr")
@@ -59,8 +57,8 @@ test("navigates to Roles and renders the server-paged default view", async ({
   )
 
   // Active and inactive Roles are both listed with status badges.
-  await expect(rows.nth(0).getByText("active", { exact: true })).toBeVisible()
-  await expect(rows.nth(2).getByText("inactive", { exact: true })).toBeVisible()
+  await expect(rows.nth(0).getByText("Active", { exact: true })).toBeVisible()
+  await expect(rows.nth(2).getByText("Inactive", { exact: true })).toBeVisible()
 
   // Long descriptions stay readable through a tooltip.
   const description = rows

@@ -25,6 +25,10 @@ const LHR_FILE = /^lhr-.*\.json$/
 // 511 B, leaving headroom above the threshold.
 const HEADER_ONLY_TRANSFER_LIMIT = 256
 
+// A budget entry keyed by `*` supplies defaults that every audited route
+// inherits; a route-specific entry overrides it metric by metric.
+const DEFAULT_BUDGET_KEY = "*"
+
 const TIMING_AUDITS = [
   ["first-contentful-paint", "fcpMs"],
   ["largest-contentful-paint", "lcpMs"],
@@ -169,18 +173,41 @@ export function summarizeReports(reports) {
   }
 }
 
+/** Route keys in the budget file, in file order, excluding the `"*"` default. */
+export function budgetedRoutes(budgets) {
+  return Object.keys(budgets).filter((route) => route !== DEFAULT_BUDGET_KEY)
+}
+
+/**
+ * Routes to compare, in stable output order: the budget file's explicit
+ * routes first, then any reported route covered only by the `"*"` default.
+ */
+export function routesToCompare(budgets, reportRoutes) {
+  const explicit = budgetedRoutes(budgets)
+  const extra = Object.hasOwn(budgets, DEFAULT_BUDGET_KEY)
+    ? [...reportRoutes].filter((route) => !explicit.includes(route)).sort()
+    : []
+  return [...explicit, ...extra]
+}
+
 /**
  * Compares route summaries against the configured ceilings.
- * Returns one result per route with per-metric `passed` flags.
+ * A `"*"` entry supplies defaults for every route; a route-specific entry
+ * overrides it metric by metric. Returns one result per route with per-metric
+ * `passed` flags.
  */
 export function compareToBudgets(summaries, budgets) {
   return summaries.map((summary) => {
-    const budget = budgets[summary.route]
-    if (!budget) {
+    if (
+      !Object.hasOwn(budgets, summary.route) &&
+      !Object.hasOwn(budgets, DEFAULT_BUDGET_KEY)
+    ) {
       throw new Error(
         `No perf budget for "${summary.route}" in perf-budgets.json`
       )
     }
+
+    const budget = { ...budgets[DEFAULT_BUDGET_KEY], ...budgets[summary.route] }
 
     const entries = ["jsBytes", "cssBytes"].map((metric) => {
       const ceiling = budget[metric]
@@ -309,7 +336,7 @@ export function main(argv = process.argv.slice(2)) {
   const budgets = JSON.parse(readFileSync(options.budgets, "utf8"))
   const grouped = groupByRoute(readReports(options.reports))
 
-  const missingRoutes = Object.keys(budgets).filter(
+  const missingRoutes = budgetedRoutes(budgets).filter(
     (route) => !grouped.has(route)
   )
   if (missingRoutes.length) {
@@ -318,8 +345,9 @@ export function main(argv = process.argv.slice(2)) {
     )
   }
 
-  // Follow the budget file's route order so the output is stable.
-  const summaries = Object.keys(budgets).map((route) =>
+  // A `"*"` default covers every report, so routes without an explicit entry
+  // are checked too. Without one, only the budget file's routes are checked.
+  const summaries = routesToCompare(budgets, grouped.keys()).map((route) =>
     summarizeReports(grouped.get(route))
   )
   const comparisons = compareToBudgets(summaries, budgets)

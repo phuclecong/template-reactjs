@@ -88,7 +88,7 @@ test("admin creates a role with inline validation, a toast, and a refreshed list
     .getByRole("row")
     .filter({ hasText: "Support Engineer" })
   await expect(createdRow).toBeVisible()
-  await expect(createdRow.getByText("active", { exact: true })).toBeVisible()
+  await expect(createdRow.getByText("Active", { exact: true })).toBeVisible()
   await expect(createdRow).toContainText("Handles customer tickets.")
 
   // The business event carries the Role id and no free text.
