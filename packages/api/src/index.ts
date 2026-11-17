@@ -1,6 +1,15 @@
 export { handlers, specHandlers } from "./handlers"
 export { dataHandlers } from "./data-handlers"
-export { ensureSeedUsers, resetDb, seedDb, tasks, users } from "./collections"
+export {
+  ensureSeedRoles,
+  ensureSeedUsers,
+  resetDb,
+  roleSeeds,
+  roles,
+  seedDb,
+  tasks,
+  users,
+} from "./collections"
 export {
   getUserByAccessToken,
   loginUser,
@@ -11,6 +20,9 @@ export {
 export type { AuthResponseBody, PublicUser, ServiceResult } from "./service"
 export type {
   Role,
+  RoleEntity,
+  RoleRecord,
+  RoleStatus,
   TaskEntity,
   TaskPriority,
   TaskRecord,
