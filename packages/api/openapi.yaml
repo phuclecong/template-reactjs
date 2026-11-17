@@ -525,6 +525,88 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [roles]
+      operationId: createRole
+      summary: Create a role (administrators only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleCreateRequest"
+      responses:
+        "201":
+          description: Created role.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /roles/bulk:
+    patch:
+      tags: [roles]
+      operationId: bulkUpdateRoles
+      summary: Update several roles at once (administrators only)
+      description: >-
+        Partial update of `description` and/or `status` on several roles. Titles
+        cannot be bulk edited because they are unique. Per-id failures are
+        reported in the response. System Roles cannot be set to `inactive`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleBulkUpdateRequest"
+      responses:
+        "200":
+          description: Result of the bulk update; per-id failures are reported.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleBulkUpdateResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /roles/bulk-delete:
+    post:
+      tags: [roles]
+      operationId: bulkDeleteRoles
+      summary: Delete several roles at once (administrators only)
+      description: >-
+        Deletes several roles. Per-id failures are reported in the response.
+        System Roles and roles held by a User cannot be deleted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleBulkDeleteRequest"
+      responses:
+        "200":
+          description: Result of the bulk delete; per-id failures are reported.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleBulkDeleteResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 
   /roles/{id}:
     get:
@@ -548,6 +630,66 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [roles]
+      operationId: updateRole
+      summary: Partially update a role (administrators only)
+      description: >-
+        Only the supplied fields change. `id` and `createdAt` are immutable, and
+        server-managed timestamps cannot be set by the client. A System Role
+        cannot be set to `inactive`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleUpdateRequest"
+      responses:
+        "200":
+          description: Updated role.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    delete:
+      tags: [roles]
+      operationId: deleteRole
+      summary: Delete a role (administrators only)
+      description: >-
+        A System Role or a Role held by a User cannot be deleted.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
 
   /password:
     put:
@@ -595,6 +737,98 @@ components:
         updatedAt:
           type: string
           format: date-time
+    RoleCreateRequest:
+      type: object
+      required: [title]
+      description: "`status` defaults to `active`."
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Trimmed before storage; must be unique case-insensitively.
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Trimmed before storage; a blank value is stored as null.
+        status:
+          $ref: "#/components/schemas/RoleStatus"
+    RoleUpdateRequest:
+      type: object
+      description: >-
+        Only the supplied fields change. `id`, `createdAt`, and `updatedAt` are
+        server-managed and cannot be set.
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Trimmed before storage; must be unique case-insensitively.
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Trimmed before storage; a blank value is stored as null.
+        status:
+          $ref: "#/components/schemas/RoleStatus"
+    RoleBulkUpdateRequest:
+      type: object
+      required: [ids]
+      description: >-
+        At least one of description or status must be present. `title` cannot be
+        bulk edited.
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        description:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Trimmed before storage; null clears the description.
+        status:
+          $ref: "#/components/schemas/RoleStatus"
+    RoleBulkUpdateResponse:
+      type: object
+      required: [updated, failed]
+      properties:
+        updated:
+          type: integer
+        failed:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoleBulkFailure"
+    RoleBulkDeleteRequest:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          items:
+            type: string
+    RoleBulkDeleteResponse:
+      type: object
+      required: [deleted, failed]
+      properties:
+        deleted:
+          type: integer
+        failed:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoleBulkFailure"
+    RoleBulkFailure:
+      type: object
+      required: [id, reason]
+      properties:
+        id:
+          type: string
+        reason:
+          type: string
+          enum: [not_found, system_role, referenced, validation]
     Status:
       type: string
       enum: [todo, in-progress, done, blocked]

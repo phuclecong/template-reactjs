@@ -8,7 +8,7 @@ import {
   it,
 } from "vitest"
 import { setupServer } from "msw/node"
-import { handlers, resetDb, roles, tasks } from "../src/index"
+import { handlers, resetDb, roles, tasks, users } from "../src/index"
 
 // The read path interprets legacy date-only records as local midnight. Pin the
 // test process to UTC so the expected instants are deterministic.
@@ -1211,6 +1211,673 @@ describe("roles", () => {
     expect(res.status).toBe(404)
     const body = (await res.json()) as { code: string }
     expect(body.code).toBe("not_found")
+  })
+})
+
+interface RoleWrite {
+  method: string
+  path: string
+  body?: unknown
+}
+
+const roleWrites: RoleWrite[] = [
+  { method: "POST", path: "/api/roles", body: { title: "New Role" } },
+  {
+    method: "PATCH",
+    path: "/api/roles/rol_demo_01",
+    body: { description: "Changed" },
+  },
+  {
+    method: "PATCH",
+    path: "/api/roles/bulk",
+    body: { ids: ["rol_demo_01"], status: "active" },
+  },
+  {
+    method: "POST",
+    path: "/api/roles/bulk-delete",
+    body: { ids: ["rol_demo_01"] },
+  },
+  { method: "DELETE", path: "/api/roles/rol_demo_01" },
+]
+
+describe("role writes", () => {
+  it("rejects anonymous writes with 401", async () => {
+    for (const write of roleWrites) {
+      const res = await api(write.path, {
+        method: write.method,
+        body: write.body,
+      })
+      expect([write.method, write.path, res.status]).toEqual([
+        write.method,
+        write.path,
+        401,
+      ])
+    }
+  })
+
+  it("rejects member writes with 403", async () => {
+    const { accessToken } = await login("member@example.com", "memberpass")
+    for (const write of roleWrites) {
+      const res = await api(write.path, {
+        method: write.method,
+        token: accessToken,
+        body: write.body,
+      })
+      expect([write.method, write.path, res.status]).toEqual([
+        write.method,
+        write.path,
+        403,
+      ])
+      const body = (await res.json()) as { code: string }
+      expect(body.code).toBe("forbidden")
+    }
+    // The rejected writes left every seeded role untouched.
+    expect(roles.all()).toHaveLength(60)
+  })
+
+  describe("create", () => {
+    it("creates a role with a trimmed title, default active status, and server-managed fields", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      const before = Date.now()
+
+      const res = await api("/api/roles", {
+        method: "POST",
+        token: accessToken,
+        body: { title: "  Support Lead  " },
+      })
+      expect(res.status).toBe(201)
+      const role = (await res.json()) as RoleRow
+      expect(role.title).toBe("Support Lead")
+      expect(role.description).toBeNull()
+      expect(role.status).toBe("active")
+      expect(role.id).toMatch(/^rol_[0-9a-f-]{36}$/)
+      expect(role.createdAt).toBe(role.updatedAt)
+      expect(Date.parse(role.createdAt)).toBeGreaterThanOrEqual(before)
+      expect(Date.parse(role.createdAt)).toBeLessThanOrEqual(Date.now())
+
+      const list = await api("/api/roles?title_like=support%20lead", {
+        token: accessToken,
+      })
+      const rows = (await list.json()) as RoleRow[]
+      expect(rows.map((row) => row.id)).toEqual([role.id])
+    })
+
+    it("trims the description and stores a blank description as null", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+
+      const withText = await api("/api/roles", {
+        method: "POST",
+        token: accessToken,
+        body: { title: "Ops", description: "  Owns operations.  " },
+      })
+      expect(withText.status).toBe(201)
+      expect(((await withText.json()) as RoleRow).description).toBe(
+        "Owns operations."
+      )
+
+      const blank = await api("/api/roles", {
+        method: "POST",
+        token: accessToken,
+        body: { title: "Blank", description: "   " },
+      })
+      expect(blank.status).toBe(201)
+      expect(((await blank.json()) as RoleRow).description).toBeNull()
+
+      const explicitNull = await api("/api/roles", {
+        method: "POST",
+        token: accessToken,
+        body: { title: "Explicit Null", description: null },
+      })
+      expect(explicitNull.status).toBe(201)
+      expect(((await explicitNull.json()) as RoleRow).description).toBeNull()
+    })
+
+    it("accepts an explicit inactive status", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      const res = await api("/api/roles", {
+        method: "POST",
+        token: accessToken,
+        body: { title: "Retired", status: "inactive" },
+      })
+      expect(res.status).toBe(201)
+      expect(((await res.json()) as RoleRow).status).toBe("inactive")
+    })
+
+    it("rejects blank, whitespace-only, non-string, and over-100 titles with 400", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      for (const title of ["", "   ", 42, "x".repeat(101)]) {
+        const res = await api("/api/roles", {
+          method: "POST",
+          token: accessToken,
+          body: { title },
+        })
+        expect(res.status).toBe(400)
+        const body = (await res.json()) as { code: string }
+        expect(body.code).toBe("invalid_request")
+      }
+    })
+
+    it("accepts a title of exactly 100 characters after trimming", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      const res = await api("/api/roles", {
+        method: "POST",
+        token: accessToken,
+        body: { title: `  ${"x".repeat(100)}  ` },
+      })
+      expect(res.status).toBe(201)
+      expect(((await res.json()) as RoleRow).title).toBe("x".repeat(100))
+    })
+
+    it("rejects an over-500 description but accepts exactly 500", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+
+      const tooLong = await api("/api/roles", {
+        method: "POST",
+        token: accessToken,
+        body: { title: "Too Long", description: "d".repeat(501) },
+      })
+      expect(tooLong.status).toBe(400)
+
+      const max = await api("/api/roles", {
+        method: "POST",
+        token: accessToken,
+        body: { title: "At Max", description: `  ${"d".repeat(500)}  ` },
+      })
+      expect(max.status).toBe(201)
+      expect(((await max.json()) as RoleRow).description).toBe("d".repeat(500))
+    })
+
+    it("rejects an invalid status with 400", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      const res = await api("/api/roles", {
+        method: "POST",
+        token: accessToken,
+        body: { title: "Bad Status", status: "archived" },
+      })
+      expect(res.status).toBe(400)
+    })
+
+    it("rejects a duplicate title case-insensitively after trimming with 409", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      for (const title of ["Administrator", "  administrator  "]) {
+        const res = await api("/api/roles", {
+          method: "POST",
+          token: accessToken,
+          body: { title },
+        })
+        expect(res.status).toBe(409)
+        const body = (await res.json()) as { code: string }
+        expect(body.code).toBe("duplicate_title")
+      }
+    })
+
+    it("ignores client-supplied ids and timestamps on create", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      const res = await api("/api/roles", {
+        method: "POST",
+        token: accessToken,
+        body: {
+          id: "rol_client",
+          createdAt: "2000-01-01T00:00:00.000Z",
+          updatedAt: "2000-01-01T00:00:00.000Z",
+          title: "Client Fields",
+        },
+      })
+      expect(res.status).toBe(201)
+      const role = (await res.json()) as RoleRow
+      expect(role.id).not.toBe("rol_client")
+      expect(role.id).toMatch(/^rol_[0-9a-f-]{36}$/)
+      expect(Date.parse(role.createdAt)).toBeGreaterThan(
+        Date.parse("2020-01-01T00:00:00.000Z")
+      )
+      expect(role.updatedAt).toBe(role.createdAt)
+    })
+  })
+
+  describe("update", () => {
+    it("changes only supplied fields and refreshes updatedAt", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      const beforeRes = await api("/api/roles/rol_demo_01", {
+        token: accessToken,
+      })
+      const before = (await beforeRes.json()) as RoleRow
+      expect(before.title).toBe("Demo Role 01")
+      expect(before.status).toBe("active")
+
+      const res = await api("/api/roles/rol_demo_01", {
+        method: "PATCH",
+        token: accessToken,
+        body: { description: "  New description  " },
+      })
+      expect(res.status).toBe(200)
+      const updated = (await res.json()) as RoleRow
+      expect(updated.title).toBe(before.title)
+      expect(updated.status).toBe(before.status)
+      expect(updated.description).toBe("New description")
+      expect(updated.createdAt).toBe(before.createdAt)
+      expect(Date.parse(updated.updatedAt)).toBeGreaterThan(
+        Date.parse(before.updatedAt)
+      )
+
+      const stored = await api("/api/roles/rol_demo_01", {
+        token: accessToken,
+      })
+      expect(((await stored.json()) as RoleRow).description).toBe(
+        "New description"
+      )
+    })
+
+    it("trims a new title and stores a blank description as null", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      const res = await api("/api/roles/rol_demo_02", {
+        method: "PATCH",
+        token: accessToken,
+        body: { title: "  Renamed Role  ", description: "   " },
+      })
+      expect(res.status).toBe(200)
+      const updated = (await res.json()) as RoleRow
+      expect(updated.title).toBe("Renamed Role")
+      expect(updated.description).toBeNull()
+    })
+
+    it("cannot change the id or createdAt", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      const beforeRes = await api("/api/roles/rol_demo_03", {
+        token: accessToken,
+      })
+      const before = (await beforeRes.json()) as RoleRow
+
+      const res = await api("/api/roles/rol_demo_03", {
+        method: "PATCH",
+        token: accessToken,
+        body: {
+          id: "rol_hijacked",
+          createdAt: "2000-01-01T00:00:00.000Z",
+          description: "Id immutable",
+        },
+      })
+      expect(res.status).toBe(200)
+      const updated = (await res.json()) as RoleRow
+      expect(updated.id).toBe("rol_demo_03")
+      expect(updated.createdAt).toBe(before.createdAt)
+    })
+
+    it("returns 404 for a missing role", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      const res = await api("/api/roles/rol_missing", {
+        method: "PATCH",
+        token: accessToken,
+        body: { description: "Nope" },
+      })
+      expect(res.status).toBe(404)
+      expect(((await res.json()) as { code: string }).code).toBe("not_found")
+    })
+
+    it("rejects invalid title, description, and status values with 400", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      for (const body of [
+        { title: "   " },
+        { title: 42 },
+        { title: "x".repeat(101) },
+        { description: 42 },
+        { description: "d".repeat(501) },
+        { status: "archived" },
+      ]) {
+        const res = await api("/api/roles/rol_demo_04", {
+          method: "PATCH",
+          token: accessToken,
+          body,
+        })
+        expect(res.status).toBe(400)
+        expect(((await res.json()) as { code: string }).code).toBe(
+          "invalid_request"
+        )
+      }
+    })
+
+    it("rejects a duplicate title case-insensitively but allows its own title", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+
+      const own = await api("/api/roles/rol_demo_05", {
+        method: "PATCH",
+        token: accessToken,
+        body: { title: "demo role 05" },
+      })
+      expect(own.status).toBe(200)
+
+      const duplicate = await api("/api/roles/rol_demo_05", {
+        method: "PATCH",
+        token: accessToken,
+        body: { title: "  ADMINISTRATOR  " },
+      })
+      expect(duplicate.status).toBe(409)
+      expect(((await duplicate.json()) as { code: string }).code).toBe(
+        "duplicate_title"
+      )
+    })
+
+    it("edits a System Role's title and description but refuses to deactivate it", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+
+      const edit = await api("/api/roles/rol_admin", {
+        method: "PATCH",
+        token: accessToken,
+        body: {
+          title: "Chief Administrator",
+          description: "  Runs the place.  ",
+          id: "rol_other",
+        },
+      })
+      expect(edit.status).toBe(200)
+      const edited = (await edit.json()) as RoleRow
+      expect(edited.id).toBe("rol_admin")
+      expect(edited.title).toBe("Chief Administrator")
+      expect(edited.description).toBe("Runs the place.")
+      expect(edited.status).toBe("active")
+
+      const deactivate = await api("/api/roles/rol_admin", {
+        method: "PATCH",
+        token: accessToken,
+        body: { status: "inactive" },
+      })
+      expect(deactivate.status).toBe(409)
+      expect(((await deactivate.json()) as { code: string }).code).toBe(
+        "system_role"
+      )
+    })
+  })
+
+  describe("delete", () => {
+    it("deletes a demo role that no user holds", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+
+      const res = await api("/api/roles/rol_demo_07", {
+        method: "DELETE",
+        token: accessToken,
+      })
+      expect(res.status).toBe(204)
+
+      const gone = await api("/api/roles/rol_demo_07", { token: accessToken })
+      expect(gone.status).toBe(404)
+      expect(roles.all()).toHaveLength(59)
+    })
+
+    it("returns 404 for a missing role", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      const res = await api("/api/roles/rol_missing", {
+        method: "DELETE",
+        token: accessToken,
+      })
+      expect(res.status).toBe(404)
+      expect(((await res.json()) as { code: string }).code).toBe("not_found")
+    })
+
+    it("refuses to delete a role held by a user", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      await users.create({
+        id: "usr_holder",
+        name: "Role Holder",
+        email: "holder@example.com",
+        role: "member",
+        roleId: "rol_demo_06",
+        password: "holderpass",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      })
+
+      const res = await api("/api/roles/rol_demo_06", {
+        method: "DELETE",
+        token: accessToken,
+      })
+      expect(res.status).toBe(409)
+      expect(((await res.json()) as { code: string }).code).toBe("referenced")
+      expect(
+        roles.findFirst((query) => query.where({ id: "rol_demo_06" }))
+      ).toBeDefined()
+    })
+
+    it("refuses to delete a System Role", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      for (const id of ["rol_admin", "rol_member"]) {
+        const res = await api(`/api/roles/${id}`, {
+          method: "DELETE",
+          token: accessToken,
+        })
+        expect(res.status).toBe(409)
+        expect(((await res.json()) as { code: string }).code).toBe(
+          "system_role"
+        )
+      }
+      expect(roles.all()).toHaveLength(60)
+    })
+  })
+
+  describe("bulk update", () => {
+    it("updates only the supplied fields on each role and refreshes updatedAt", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      const beforeRes = await api("/api/roles/rol_demo_01", {
+        token: accessToken,
+      })
+      const before = (await beforeRes.json()) as RoleRow
+
+      const res = await api("/api/roles/bulk", {
+        method: "PATCH",
+        token: accessToken,
+        body: {
+          ids: ["rol_demo_01", "rol_demo_02"],
+          description: "  Bulk description  ",
+          status: "inactive",
+        },
+      })
+      expect(res.status).toBe(200)
+      const result = (await res.json()) as {
+        updated: number
+        failed: { id: string; reason: string }[]
+      }
+      expect(result).toEqual({ updated: 2, failed: [] })
+
+      const one = (await (
+        await api("/api/roles/rol_demo_01", { token: accessToken })
+      ).json()) as RoleRow
+      expect(one.title).toBe(before.title)
+      expect(one.description).toBe("Bulk description")
+      expect(one.status).toBe("inactive")
+      expect(one.createdAt).toBe(before.createdAt)
+      expect(Date.parse(one.updatedAt)).toBeGreaterThan(
+        Date.parse(before.updatedAt)
+      )
+    })
+
+    it("clears a description with null without touching status", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      const beforeRes = await api("/api/roles/rol_demo_03", {
+        token: accessToken,
+      })
+      const before = (await beforeRes.json()) as RoleRow
+      expect(before.description).not.toBeNull()
+
+      const res = await api("/api/roles/bulk", {
+        method: "PATCH",
+        token: accessToken,
+        body: { ids: ["rol_demo_03"], description: null },
+      })
+      expect(res.status).toBe(200)
+      expect((await res.json()) as unknown).toEqual({
+        updated: 1,
+        failed: [],
+      })
+
+      const after = (await (
+        await api("/api/roles/rol_demo_03", { token: accessToken })
+      ).json()) as RoleRow
+      expect(after.description).toBeNull()
+      expect(after.status).toBe(before.status)
+    })
+
+    it("reports not_found and system_role failures per row", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      const res = await api("/api/roles/bulk", {
+        method: "PATCH",
+        token: accessToken,
+        body: {
+          ids: ["rol_demo_01", "rol_missing", "rol_admin"],
+          status: "inactive",
+        },
+      })
+      expect(res.status).toBe(200)
+      expect((await res.json()) as unknown).toEqual({
+        updated: 1,
+        failed: [
+          { id: "rol_missing", reason: "not_found" },
+          { id: "rol_admin", reason: "system_role" },
+        ],
+      })
+
+      const updated = (await (
+        await api("/api/roles/rol_demo_01", { token: accessToken })
+      ).json()) as RoleRow
+      expect(updated.status).toBe("inactive")
+      const system = (await (
+        await api("/api/roles/rol_admin", { token: accessToken })
+      ).json()) as RoleRow
+      expect(system.status).toBe("active")
+    })
+
+    it("reports an over-length description as a per-row validation failure", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      const res = await api("/api/roles/bulk", {
+        method: "PATCH",
+        token: accessToken,
+        body: {
+          ids: ["rol_demo_01", "rol_missing"],
+          description: "d".repeat(501),
+        },
+      })
+      expect(res.status).toBe(200)
+      expect((await res.json()) as unknown).toEqual({
+        updated: 0,
+        failed: [
+          { id: "rol_demo_01", reason: "validation" },
+          { id: "rol_missing", reason: "not_found" },
+        ],
+      })
+    })
+
+    it("allows setting a System Role to active", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      const res = await api("/api/roles/bulk", {
+        method: "PATCH",
+        token: accessToken,
+        body: { ids: ["rol_admin"], status: "active" },
+      })
+      expect(res.status).toBe(200)
+      expect((await res.json()) as unknown).toEqual({
+        updated: 1,
+        failed: [],
+      })
+    })
+
+    it("rejects a malformed whole request with 400", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      for (const body of [
+        {},
+        { ids: [] },
+        { ids: "rol_demo_01", status: "active" },
+        { ids: [1], status: "active" },
+        { ids: ["rol_demo_01"] },
+        { ids: ["rol_demo_01"], title: "Renamed" },
+        { ids: ["rol_demo_01"], status: "archived" },
+        { ids: ["rol_demo_01"], description: 42 },
+      ]) {
+        const res = await api("/api/roles/bulk", {
+          method: "PATCH",
+          token: accessToken,
+          body,
+        })
+        expect([body, res.status]).toEqual([body, 400])
+        expect(((await res.json()) as { code: string }).code).toBe(
+          "invalid_request"
+        )
+      }
+      expect(roles.all()).toHaveLength(60)
+    })
+  })
+
+  describe("bulk delete", () => {
+    it("deletes every role that is not protected", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      const res = await api("/api/roles/bulk-delete", {
+        method: "POST",
+        token: accessToken,
+        body: { ids: ["rol_demo_08", "rol_demo_09"] },
+      })
+      expect(res.status).toBe(200)
+      expect((await res.json()) as unknown).toEqual({
+        deleted: 2,
+        failed: [],
+      })
+      expect(roles.all()).toHaveLength(58)
+      for (const id of ["rol_demo_08", "rol_demo_09"]) {
+        const gone = await api(`/api/roles/${id}`, { token: accessToken })
+        expect(gone.status).toBe(404)
+      }
+    })
+
+    it("reports not_found, system_role, and referenced failures per row", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      await users.create({
+        id: "usr_holder",
+        name: "Role Holder",
+        email: "holder@example.com",
+        role: "member",
+        roleId: "rol_demo_11",
+        password: "holderpass",
+        createdAt: "2026-01-01T00:00:00.000Z",
+      })
+
+      const res = await api("/api/roles/bulk-delete", {
+        method: "POST",
+        token: accessToken,
+        body: {
+          ids: ["rol_demo_10", "rol_missing", "rol_admin", "rol_demo_11"],
+        },
+      })
+      expect(res.status).toBe(200)
+      expect((await res.json()) as unknown).toEqual({
+        deleted: 1,
+        failed: [
+          { id: "rol_missing", reason: "not_found" },
+          { id: "rol_admin", reason: "system_role" },
+          { id: "rol_demo_11", reason: "referenced" },
+        ],
+      })
+      expect(
+        roles.findFirst((query) => query.where({ id: "rol_demo_10" }))
+      ).toBeUndefined()
+      expect(
+        roles.findFirst((query) => query.where({ id: "rol_demo_11" }))
+      ).toBeDefined()
+      expect(
+        roles.findFirst((query) => query.where({ id: "rol_admin" }))
+      ).toBeDefined()
+    })
+
+    it("rejects a malformed whole request with 400", async () => {
+      const { accessToken } = await login("admin@example.com", "adminpass")
+      for (const body of [
+        {},
+        { ids: [] },
+        { ids: "rol_demo_01" },
+        { ids: [1] },
+      ]) {
+        const res = await api("/api/roles/bulk-delete", {
+          method: "POST",
+          token: accessToken,
+          body,
+        })
+        expect([body, res.status]).toEqual([body, 400])
+      }
+      expect(roles.all()).toHaveLength(60)
+    })
   })
 })
 
