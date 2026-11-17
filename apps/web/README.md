@@ -35,15 +35,16 @@ data/auth backbone) · TanStack Query / Table · react-hook-form + zod · i18nex
 | --------------------- | -------------------------------------------------- |
 | `/`                   | Redirects to `/dashboard`                          |
 | `/login`, `/register` | Auth forms (`features/auth`)                       |
-| `/dashboard`          | Redirects to `/dashboard/tasks`                    |
-| `/dashboard/tasks`    | `TasksView` (fullest table example)                |
-| `/dashboard/users`    | `UsersView` (minimal table example)                |
-| `/dashboard/settings` | `SettingsView` (theme, locale, currency, password) |
+| `/dashboard`          | Authenticated home placeholder (`DashboardPage`)   |
+| `/tasks`              | `TasksView` (fullest table example)                |
+| `/users`              | `UsersView` (minimal table example)                |
+| `/settings`           | `SettingsView` (theme, locale, currency, password) |
 
-`/dashboard/*` routes share `src/routes/dashboard-layout.tsx`, which renders the
-sidebar + shell around the nested route. A `<ProtectedRoute>` guard bounces
+Authenticated routes share `src/routes/dashboard-layout.tsx`, which renders the
+sidebar + shell around the routed page. A `<ProtectedRoute>` guard bounces
 unauthenticated visitors to `/login`, and `<RedirectIfAuthed>` bounces
-authenticated visitors away from the auth pages.
+authenticated visitors away from the auth pages. The previous nested URLs remain
+available as client-side aliases that redirect to the top-level paths.
 
 ## Feature folders
 

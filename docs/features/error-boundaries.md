@@ -115,7 +115,7 @@ Event handlers and promises must not be wrapped in `try/catch` that rethrows, ho
 - `apps/web/test/error-boundary.test.tsx` covers: default translated fallback, node fallback, function fallback with reset recovery, `onError` receiving the caught error, `onReset` on reset, and normalization of a non-`Error` throw. The expected `console.error` is spied and asserted.
 - The existing `chunk-error-boundary.test.tsx` and `RetryableLazy` tests remain the preset regression net. The route-404 Playwright spec remains the end-to-end recovery proof; no new e2e spec is added.
 - `reportError` and the `unhandledrejection` wiring are unit-tested through the injected target; the emitted entry shape is covered by the logging tests.
-- `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm perf` pass. The `/dashboard/tasks` byte budget stays green; if the boundary pushes it over the 560,228 B ceiling, shrink the boundary rather than raise the budget.
+- `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm perf` pass. The `/tasks` byte budget stays green; if the boundary pushes it over the 560,228 B ceiling, shrink the boundary rather than raise the budget.
 
 ## 6. Future work
 
