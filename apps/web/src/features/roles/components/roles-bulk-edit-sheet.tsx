@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import type { RoleStatus } from "@workspace/api/schemas"
 import { Button } from "@workspace/ui/components/button"
@@ -21,6 +21,10 @@ import {
 import { Textarea } from "@workspace/ui/components/textarea"
 
 import type { RoleBulkPatch } from "@/features/roles/hooks/use-roles-bulk-actions"
+import {
+  createRoleBulkFormSchema,
+  normalizeRoleDescription,
+} from "@/features/roles/utils/role-schema"
 
 type StatusChoice = RoleStatus | ""
 
@@ -43,21 +47,44 @@ export function RolesBulkEditSheet({
   isApplying: boolean
 }) {
   const { t } = useTranslation()
+  const schema = useMemo(
+    () =>
+      createRoleBulkFormSchema({
+        titleRequired: t("roles.validation.titleRequired"),
+        titleTooLong: t("roles.validation.titleTooLong"),
+        descriptionTooLong: t("roles.validation.descriptionTooLong"),
+      }),
+    [t]
+  )
   const [description, setDescription] = useState("")
   const [status, setStatus] = useState<StatusChoice>("")
   const [descriptionTouched, setDescriptionTouched] = useState(false)
   const [statusTouched, setStatusTouched] = useState(false)
+  const [descriptionError, setDescriptionError] = useState<string | null>(null)
 
   const hasChanges = descriptionTouched || statusTouched
 
   const handleApply = () => {
     if (!hasChanges || isApplying) return
+    const parsed = schema.safeParse({ description, status })
+    if (!parsed.success) {
+      const descriptionIssue = parsed.error.issues.find(
+        (issue) => issue.path[0] === "description"
+      )
+      setDescriptionError(
+        descriptionIssue?.message ?? t("roles.validation.descriptionTooLong")
+      )
+      return
+    }
+
+    setDescriptionError(null)
     const patch: RoleBulkPatch = {}
     if (descriptionTouched) {
-      const trimmed = description.trim()
-      patch.description = trimmed === "" ? null : trimmed
+      patch.description = normalizeRoleDescription(parsed.data.description)
     }
-    if (statusTouched) patch.status = status as RoleStatus
+    if (statusTouched && parsed.data.status !== "") {
+      patch.status = parsed.data.status
+    }
     onApply(patch)
   }
 
@@ -86,6 +113,7 @@ export function RolesBulkEditSheet({
                 onClick={() => {
                   setDescription("")
                   setDescriptionTouched(true)
+                  setDescriptionError(null)
                 }}
               >
                 {t("roles.bulk.clearDescription")}
@@ -94,14 +122,20 @@ export function RolesBulkEditSheet({
             <Textarea
               id="roles-bulk-description"
               value={description}
-              maxLength={500}
               placeholder={t("roles.bulk.descriptionPlaceholder")}
+              aria-invalid={descriptionError !== null}
               onChange={(event) => {
                 setDescription(event.target.value)
                 setDescriptionTouched(true)
+                if (descriptionError) setDescriptionError(null)
               }}
             />
-            {descriptionTouched && description.trim() === "" ? (
+            {descriptionError ? (
+              <p role="alert" className="text-xs text-destructive">
+                {descriptionError}
+              </p>
+            ) : descriptionTouched &&
+              normalizeRoleDescription(description) === null ? (
               <p className="text-xs text-muted-foreground">
                 {t("roles.bulk.descriptionWillClear")}
               </p>

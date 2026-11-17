@@ -7,7 +7,7 @@ import {
   type Ref,
 } from "react"
 import { useTranslation } from "react-i18next"
-import { useNotification, type HttpError } from "@refinedev/core"
+import type { HttpError } from "@refinedev/core"
 import { useModalForm } from "@refinedev/react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller } from "react-hook-form"
@@ -74,7 +74,6 @@ function RoleFormSheet({
   ref?: Ref<RoleFormSheetHandle>
 }) {
   const { t } = useTranslation()
-  const notification = useNotification()
   const isEdit = mode === "edit"
   const [editingId, setEditingId] = useState<string | undefined>()
   const [discardOpen, setDiscardOpen] = useState(false)
@@ -108,6 +107,12 @@ function RoleFormSheet({
       queryOptions: { enabled: isEdit && editingId !== undefined },
       redirect: false,
       invalidates: ["list"],
+      // Refine owns the single success toast; the drawer must not open a
+      // second one after `onFinish`.
+      successNotification: {
+        message: t(isEdit ? "roles.updated" : "roles.created"),
+        type: "success",
+      },
     },
     // `useModalForm` must not write modal state into the table's URL.
     syncWithLocation: false,
@@ -175,10 +180,6 @@ function RoleFormSheet({
       if (roleId) {
         track(isEdit ? "role.updated" : "role.created", { roleId })
       }
-      notification.open?.({
-        type: "success",
-        message: t(isEdit ? "roles.updated" : "roles.created"),
-      })
       close()
     } catch (error) {
       setError("root", {

@@ -51,6 +51,18 @@ export function createRoleFormSchema(messages: RoleFormMessages) {
 
 export type RoleFormValues = z.infer<ReturnType<typeof createRoleFormSchema>>
 
+/**
+ * The bulk edit form shape. Titles are absent because they are unique, and an
+ * untouched status is the empty string. Field validation comes from the same
+ * shared validators as create/edit.
+ */
+export function createRoleBulkFormSchema(messages: RoleFormMessages) {
+  return z.object({
+    description: roleDescriptionSchema(messages),
+    status: z.union([z.literal(""), roleStatusSchema]),
+  })
+}
+
 /** A create or partial edit payload sent to the Roles data provider. */
 export type RoleWritePayload = {
   title?: string
@@ -58,7 +70,10 @@ export type RoleWritePayload = {
   status?: RoleStatus
 }
 
-function normalizedDescription(value: string | null | undefined) {
+/** Shared normalization: a blank or whitespace-only description is `null`. */
+export function normalizeRoleDescription(
+  value: string | null | undefined
+): string | null {
   const trimmed = (value ?? "").trim()
   return trimmed === "" ? null : trimmed
 }
@@ -73,7 +88,7 @@ export function toCreateRolePayload(
 ): RoleWritePayload {
   return {
     title: values.title.trim(),
-    description: normalizedDescription(values.description),
+    description: normalizeRoleDescription(values.description),
     status: values.status,
   }
 }
@@ -90,7 +105,7 @@ export function toDirtyRolePayload(
   const payload: RoleWritePayload = {}
   if (dirtyFields.title) payload.title = values.title.trim()
   if (dirtyFields.description) {
-    payload.description = normalizedDescription(values.description)
+    payload.description = normalizeRoleDescription(values.description)
   }
   if (dirtyFields.status) payload.status = values.status
   return payload

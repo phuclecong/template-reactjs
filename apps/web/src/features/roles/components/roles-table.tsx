@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useCan, useDelete, type CrudFilter } from "@refinedev/core"
 import { useTable } from "@refinedev/react-table"
@@ -91,11 +91,13 @@ export function RolesTable() {
   })
   const canCreate = canCreateRole?.can === true
   const canEdit = canEditRole?.can === true
-  const { data: canBulkRole } = useCan({
+  // There is no "bulk" access-control action; bulk work is an Administrator
+  // write gated by the same delete permission as the row actions.
+  const { data: canBulkActRole } = useCan({
     resource: "roles",
     action: "delete",
   })
-  const canBulk = canBulkRole?.can === true
+  const canBulkAct = canBulkActRole?.can === true
 
   const [deleteTarget, setDeleteTarget] = useState<RoleRecord | null>(null)
   const deleteMutation = useDelete<RoleRecord>({})
@@ -227,7 +229,7 @@ export function RolesTable() {
     columns,
     getRowId: (row) => row.id,
     enableSortingRemoval: false,
-    enableRowSelection: canBulk,
+    enableRowSelection: canBulkAct,
     // Row actions and selection start hidden so members never see them.
     // Toggling visibility (rather than rebuilding the columns) keeps the
     // restored page intact.
@@ -240,12 +242,21 @@ export function RolesTable() {
     reactTable.setColumnVisibility((previous) => ({
       ...previous,
       actions: canEdit,
-      select: canBulk,
+      select: canBulkAct,
     }))
-  }, [reactTable, canEdit, canBulk])
+  }, [reactTable, canEdit, canBulkAct])
 
-  const { tableQuery, pageCount, result, filters, setFilters, setCurrentPage } =
-    refineCore
+  const {
+    tableQuery,
+    pageCount,
+    result,
+    filters,
+    sorters,
+    currentPage: urlCurrentPage,
+    pageSize: urlPageSize,
+    setFilters,
+    setCurrentPage,
+  } = refineCore
 
   const rows = reactTable.getRowModel().rows
   const { pageIndex, pageSize } = reactTable.getState().pagination
@@ -257,7 +268,25 @@ export function RolesTable() {
   // A selection must never outlive the rows it names, so every handler that can
   // change the visible rows clears it before the new state lands.
   const rowSelection = reactTable.getState().rowSelection
-  const clearSelection = () => reactTable.resetRowSelection()
+  const clearSelection = useCallback(() => {
+    reactTable.resetRowSelection()
+  }, [reactTable])
+
+  // URL-driven reset: browser back/forward changes Refine's synced state
+  // without going through the handlers below. Keying on a value signature means
+  // unrelated re-renders (same filters/sort/page) never touch the selection.
+  const locationSignature = JSON.stringify({
+    filters,
+    sorters,
+    currentPage: urlCurrentPage,
+    pageSize: urlPageSize,
+  })
+  const lastLocationSignature = useRef(locationSignature)
+  useEffect(() => {
+    if (lastLocationSignature.current === locationSignature) return
+    lastLocationSignature.current = locationSignature
+    reactTable.resetRowSelection()
+  }, [locationSignature, reactTable])
 
   const selectedRoles = rows
     .filter((row) => rowSelection[row.id] === true)
@@ -277,12 +306,17 @@ export function RolesTable() {
   // Filter state is owned by Refine core so it syncs to the URL. Any change
   // replaces the filters and returns to page 1; both pagination layers are
   // updated because Refine does not reset the page for `setFilters` on its own.
-  const changeFilters = (nextFilters: CrudFilter[]) => {
-    clearSelection()
-    setFilters(nextFilters, "replace")
-    setCurrentPage(1)
-    reactTable.setPageIndex(0)
-  }
+  // `useCallback` keeps the filter bar's 300 ms debounce from re-arming every
+  // time an unrelated table render produces a new callback identity.
+  const changeFilters = useCallback(
+    (nextFilters: CrudFilter[]) => {
+      reactTable.resetRowSelection()
+      setFilters(nextFilters, "replace")
+      setCurrentPage(1)
+      reactTable.setPageIndex(0)
+    },
+    [reactTable, setFilters, setCurrentPage]
+  )
 
   // Single-row delete: confirm in the name of the Role, then let Refine surface
   // success/error notifications and invalidate the list. System Roles and
@@ -450,7 +484,7 @@ export function RolesTable() {
        * it sat above the table, activating a row's checkbox inserted controls
        * behind the keyboard user's focus; now forward tabbing reaches them.
        */}
-      {canBulk && selectedRoles.length > 0 ? (
+      {canBulkAct && selectedRoles.length > 0 ? (
         <RolesBulkBar selectedRoles={selectedRoles} onDone={clearSelection} />
       ) : null}
 

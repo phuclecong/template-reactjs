@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import type { CrudFilter } from "@refinedev/core"
 import { XIcon } from "lucide-react"
@@ -59,16 +59,25 @@ export function RolesFilterBar({
   const [title, setTitle] = useState(values.title)
   const [description, setDescription] = useState(values.description)
 
-  // The last text values this bar committed. Comparing the incoming filter
-  // state against them distinguishes our own URL echo (keep typing) from an
-  // external change such as a chip removal, Clear all, or back/forward.
-  const emittedTitle = useRef(values.title)
-  const emittedDescription = useRef(values.description)
+  // External filter changes — a chip removal, Clear all, or browser
+  // back/forward — are applied during render from the previous prop values.
+  // This keeps the debounce drafts in step with Refine's state without an
+  // extra effect-driven render or a second source of truth.
+  const [lastValues, setLastValues] = useState({
+    title: values.title,
+    description: values.description,
+  })
+  if (
+    values.title !== lastValues.title ||
+    values.description !== lastValues.description
+  ) {
+    setLastValues({ title: values.title, description: values.description })
+    setTitle(values.title)
+    setDescription(values.description)
+  }
 
   const emit = useCallback(
     (next: RoleFilterValues) => {
-      emittedTitle.current = next.title
-      emittedDescription.current = next.description
       onChange(roleFiltersToCrud(next))
     },
     [onChange]
@@ -82,20 +91,6 @@ export function RolesFilterBar({
     },
     [emit, values, title, description]
   )
-
-  useEffect(() => {
-    if (values.title !== emittedTitle.current) {
-      emittedTitle.current = values.title
-      setTitle(values.title)
-    }
-  }, [values.title])
-
-  useEffect(() => {
-    if (values.description !== emittedDescription.current) {
-      emittedDescription.current = values.description
-      setDescription(values.description)
-    }
-  }, [values.description])
 
   useEffect(() => {
     if (title === values.title) return
@@ -115,22 +110,15 @@ export function RolesFilterBar({
 
   const removeFilter = useCallback(
     (key: RoleFilterKey) => {
-      if (key === "title") {
-        emittedTitle.current = ""
-        setTitle("")
-      }
-      if (key === "description") {
-        emittedDescription.current = ""
-        setDescription("")
-      }
       emit(clearRoleFilter({ ...values, title, description }, key))
     },
     [emit, values, title, description]
   )
 
+  // Clear all also resets the local drafts: when only uncommitted text is
+  // pending, the emitted filter state does not change, so the render-time
+  // external sync would not fire.
   const clearAll = useCallback(() => {
-    emittedTitle.current = ""
-    emittedDescription.current = ""
     setTitle("")
     setDescription("")
     onChange([])
