@@ -1,6 +1,6 @@
-import { useMemo, useRef } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { useTranslation } from "react-i18next"
-import { useCan } from "@refinedev/core"
+import { useCan, type CrudFilter } from "@refinedev/core"
 import { useTable } from "@refinedev/react-table"
 import { flexRender, type ColumnDef } from "@tanstack/react-table"
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from "lucide-react"
@@ -28,6 +28,7 @@ import {
 } from "@/features/roles/components/role-form-drawer"
 import { RolesEmptyState } from "@/features/roles/components/roles-empty-state"
 import { RolesErrorPanel } from "@/features/roles/components/roles-error-panel"
+import { RolesFilterBar } from "@/features/roles/components/roles-filter-bar"
 import { RolesPagination } from "@/features/roles/components/roles-pagination"
 import { ROLE_COLUMN_WIDTHS } from "@/features/roles/utils/column-widths"
 import { formatLocalDateTime } from "@/features/roles/utils"
@@ -105,34 +106,28 @@ export function RolesTable() {
         size: ROLE_COLUMN_WIDTHS.updatedAt,
         cell: ({ row }) => formatLocalDateTime(row.original.updatedAt),
       },
-      ...(canEdit
-        ? [
-            {
-              id: "actions",
-              header: t("roles.actions"),
-              size: ROLE_COLUMN_WIDTHS.actions,
-              enableSorting: false,
-              cell: ({ row }) => (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => drawerRef.current?.openEdit(row.original.id)}
-                >
-                  {t("roles.edit")}
-                </Button>
-              ),
-            } satisfies ColumnDef<RoleRecord>,
-          ]
-        : []),
+      {
+        id: "actions",
+        header: t("roles.actions"),
+        size: ROLE_COLUMN_WIDTHS.actions,
+        enableSorting: false,
+        enableHiding: true,
+        cell: ({ row }) => (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => drawerRef.current?.openEdit(row.original.id)}
+          >
+            {t("roles.edit")}
+          </Button>
+        ),
+      },
     ],
-    [t, canEdit]
+    [t]
   )
 
-  const {
-    reactTable,
-    refineCore: { tableQuery, pageCount, result },
-  } = useTable<RoleRecord>({
+  const { reactTable, refineCore } = useTable<RoleRecord>({
     refineCoreProps: {
       resource: "roles",
       syncWithLocation: true,
@@ -143,7 +138,17 @@ export function RolesTable() {
     columns,
     getRowId: (row) => row.id,
     enableSortingRemoval: false,
+    // Row actions start hidden so members never see them. Toggling visibility
+    // (rather than rebuilding the columns) keeps the restored page intact.
+    initialState: { columnVisibility: { actions: false } },
   })
+
+  useEffect(() => {
+    reactTable.setColumnVisibility({ actions: canEdit })
+  }, [reactTable, canEdit])
+
+  const { tableQuery, pageCount, result, filters, setFilters, setCurrentPage } =
+    refineCore
 
   const rows = reactTable.getRowModel().rows
   const { pageIndex, pageSize } = reactTable.getState().pagination
@@ -160,6 +165,15 @@ export function RolesTable() {
     reactTable.setPageIndex(0)
   }
 
+  // Filter state is owned by Refine core so it syncs to the URL. Any change
+  // replaces the filters and returns to page 1; both pagination layers are
+  // updated because Refine does not reset the page for `setFilters` on its own.
+  const changeFilters = (nextFilters: CrudFilter[]) => {
+    setFilters(nextFilters, "replace")
+    setCurrentPage(1)
+    reactTable.setPageIndex(0)
+  }
+
   return (
     <div className="flex flex-col gap-4 p-6 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -173,6 +187,8 @@ export function RolesTable() {
           </Button>
         ) : null}
       </div>
+
+      <RolesFilterBar filters={filters} onChange={changeFilters} />
 
       {tableQuery.isLoading ? (
         <TableSkeleton
