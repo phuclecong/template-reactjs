@@ -1,12 +1,8 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { useCan, type CrudFilter } from "@refinedev/core"
 import { useTable } from "@refinedev/react-table"
-import {
-  flexRender,
-  type ColumnDef,
-  type RowSelectionState,
-} from "@tanstack/react-table"
+import { flexRender, type ColumnDef } from "@tanstack/react-table"
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from "lucide-react"
 import type { RoleRecord } from "@workspace/api/schemas"
 import { TableSkeleton } from "@workspace/shared-lib/components/table-skeleton"
@@ -27,6 +23,10 @@ import {
   TooltipTrigger,
 } from "@workspace/ui/components/tooltip"
 
+import {
+  RoleFormDrawer,
+  type RoleFormDrawerHandle,
+} from "@/features/roles/components/role-form-drawer"
 import { RolesBulkBar } from "@/features/roles/components/roles-bulk-bar"
 import { RolesEmptyState } from "@/features/roles/components/roles-empty-state"
 import { RolesErrorPanel } from "@/features/roles/components/roles-error-panel"
@@ -42,22 +42,28 @@ const DEFAULT_PAGE_SIZE = 30
 
 /**
  * Reference Refine table (ADR-0015): `useTable` from `@refinedev/react-table`
- * owns server pagination, sorting, and URL sync. Administrators get a
- * page-scoped selection column and the bulk bar; Members never do.
+ * owns server pagination, sorting, and URL sync. Create and Edit route into the
+ * shared `RoleFormDrawer`. Administrators also get a page-scoped selection
+ * column and the bulk bar; Members get neither.
  */
 export function RolesTable() {
   const { t } = useTranslation()
+  const drawerRef = useRef<RoleFormDrawerHandle>(null)
   const { data: canCreateRole } = useCan({
     resource: "roles",
     action: "create",
   })
+  const { data: canEditRole } = useCan({
+    resource: "roles",
+    action: "edit",
+  })
   const canCreate = canCreateRole?.can === true
+  const canEdit = canEditRole?.can === true
   const { data: canBulkRole } = useCan({
     resource: "roles",
     action: "delete",
   })
   const canBulk = canBulkRole?.can === true
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
   const columns = useMemo<ColumnDef<RoleRecord>[]>(() => {
     const selectColumn: ColumnDef<RoleRecord> = {
@@ -138,10 +144,30 @@ export function RolesTable() {
         size: ROLE_COLUMN_WIDTHS.updatedAt,
         cell: ({ row }) => formatLocalDateTime(row.original.updatedAt),
       },
+      {
+        id: "actions",
+        header: t("roles.actions"),
+        size: ROLE_COLUMN_WIDTHS.actions,
+        enableSorting: false,
+        enableHiding: true,
+        cell: ({ row }) => (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => drawerRef.current?.openEdit(row.original.id)}
+          >
+            {t("roles.edit")}
+          </Button>
+        ),
+      },
     ]
 
-    return canBulk ? [selectColumn, ...dataColumns] : dataColumns
-  }, [t, canBulk])
+    // The selection column is always defined and visibility-gated per role.
+    // Rebuilding the columns when access resolves would re-run Refine's filter
+    // effect and reset a page restored from the URL.
+    return [selectColumn, ...dataColumns]
+  }, [t])
 
   const { reactTable, refineCore } = useTable<RoleRecord>({
     refineCoreProps: {
@@ -155,9 +181,15 @@ export function RolesTable() {
     getRowId: (row) => row.id,
     enableSortingRemoval: false,
     enableRowSelection: canBulk,
-    state: { rowSelection },
-    onRowSelectionChange: setRowSelection,
+    // Row actions and selection start hidden so members never see them.
+    // Toggling visibility (rather than rebuilding the columns) keeps the
+    // restored page intact.
+    initialState: { columnVisibility: { actions: false, select: false } },
   })
+
+  useEffect(() => {
+    reactTable.setColumnVisibility({ actions: canEdit, select: canBulk })
+  }, [reactTable, canEdit, canBulk])
 
   const { tableQuery, pageCount, result, filters, setFilters, setCurrentPage } =
     refineCore
@@ -168,9 +200,11 @@ export function RolesTable() {
   const total = result.total ?? 0
   const totalPages = Math.max(1, pageCount)
 
-  // A selection must never outlive the rows it names. Every handler that can
+  // Selection is uncontrolled TanStack state, mirrored here for the bulk bar.
+  // A selection must never outlive the rows it names, so every handler that can
   // change the visible rows clears it before the new state lands.
-  const clearSelection = () => setRowSelection({})
+  const rowSelection = reactTable.getState().rowSelection
+  const clearSelection = () => reactTable.resetRowSelection()
 
   const selectedRoles = rows
     .filter((row) => rowSelection[row.id] === true)
@@ -201,7 +235,14 @@ export function RolesTable() {
     <div className="flex flex-col gap-4 p-6 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">{t("roles.title")}</h1>
-        {canCreate ? <Button type="button">{t("roles.create")}</Button> : null}
+        {canCreate ? (
+          <Button
+            type="button"
+            onClick={() => drawerRef.current?.openCreate()}
+          >
+            {t("roles.create")}
+          </Button>
+        ) : null}
       </div>
 
       <RolesFilterBar filters={filters} onChange={changeFilters} />
@@ -225,7 +266,10 @@ export function RolesTable() {
           }}
         />
       ) : rows.length === 0 ? (
-        <RolesEmptyState canCreate={canCreate} />
+        <RolesEmptyState
+          canCreate={canCreate}
+          onCreate={() => drawerRef.current?.openCreate()}
+        />
       ) : (
         <>
           <div className="overflow-x-auto border border-border">
@@ -323,6 +367,8 @@ export function RolesTable() {
           />
         </>
       )}
+
+      <RoleFormDrawer ref={drawerRef} />
     </div>
   )
 }

@@ -33,8 +33,9 @@ test("navigates to Roles and renders the server-paged default view", async ({
     page.getByRole("button", { name: "Create role", exact: true })
   ).toBeVisible()
 
-  // The five columns render; sortable headers are buttons, Description is not.
-  await expect(page.getByRole("columnheader")).toHaveCount(5)
+  // Administrators get the five data columns, the selection column, and the
+  // row-action column; sortable headers are buttons, Description is not.
+  await expect(page.getByRole("columnheader")).toHaveCount(7)
   for (const header of ["Title", "Status", "Created", "Updated"]) {
     await expect(
       page.getByRole("button", { name: header, exact: true })
@@ -42,6 +43,9 @@ test("navigates to Roles and renders the server-paged default view", async ({
   }
   await expect(
     page.getByRole("columnheader", { name: "Description" })
+  ).toBeVisible()
+  await expect(
+    page.getByRole("columnheader", { name: "Actions" })
   ).toBeVisible()
 
   // Refine's URL state carries the default page, size, and updatedAt sort.
