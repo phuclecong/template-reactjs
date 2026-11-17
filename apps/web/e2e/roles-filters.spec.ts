@@ -288,7 +288,7 @@ test("removes individual filter chips and clears all filters", async ({
     .getByRole("button", { name: "Remove Status: Inactive", exact: true })
     .click()
 
-  expect(readFilters(page)).toEqual([
+  await expect.poll(() => readFilters(page)).toEqual([
     { field: "title", operator: "contains", value: "demo role 42" },
   ])
   await expect(page.getByText("Status: Inactive")).toHaveCount(0)
@@ -296,7 +296,7 @@ test("removes individual filter chips and clears all filters", async ({
 
   await page.getByRole("button", { name: "Clear all", exact: true }).click()
 
-  expect(readFilters(page)).toHaveLength(0)
+  await expect.poll(() => readFilters(page)).toHaveLength(0)
   await expect(page.getByText("Title contains: demo role 42")).toHaveCount(0)
   await expect(titleFilter(page)).toHaveValue("")
   await expect(page.getByText("60 roles")).toBeVisible()
