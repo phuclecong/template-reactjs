@@ -44,7 +44,7 @@ test("a failed route chunk shows a retry action and never a blank route", async 
     route.fulfill({ status: 404, body: "missing chunk" })
   )
 
-  await page.goto("/dashboard/settings", { waitUntil: "domcontentloaded" })
+  await page.goto("/settings", { waitUntil: "domcontentloaded" })
 
   const retry = page.getByRole("button", { name: "Try again" })
   await expect(retry).toBeVisible()

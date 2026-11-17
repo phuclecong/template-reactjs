@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url"
 const APP_DIR = fileURLToPath(new URL("../..", import.meta.url))
 const PREVIEW_PORT = 4173
 const BASE_URL = `http://localhost:${PREVIEW_PORT}`
-const ROUTES = ["/login", "/dashboard/tasks"]
+const ROUTES = ["/login", "/tasks"]
 const RUNS_PER_ROUTE = 3
 const SERVER_TIMEOUT_MS = 60_000
 

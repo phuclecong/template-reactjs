@@ -20,15 +20,19 @@ export const routeLoaders = {
     import("@/routes/register").then((module) => ({
       default: module.RegisterPage,
     })),
-  "/dashboard/tasks": () =>
+  "/dashboard": () =>
+    import("@/routes/dashboard").then((module) => ({
+      default: module.DashboardPage,
+    })),
+  "/tasks": () =>
     import("@/routes/tasks").then((module) => ({
       default: module.TasksPage,
     })),
-  "/dashboard/users": () =>
+  "/users": () =>
     import("@/routes/users").then((module) => ({
       default: module.UsersPage,
     })),
-  "/dashboard/settings": () =>
+  "/settings": () =>
     import("@/routes/settings").then((module) => ({
       default: module.SettingsPage,
     })),

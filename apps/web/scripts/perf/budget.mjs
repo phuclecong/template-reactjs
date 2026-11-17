@@ -41,7 +41,7 @@ function reportUrl(report) {
   )
 }
 
-/** The route key used by `perf-budgets.json`, e.g. `/dashboard/tasks`. */
+/** The route key used by `perf-budgets.json`, e.g. `/tasks`. */
 export function routeFromUrl(url) {
   return new URL(url).pathname
 }

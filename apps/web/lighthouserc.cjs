@@ -12,7 +12,7 @@
  * profile, empty cache) for every invocation. The orchestrator runs collect
  * once per run instead of `numberOfRuns: 3` in a single invocation, because a
  * single invocation reuses one browser across its runs. One URL per invocation
- * also prevents the `/login` audit from warming the cache for `/dashboard/tasks`.
+ * also prevents the `/login` audit from warming the cache for `/tasks`.
  * `scripts/perf/login.cjs` only injects the session into the audited target;
  * it never loads the app, registers the service worker, or seeds localStorage.
  */
@@ -23,7 +23,7 @@ module.exports = {
       // cold run. Both are required by the measurement contract (§5).
       url: [
         "http://localhost:4173/login",
-        "http://localhost:4173/dashboard/tasks",
+        "http://localhost:4173/tasks",
       ],
       numberOfRuns: 1,
       puppeteerScript: "./scripts/perf/login.cjs",
@@ -78,7 +78,7 @@ module.exports = {
         // Report-only until the authenticated route meets the target. LHCI
         // still prints the measured score/LCP and any warning values, but a
         // warning does not fail the job. Re-enable blocking by changing these
-        // two severities from "warn" to "error" once `/dashboard/tasks` meets
+        // two severities from "warn" to "error" once `/tasks` meets
         // score >= 0.85 and LCP <= 3.5 s (issue #35; see performance.md
         // §5/§6.5).
         "categories:performance": [

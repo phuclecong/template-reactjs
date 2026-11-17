@@ -14,7 +14,7 @@ async function openTasks(page: Page) {
   await page
     .locator('[data-sidebar="menu-button"]', { hasText: "Tasks" })
     .click()
-  await expect(page).toHaveURL(/\/dashboard\/tasks/)
+  await expect(page).toHaveURL(/\/tasks$/)
   await expect(page.getByRole("table")).toBeVisible()
 }
 
@@ -63,7 +63,7 @@ test("a task mutation emits a structured business event", async ({ page }) => {
     kind: "event",
     level: "info",
     event: "task.created",
-    context: { path: "/dashboard/tasks", env: "development" },
+    context: { path: "/tasks", env: "development" },
   })
   expect(entry?.data).toHaveProperty("taskId")
   // Business events carry ids, never the task title or other free text.

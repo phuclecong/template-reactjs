@@ -10,14 +10,14 @@ async function login(page: Page, email: string, password: string) {
   await page.getByLabel("Email").fill(email)
   await page.getByLabel("Password").fill(password)
   await page.getByRole("button", { name: "Sign in" }).click()
-  await expect(page).toHaveURL(/\/dashboard/)
+  await expect(page).toHaveURL(/\/dashboard$/)
 }
 
 async function openTasks(page: Page) {
   await page
     .locator('[data-sidebar="menu-button"]', { hasText: "Tasks" })
     .click()
-  await expect(page).toHaveURL(/\/dashboard\/tasks/)
+  await expect(page).toHaveURL(/\/tasks$/)
   await expect(page.getByRole("table")).toBeVisible()
 }
 

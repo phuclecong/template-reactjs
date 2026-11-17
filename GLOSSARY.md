@@ -4,6 +4,10 @@ A reusable starter for an authenticated dashboard. "Task" and "User" are the can
 
 ## Language
 
+**Dashboard**:
+The authenticated area of the application: every page a signed-in User can reach, framed by one persistent navigation shell.
+_Avoid_: Admin panel, back office
+
 **Task**:
 A unit of work tracked in the application: a title, an optional description, a lifecycle status, an optional priority, an assignee, and an optional due date.
 _Avoid_: Item, job, ticket

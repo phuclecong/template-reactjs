@@ -209,12 +209,12 @@ type LogSink = (entry: Entry) => void
 
 The logger is in the initial closure because `main.tsx` already imports `reportError`; `installWebVitals()` also runs there. Current ceilings and honest medians:
 
-| Route              | JS ceiling | JS median | Headroom |
-| ------------------ | ---------- | --------- | -------- |
-| `/login`           | 315,333 B  | 304,255 B | 11,078 B |
-| `/dashboard/tasks` | 560,228 B  | 540,756 B | 19,472 B |
+| Route    | JS ceiling | JS median | Headroom |
+| -------- | ---------- | --------- | -------- |
+| `/login` | 315,333 B  | 304,255 B | 11,078 B |
+| `/tasks` | 560,228 B  | 540,756 B | 19,472 B |
 
-Measured on 2026-11-16 with `pnpm perf` (three cold runs per route), on this branch and, for the ratio, on a clean worktree at the branch point `dda12e1`: `/login` JS 300,650 B → 304,255 B (+3,605 B), `/dashboard/tasks` JS 537,034 B → 540,756 B (+3,722 B), CSS 14,869 B on both routes (+0 B). The ~3.7 KB is the logger (entry construction, safe serializer, session and context reads) plus the three `web-vitals` callbacks, all in the initial closure. It fits both ceilings without loosening either. The branch-point medians differ from `performance.md` §2's 2026-11-14 baseline because that measurement predates merged changes after it; the worktree pair is the like-for-like delta.
+Measured on 2026-11-16 with `pnpm perf` (three cold runs per route), on this branch and, for the ratio, on a clean worktree at the branch point `dda12e1`: `/login` JS 300,650 B → 304,255 B (+3,605 B), `/tasks` JS 537,034 B → 540,756 B (+3,722 B), CSS 14,869 B on both routes (+0 B). The tasks route is now `/tasks` (formerly `/dashboard/tasks`); these numbers were measured before the path change. The ~3.7 KB is the logger (entry construction, safe serializer, session and context reads) plus the three `web-vitals` callbacks, all in the initial closure. It fits both ceilings without loosening either. The branch-point medians differ from `performance.md` §2's 2026-11-14 baseline because that measurement predates merged changes after it; the worktree pair is the like-for-like delta.
 
 CSS measures 14,869 B on both routes, unchanged, against the 14,875 B ceiling. The ratchet rule and the "fix a red route, never loosen a ceiling" policy from `performance.md` §5 apply unchanged. If the feature exceeds the tasks-route headroom, shrink it — import only the three `web-vitals` callbacks, or move non-essential business-event call sites into deferred chunks — rather than editing the budget. Changing the policy is a separate decision under ADR-0010, not a logging change.
 

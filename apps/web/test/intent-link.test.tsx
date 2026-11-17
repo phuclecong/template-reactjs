@@ -12,7 +12,7 @@ import { IntentLink } from "@/components/intent-link"
 function renderLink() {
   return render(
     <MemoryRouter>
-      <IntentLink to="/dashboard/settings">Settings</IntentLink>
+      <IntentLink to="/settings">Settings</IntentLink>
     </MemoryRouter>
   )
 }
@@ -23,7 +23,7 @@ describe("IntentLink", () => {
 
     expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute(
       "href",
-      "/dashboard/settings"
+      "/settings"
     )
     expect(prefetchRoute).not.toHaveBeenCalled()
   })
@@ -33,7 +33,7 @@ describe("IntentLink", () => {
 
     fireEvent.pointerEnter(screen.getByRole("link", { name: "Settings" }))
 
-    expect(prefetchRoute).toHaveBeenCalledExactlyOnceWith("/dashboard/settings")
+    expect(prefetchRoute).toHaveBeenCalledExactlyOnceWith("/settings")
   })
 
   it("prefetches its route on keyboard focus", () => {
@@ -41,7 +41,7 @@ describe("IntentLink", () => {
 
     fireEvent.focus(screen.getByRole("link", { name: "Settings" }))
 
-    expect(prefetchRoute).toHaveBeenCalledExactlyOnceWith("/dashboard/settings")
+    expect(prefetchRoute).toHaveBeenCalledExactlyOnceWith("/settings")
   })
 
   it("prefetches its route on pointer down", () => {
@@ -49,7 +49,7 @@ describe("IntentLink", () => {
 
     fireEvent.pointerDown(screen.getByRole("link", { name: "Settings" }))
 
-    expect(prefetchRoute).toHaveBeenCalledExactlyOnceWith("/dashboard/settings")
+    expect(prefetchRoute).toHaveBeenCalledExactlyOnceWith("/settings")
   })
 
   it("still calls a handler supplied by the caller", () => {
@@ -57,7 +57,7 @@ describe("IntentLink", () => {
 
     render(
       <MemoryRouter>
-        <IntentLink to="/dashboard/settings" onFocus={onFocus}>
+        <IntentLink to="/settings" onFocus={onFocus}>
           Settings
         </IntentLink>
       </MemoryRouter>
@@ -65,7 +65,7 @@ describe("IntentLink", () => {
 
     fireEvent.focus(screen.getByRole("link", { name: "Settings" }))
 
-    expect(prefetchRoute).toHaveBeenCalledExactlyOnceWith("/dashboard/settings")
+    expect(prefetchRoute).toHaveBeenCalledExactlyOnceWith("/settings")
     expect(onFocus).toHaveBeenCalledTimes(1)
   })
 })

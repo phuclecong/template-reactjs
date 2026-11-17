@@ -22,7 +22,7 @@ import type { DashboardUser } from "@/providers/auth-provider"
 
 /**
  * Route segment → translation key, used to label breadcrumb crumbs for the
- * known `/dashboard/*` pages. Unknown segments fall back to the raw slug.
+ * known authenticated pages. Unknown segments fall back to the raw slug.
  */
 const SEGMENT_LABELS: Record<string, string> = {
   tasks: "shell.nav.tasks",
@@ -47,8 +47,8 @@ function readSidebarCookie(fallback: boolean): boolean {
 }
 
 /**
- * Client shell for every `/dashboard/*` route: a collapsible sidebar (icon
- * rail on desktop, Sheet drawer on mobile) plus a content inset with a sticky
+ * Client shell for every authenticated route: a collapsible sidebar (icon rail
+ * on desktop, Sheet drawer on mobile) plus a content inset with a sticky
  * header. The shell is the app-owned seam that restores the persisted sidebar
  * state; the registry provider only writes the cookie.
  */
@@ -65,17 +65,20 @@ export function DashboardShell({
   // overwrite the provider's internal state.
   const [defaultOpen] = React.useState(() => readSidebarCookie(true))
 
-  // Everything after the leading "dashboard" segment, e.g. ["tasks"].
-  const routeSegments = (pathname ?? "").split("/").filter(Boolean).slice(1)
+  // Strip only a leading "dashboard" segment: /tasks is already top-level,
+  // while a hypothetical /dashboard/anything keeps sensible nested crumbs.
+  const segments = (pathname ?? "").split("/").filter(Boolean)
+  const routeSegments =
+    segments[0] === "dashboard" ? segments.slice(1) : segments
 
   const crumbs = [
     {
-      href: "/dashboard/tasks",
+      href: "/dashboard",
       label: t("shell.title"),
-      isCurrent: routeSegments.length === 0,
+      isCurrent: pathname === "/dashboard",
     },
     ...routeSegments.map((segment, index) => ({
-      href: `/dashboard/${routeSegments.slice(0, index + 1).join("/")}`,
+      href: `/${routeSegments.slice(0, index + 1).join("/")}`,
       label: t(SEGMENT_LABELS[segment] ?? segment),
       isCurrent: index === routeSegments.length - 1,
     })),

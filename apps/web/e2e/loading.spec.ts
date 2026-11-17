@@ -34,6 +34,9 @@ test("route chunks load on intent only, never at startup or while idle", async (
   )
 
   await login(page, "admin@example.com", "adminpass")
+  // Login lands on the /dashboard placeholder, so navigate to Tasks explicitly.
+  await page.locator('[data-sidebar="menu-button"]', { hasText: "Tasks" }).click()
+  await expect(page).toHaveURL(/\/tasks$/)
   await expect(page.getByRole("table")).toBeVisible()
 
   // Settling on Tasks does not warm Users or Settings.
@@ -69,7 +72,7 @@ test("a cold route load shows the page skeleton, never a blank shell", async ({
     await route.continue()
   })
 
-  await page.goto("/dashboard/settings", { waitUntil: "domcontentloaded" })
+  await page.goto("/settings", { waitUntil: "domcontentloaded" })
 
   // The shell frame and a translated loading status are visible while the
   // chunk is in flight. The skeleton exposes no table semantics of its own.
