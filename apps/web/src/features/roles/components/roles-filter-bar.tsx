@@ -3,13 +3,12 @@ import { useTranslation } from "react-i18next"
 import type { CrudFilter } from "@refinedev/core"
 import { XIcon } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
-import { DateRangePicker } from "@workspace/ui/components/date-range-picker"
 import { Input } from "@workspace/ui/components/input"
-import { resolveLocale } from "@workspace/ui/lib/date"
 import {
-  FilterCombobox,
-  type FilterOption,
+  DateRangeFilter,
+  ComboboxFilter,
 } from "@workspace/shared-lib/components"
+import { useEnums } from "@workspace/shared-lib/hooks"
 import { parseFilterValues } from "@workspace/shared-lib/utils"
 
 import {
@@ -49,9 +48,9 @@ export function RolesFilterBar({
   filters: CrudFilter[]
   onChange: (filters: CrudFilter[]) => void
 }) {
-  const { t, i18n } = useTranslation()
-  const locale = resolveLocale(i18n.language)
+  const { t } = useTranslation()
   const values = useMemo(() => roleFiltersFromCrud(filters), [filters])
+  const { ROLE_STATUS_OPTIONS: statusOptions } = useEnums()
 
   const [title, setTitle] = useState(values.title)
   const [description, setDescription] = useState(values.description)
@@ -138,10 +137,10 @@ export function RolesFilterBar({
       })
     }
     if (values.status) {
-      const statusLabels = parseFilterValues(values.status).map((status) =>
-        status === "active"
-          ? t("roles.filters.statusActive")
-          : t("roles.filters.statusInactive")
+      const statusLabels = parseFilterValues(values.status).map(
+        (status) =>
+          statusOptions.find((option) => option.value === status)?.label ??
+          status
       )
       next.push({
         key: "status",
@@ -167,16 +166,7 @@ export function RolesFilterBar({
       })
     }
     return next
-  }, [values, t])
-
-  // Stable identity: Base UI re-syncs its selection when `items` changes.
-  const statusOptions = useMemo<FilterOption[]>(
-    () => [
-      { value: "active", label: t("roles.filters.statusActive") },
-      { value: "inactive", label: t("roles.filters.statusInactive") },
-    ],
-    [t]
-  )
+  }, [values, statusOptions, t])
 
   return (
     <div className="flex flex-col gap-2">
@@ -199,7 +189,7 @@ export function RolesFilterBar({
           onChange={(event) => setDescription(event.target.value)}
           className="w-56"
         />
-        <FilterCombobox
+        <ComboboxFilter
           multiple
           options={statusOptions}
           value={values.status}
@@ -208,10 +198,9 @@ export function RolesFilterBar({
           placeholder={t("roles.filters.status")}
           className="w-40"
         />
-        <DateRangePicker
+        <DateRangeFilter
           id="roles-created-at-filter"
-          aria-label={t("roles.filters.createdAt")}
-          locale={locale}
+          ariaLabel={t("roles.filters.createdAt")}
           placeholder={t("roles.filters.createdPlaceholder")}
           clearLabel={t("roles.filters.dateClear")}
           value={{ from: values.createdAtFrom, to: values.createdAtTo }}
@@ -222,10 +211,9 @@ export function RolesFilterBar({
             })
           }
         />
-        <DateRangePicker
+        <DateRangeFilter
           id="roles-updated-at-filter"
-          aria-label={t("roles.filters.updatedAt")}
-          locale={locale}
+          ariaLabel={t("roles.filters.updatedAt")}
           placeholder={t("roles.filters.updatedPlaceholder")}
           clearLabel={t("roles.filters.dateClear")}
           value={{ from: values.updatedAtFrom, to: values.updatedAtTo }}

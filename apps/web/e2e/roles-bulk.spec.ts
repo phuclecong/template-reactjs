@@ -124,8 +124,8 @@ test("bulk edit changes only the status and leaves untouched descriptions intact
 
   const row31 = page.getByRole("row").filter({ hasText: "Demo Role 31" })
   const row32 = page.getByRole("row").filter({ hasText: "Demo Role 32" })
-  await expect(row31.getByText("active", { exact: true })).toBeVisible()
-  await expect(row32.getByText("active", { exact: true })).toBeVisible()
+  await expect(row31.getByText("Active", { exact: true })).toBeVisible()
+  await expect(row32.getByText("Active", { exact: true })).toBeVisible()
   await expect(
     row31.getByText("Description for demo role 31", { exact: true })
   ).toBeVisible()
@@ -221,8 +221,8 @@ test("bulk edit reports per-row failures while successful rows update", async ({
 
   const adminRow = page.getByRole("row").filter({ hasText: "Administrator" })
   const demoRow = page.getByRole("row").filter({ hasText: "Demo Role 33" })
-  await expect(adminRow.getByText("active", { exact: true })).toBeVisible()
-  await expect(demoRow.getByText("inactive", { exact: true })).toBeVisible()
+  await expect(adminRow.getByText("Active", { exact: true })).toBeVisible()
+  await expect(demoRow.getByText("Inactive", { exact: true })).toBeVisible()
 })
 
 test("bulk delete reports per-row failures while successful rows are removed", async ({

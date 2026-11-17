@@ -4,13 +4,6 @@ import type { RoleStatus } from "@workspace/api/schemas"
 import { Button } from "@workspace/ui/components/button"
 import { Label } from "@workspace/ui/components/label"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select"
-import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -19,6 +12,12 @@ import {
   SheetTitle,
 } from "@workspace/ui/components/sheet"
 import { Textarea } from "@workspace/ui/components/textarea"
+
+import {
+  ComboboxFilter,
+  type FilterOption,
+} from "@workspace/shared-lib/components"
+import { useEnums } from "@workspace/shared-lib/hooks"
 
 import type { RoleBulkPatch } from "@/features/roles/hooks/use-roles-bulk-actions"
 import {
@@ -47,6 +46,7 @@ export function RolesBulkEditSheet({
   isApplying: boolean
 }) {
   const { t } = useTranslation()
+  const { ROLE_STATUS_OPTIONS: statusOptions } = useEnums()
   const schema = useMemo(
     () =>
       createRoleBulkFormSchema({
@@ -61,6 +61,16 @@ export function RolesBulkEditSheet({
   const [descriptionTouched, setDescriptionTouched] = useState(false)
   const [statusTouched, setStatusTouched] = useState(false)
   const [descriptionError, setDescriptionError] = useState<string | null>(null)
+
+  // Empty string is the "unchanged" sentinel, so it doubles as the option that
+  // lets the Administrator revert a touched status field.
+  const statusChoices = useMemo<FilterOption[]>(
+    () => [
+      { value: "", label: t("roles.bulk.statusUnchanged") },
+      ...statusOptions,
+    ],
+    [statusOptions, t]
+  )
 
   const hasChanges = descriptionTouched || statusTouched
 
@@ -95,9 +105,7 @@ export function RolesBulkEditSheet({
           <SheetTitle>
             {t("roles.bulk.editTitle", { count: selectedCount })}
           </SheetTitle>
-          <SheetDescription>
-            {t("roles.bulk.editDescription")}
-          </SheetDescription>
+          <SheetDescription>{t("roles.bulk.editDescription")}</SheetDescription>
         </SheetHeader>
 
         <div className="flex flex-col gap-4 px-4">
@@ -143,35 +151,22 @@ export function RolesBulkEditSheet({
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="roles-bulk-status">
-              {t("roles.bulk.status")}
-            </Label>
-            <Select
-              value={status || "unchanged"}
+            <Label htmlFor="roles-bulk-status">{t("roles.bulk.status")}</Label>
+            <ComboboxFilter
+              id="roles-bulk-status"
+              multiple={false}
+              options={statusChoices}
+              value={status}
               onValueChange={(value) => {
-                setStatus(value === "unchanged" ? "" : (value as RoleStatus))
-                setStatusTouched(value !== "unchanged")
+                setStatus(value as StatusChoice)
+                setStatusTouched(value !== "")
               }}
-            >
-              <SelectTrigger
-                id="roles-bulk-status"
-                size="sm"
-                aria-label={t("roles.bulk.status")}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unchanged">
-                  {t("roles.bulk.statusUnchanged")}
-                </SelectItem>
-                <SelectItem value="active">
-                  {t("roles.filters.statusActive")}
-                </SelectItem>
-                <SelectItem value="inactive">
-                  {t("roles.filters.statusInactive")}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+              ariaLabel={t("roles.bulk.status")}
+              placeholder={t("roles.bulk.status")}
+              className="w-full"
+              disabled={isApplying}
+              showClear={false}
+            />
           </div>
         </div>
 

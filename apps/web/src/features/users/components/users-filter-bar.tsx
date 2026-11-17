@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next"
 import {
-  FilterCombobox,
+  ComboboxFilter,
   type FilterOption,
 } from "@workspace/shared-lib/components"
 import { Input } from "@workspace/ui/components/input"
@@ -32,7 +32,7 @@ export function UsersFilterBar({
         placeholder={t("users.searchPlaceholder")}
         className="w-56"
       />
-      <FilterCombobox
+      <ComboboxFilter
         multiple={false}
         options={roleOptions}
         value={roleId}

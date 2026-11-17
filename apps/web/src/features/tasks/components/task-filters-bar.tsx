@@ -1,17 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Button } from "@workspace/ui/components/button"
-import { DateRangePicker } from "@workspace/ui/components/date-range-picker"
 import { Input } from "@workspace/ui/components/input"
-import { resolveLocale } from "@workspace/ui/lib/date"
 import {
-  FilterCombobox,
+  DateRangeFilter,
+  ComboboxFilter,
   type FilterOption,
 } from "@workspace/shared-lib/components"
+import { useEnums } from "@workspace/shared-lib/hooks"
 import {
   EMPTY_TASK_FILTERS,
-  PRIORITY_OPTIONS,
-  STATUS_OPTIONS,
   taskFiltersEqual,
   type TaskFilters,
   type UserOption,
@@ -32,7 +30,7 @@ export function TaskFiltersBar({
   onChange: (next: TaskFilters) => void
   onClear: () => void
 }) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
 
   // The URL is the source of truth, but `navigate()` commits asynchronously.
   // Two option clicks can therefore land before the new `values` prop arrives,
@@ -85,22 +83,10 @@ export function TaskFiltersBar({
   // Stable identities: Base UI re-syncs its selection when `items` changes, so
   // rebuilding these arrays on every render can drop a rapid second selection
   // before the URL-driven `value` prop catches up.
-  const statusOptions = useMemo<FilterOption[]>(
-    () =>
-      STATUS_OPTIONS.map((value) => ({
-        value,
-        label: t(`tasks.status.${value}`),
-      })),
-    [t]
-  )
-  const priorityOptions = useMemo<FilterOption[]>(
-    () =>
-      PRIORITY_OPTIONS.map((value) => ({
-        value,
-        label: t(`tasks.priority.${value}`),
-      })),
-    [t]
-  )
+  const {
+    TASK_STATUS_OPTIONS: statusOptions,
+    TASK_PRIORITY_OPTIONS: priorityOptions,
+  } = useEnums()
   const assigneeOptions = useMemo<FilterOption[]>(
     () => [
       ...users.map((user) => ({ value: user.id, label: user.name })),
@@ -118,7 +104,7 @@ export function TaskFiltersBar({
         placeholder={t("tasks.searchPlaceholder")}
         className="w-56"
       />
-      <FilterCombobox
+      <ComboboxFilter
         multiple
         options={statusOptions}
         value={status}
@@ -128,7 +114,7 @@ export function TaskFiltersBar({
         className="w-56"
       />
 
-      <FilterCombobox
+      <ComboboxFilter
         multiple
         options={priorityOptions}
         value={priority}
@@ -138,7 +124,7 @@ export function TaskFiltersBar({
         className="w-56"
       />
 
-      <FilterCombobox
+      <ComboboxFilter
         multiple
         options={assigneeOptions}
         value={assignee}
@@ -148,21 +134,11 @@ export function TaskFiltersBar({
         className="w-56"
       />
 
-      <DateRangePicker
+      <DateRangeFilter
         id="tasks-due-date-filter"
-        aria-label={t("tasks.filters.dueDate")}
-        locale={resolveLocale(i18n.language)}
+        ariaLabel={t("tasks.filters.dueDate")}
         placeholder={t("tasks.filters.dueDatePlaceholder")}
         clearLabel={t("tasks.filters.dueDateClear")}
-        labels={{
-          between: t("tasks.filters.dueDateModes.between"),
-          from: t("tasks.filters.dueDateModes.from"),
-          until: t("tasks.filters.dueDateModes.until"),
-          today: t("tasks.filters.dueDatePresets.today"),
-          last7Days: t("tasks.filters.dueDatePresets.last7Days"),
-          thisMonth: t("tasks.filters.dueDatePresets.thisMonth"),
-          mode: t("tasks.filters.dueDateMode"),
-        }}
         value={{ from: dueFrom, to: dueTo }}
         onChange={(next) =>
           commitFilters({

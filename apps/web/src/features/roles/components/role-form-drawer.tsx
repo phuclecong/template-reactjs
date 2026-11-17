@@ -12,17 +12,11 @@ import { useModalForm } from "@refinedev/react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller } from "react-hook-form"
 import type { RoleRecord } from "@workspace/api/schemas"
+import { ComboboxFilter } from "@workspace/shared-lib/components"
 import { Button } from "@workspace/ui/components/button"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import { Field, FieldError, FieldLabel } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select"
 import {
   Sheet,
   SheetContent,
@@ -31,6 +25,8 @@ import {
   SheetTitle,
 } from "@workspace/ui/components/sheet"
 import { Textarea } from "@workspace/ui/components/textarea"
+import { useEnums } from "@workspace/shared-lib/hooks"
+
 import { track } from "@/observability"
 import { describeError } from "@/utils/http-error"
 import {
@@ -87,6 +83,8 @@ function RoleFormSheet({
       }),
     [t]
   )
+
+  const { ROLE_STATUS_OPTIONS: statusOptions } = useEnums()
 
   const {
     control,
@@ -174,7 +172,9 @@ function RoleFormSheet({
     try {
       const result = await onFinish(payload as RoleFormValues)
       const roleId = isEdit
-        ? (refineId ? String(refineId) : undefined)
+        ? refineId
+          ? String(refineId)
+          : undefined
         : (result as { data?: RoleRecord } | undefined)?.data?.id
 
       if (roleId) {
@@ -279,27 +279,19 @@ function RoleFormSheet({
                     <FieldLabel htmlFor={`${fieldId}-status`}>
                       {t("roles.columns.status")}
                     </FieldLabel>
-                    <Select
+                    <ComboboxFilter
+                      id={`${fieldId}-status`}
+                      multiple={false}
+                      options={statusOptions}
                       value={field.value}
                       onValueChange={(value) => field.onChange(value)}
+                      ariaLabel={t("roles.columns.status")}
+                      placeholder={t("roles.columns.status")}
+                      className="w-full"
                       disabled={isSubmitting}
-                    >
-                      <SelectTrigger
-                        id={`${fieldId}-status`}
-                        className="w-full"
-                        aria-invalid={fieldState.invalid}
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="active">
-                          {t("roles.status.active")}
-                        </SelectItem>
-                        <SelectItem value="inactive">
-                          {t("roles.status.inactive")}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+                      ariaInvalid={fieldState.invalid}
+                      showClear={false}
+                    />
                     <FieldError errors={[fieldState.error]} />
                   </Field>
                 )}
@@ -346,11 +338,7 @@ function RoleFormSheet({
  * mode lives in its own `RoleFormSheet`; this wrapper only routes the table's
  * Create and Edit actions to the matching drawer.
  */
-export function RoleFormDrawer({
-  ref,
-}: {
-  ref?: Ref<RoleFormDrawerHandle>
-}) {
+export function RoleFormDrawer({ ref }: { ref?: Ref<RoleFormDrawerHandle> }) {
   const createRef = useRef<RoleFormSheetHandle>(null)
   const editRef = useRef<RoleFormSheetHandle>(null)
 

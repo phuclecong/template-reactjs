@@ -2,23 +2,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useCan, useDelete, type CrudFilter } from "@refinedev/core"
 import { useTable } from "@refinedev/react-table"
-import { flexRender, type ColumnDef } from "@tanstack/react-table"
-import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from "lucide-react"
+import type { ColumnDef } from "@tanstack/react-table"
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import type { RoleRecord } from "@workspace/api/schemas"
+import {
+  EmptyList,
+  ErrorPanel,
+  TableGrid,
+  TablePagination,
+} from "@workspace/shared-lib/components"
 import { TableSkeleton } from "@workspace/shared-lib/components/table-skeleton"
 import { Button } from "@workspace/ui/components/button"
 import { Checkbox } from "@workspace/ui/components/checkbox"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import { StatusBadge } from "@workspace/ui/components/status-badge"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@workspace/ui/components/table"
 import {
   Tooltip,
   TooltipContent,
@@ -30,10 +27,7 @@ import {
   type RoleFormDrawerHandle,
 } from "@/features/roles/components/role-form-drawer"
 import { RolesBulkBar } from "@/features/roles/components/roles-bulk-bar"
-import { RolesEmptyState } from "@/features/roles/components/roles-empty-state"
-import { RolesErrorPanel } from "@/features/roles/components/roles-error-panel"
 import { RolesFilterBar } from "@/features/roles/components/roles-filter-bar"
-import { RolesPagination } from "@/features/roles/components/roles-pagination"
 import {
   ROLE_COLUMN_WIDTHS,
   ROLE_SELECT_COLUMN_WIDTH,
@@ -421,108 +415,37 @@ export function RolesTable() {
           label={t("roles.loading")}
         />
       ) : tableQuery.isError ? (
-        <RolesErrorPanel
-          error={tableQuery.error}
+        <ErrorPanel
+          title={t("roles.error")}
+          description={describeError(tableQuery.error)}
+          retryLabel={t("roles.retry")}
           isRetrying={tableQuery.isFetching}
           onRetry={() => {
             void tableQuery.refetch()
           }}
         />
       ) : rows.length === 0 ? (
-        <RolesEmptyState
-          canCreate={canCreate}
-          onCreate={() => drawerRef.current?.openCreate()}
+        <EmptyList
+          title={t("roles.empty")}
+          description={t("roles.emptyHint")}
+          action={
+            canCreate
+              ? {
+                  label: t("roles.create"),
+                  onClick: () => drawerRef.current?.openCreate(),
+                }
+              : undefined
+          }
         />
       ) : (
         <>
-          <div className="overflow-x-auto border border-border">
-            <Table>
-              <TableHeader>
-                {reactTable.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                      const sortDirection = header.column.getIsSorted()
-                      return (
-                        <TableHead
-                          key={header.id}
-                          style={{ width: header.getSize() }}
-                          aria-sort={
-                            sortDirection === "asc"
-                              ? "ascending"
-                              : sortDirection === "desc"
-                                ? "descending"
-                                : header.column.getCanSort()
-                                  ? "none"
-                                  : undefined
-                          }
-                        >
-                          {header.isPlaceholder ? null : header.column.getCanSort() ? (
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                clearSelection()
-                                header.column.getToggleSortingHandler()?.(event)
-                              }}
-                              className="inline-flex items-center gap-1 text-left"
-                            >
-                              {flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                              {sortDirection === "asc" ? (
-                                <ArrowUpIcon
-                                  className="size-3"
-                                  aria-hidden="true"
-                                />
-                              ) : sortDirection === "desc" ? (
-                                <ArrowDownIcon
-                                  className="size-3"
-                                  aria-hidden="true"
-                                />
-                              ) : (
-                                <ArrowUpDownIcon
-                                  className="size-3 text-muted-foreground"
-                                  aria-hidden="true"
-                                />
-                              )}
-                            </button>
-                          ) : (
-                            flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )
-                          )}
-                        </TableHead>
-                      )
-                    })}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {rows.map((row) => (
-                  <TableRow key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell
-                        key={cell.id}
-                        style={{ width: cell.column.getSize() }}
-                      >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <TableGrid table={reactTable} onSort={clearSelection} />
 
-          <RolesPagination
+          <TablePagination
             page={page}
             pageSize={pageSize}
             pageCount={totalPages}
-            total={total}
+            summary={t("roles.total", { total })}
             onPageChange={goToPage}
             onPageSizeChange={changePageSize}
           />

@@ -1,6 +1,5 @@
 import { useTranslation } from "react-i18next"
 import {
-  flexRender,
   getCoreRowModel,
   useReactTable,
   type ColumnDef,
@@ -9,35 +8,9 @@ import {
   type RowSelectionState,
   type SortingState,
 } from "@tanstack/react-table"
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@workspace/ui/components/pagination"
-import { paginationItems } from "@workspace/ui/lib/pagination"
-import { paginationEdgeProps } from "../utils"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@workspace/ui/components/table"
+import { TableGrid } from "./table-grid"
+import { TablePagination } from "./table-pagination"
 import { TableSkeleton } from "./table-skeleton"
-
-const PAGE_SIZE_OPTIONS = [10, 30, 50, 100]
 
 type DataTablePagination = {
   page: number
@@ -99,8 +72,6 @@ export function DataTable<T>({
   })
 
   const showFooter = data.length > 0
-  const isFirstPage = pagination.page <= 1
-  const isLastPage = pagination.page >= pagination.pageCount
 
   // Headers exist even before data arrives, so their sizes reserve exactly the
   // layout the real table will use. The placeholder renders no table semantics
@@ -120,160 +91,17 @@ export function DataTable<T>({
       ) : data.length === 0 ? (
         <p className="text-muted-foreground">{emptyLabel}</p>
       ) : (
-        <div className="overflow-x-auto border border-border">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => {
-                    const sortDirection = header.column.getIsSorted()
-                    return (
-                      <TableHead
-                        key={header.id}
-                        style={{ width: header.getSize() }}
-                        aria-sort={
-                          sortDirection === "asc"
-                            ? "ascending"
-                            : sortDirection === "desc"
-                              ? "descending"
-                              : header.column.getCanSort()
-                                ? "none"
-                                : undefined
-                        }
-                        className="items-center gap-1"
-                      >
-                        {header.column.getCanSort() ? (
-                          <button
-                            type="button"
-                            onClick={header.column.getToggleSortingHandler()}
-                            className="inline-flex items-center gap-1 text-left"
-                          >
-                            {flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                            <span aria-hidden="true">
-                              {sortDirection === "asc"
-                                ? "↑"
-                                : sortDirection === "desc"
-                                  ? "↓"
-                                  : ""}
-                            </span>
-                          </button>
-                        ) : (
-                          flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )
-                        )}
-                      </TableHead>
-                    )
-                  })}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() ? "selected" : undefined}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      style={{ width: cell.column.getSize() }}
-                      className="items-center"
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <TableGrid table={table} />
       )}
 
       {showFooter && (
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">
-              {t("table.pagination.rowsPerPage")}
-            </span>
-            <Select
-              value={String(pagination.pageSize)}
-              onValueChange={(value) =>
-                pagination.onPageSizeChange(Number(value) || 30)
-              }
-            >
-              <SelectTrigger
-                size="sm"
-                aria-label={t("table.pagination.rowsPerPage")}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PAGE_SIZE_OPTIONS.map((size) => (
-                  <SelectItem key={size} value={String(size)}>
-                    {size}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {pagination.pageCount > 1 && (
-            <Pagination
-              aria-label={t("table.pagination.label")}
-              className="flex-1 justify-end"
-            >
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    text=""
-                    aria-label={t("table.pagination.prev")}
-                    {...paginationEdgeProps(isFirstPage, () =>
-                      pagination.onPageChange(pagination.page - 1)
-                    )}
-                  />
-                </PaginationItem>
-                {paginationItems(pagination.page, pagination.pageCount).map(
-                  (item, index) =>
-                    item === "ellipsis" ? (
-                      <PaginationItem key={`ellipsis-${index}`}>
-                        <PaginationEllipsis />
-                      </PaginationItem>
-                    ) : (
-                      <PaginationItem key={item}>
-                        <PaginationLink
-                          isActive={item === pagination.page}
-                          aria-label={t("table.pagination.pageLabel").replace(
-                            "{page}",
-                            String(item)
-                          )}
-                          onClick={() => pagination.onPageChange(item)}
-                        >
-                          {item}
-                        </PaginationLink>
-                      </PaginationItem>
-                    )
-                )}
-                <PaginationItem>
-                  <PaginationNext
-                    text=""
-                    aria-label={t("table.pagination.next")}
-                    {...paginationEdgeProps(isLastPage, () =>
-                      pagination.onPageChange(pagination.page + 1)
-                    )}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          )}
-        </div>
+        <TablePagination
+          page={pagination.page}
+          pageSize={pagination.pageSize}
+          pageCount={pagination.pageCount}
+          onPageChange={pagination.onPageChange}
+          onPageSizeChange={pagination.onPageSizeChange}
+        />
       )}
     </>
   )

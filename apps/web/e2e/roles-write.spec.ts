@@ -1,9 +1,4 @@
-import {
-  expect,
-  test,
-  type ConsoleMessage,
-  type Page,
-} from "@playwright/test"
+import { expect, test, type ConsoleMessage, type Page } from "@playwright/test"
 
 import { formatLocalDateTime, login } from "./helpers"
 
@@ -52,9 +47,7 @@ test("admin creates a role with inline validation, a toast, and a refreshed list
   await login(page, "admin@example.com", "adminpass")
   await openRoles(page)
 
-  await page
-    .getByRole("button", { name: "Create role", exact: true })
-    .click()
+  await page.getByRole("button", { name: "Create role", exact: true }).click()
   const drawer = page.getByRole("dialog")
   await expect(drawer).toBeVisible()
   await expect(
@@ -85,7 +78,7 @@ test("admin creates a role with inline validation, a toast, and a refreshed list
   ).toBeVisible()
 
   await drawer.getByLabel("Description").fill("Handles customer tickets.")
-  await expect(drawer.getByLabel("Status")).toContainText("active")
+  await expect(drawer.getByLabel("Status")).toHaveValue("Active")
   await drawer.getByRole("button", { name: "Create role" }).click()
 
   await expect(page.getByText("Role created")).toBeVisible()
@@ -124,20 +117,16 @@ test("admin edits a role with prefill and submits only dirty fields", async ({
 
   const drawer = page.getByRole("dialog")
   await expect(drawer).toBeVisible()
-  await expect(
-    drawer.getByRole("heading", { name: "Edit role" })
-  ).toBeVisible()
+  await expect(drawer.getByRole("heading", { name: "Edit role" })).toBeVisible()
 
   // Prefill comes from the Role detail endpoint.
   await expect(drawer.getByLabel("Title")).toHaveValue("Member")
   await expect(drawer.getByLabel("Description")).toHaveValue(
     "Read-only access to the dashboard."
   )
-  await expect(drawer.getByLabel("Status")).toContainText("active")
+  await expect(drawer.getByLabel("Status")).toHaveValue("Active")
 
-  await drawer
-    .getByLabel("Description")
-    .fill("Read-only catalogue access.")
+  await drawer.getByLabel("Description").fill("Read-only catalogue access.")
 
   // Only the changed field is sent; the title and status are untouched.
   const patchRequest = page.waitForRequest(
@@ -177,9 +166,7 @@ test("a duplicate title renders at form level and keeps entered values", async (
   await login(page, "admin@example.com", "adminpass")
   await openRoles(page)
 
-  await page
-    .getByRole("button", { name: "Create role", exact: true })
-    .click()
+  await page.getByRole("button", { name: "Create role", exact: true }).click()
   const drawer = page.getByRole("dialog")
   await drawer.getByLabel("Title").fill("Member")
   await drawer.getByLabel("Description").fill("Temporary description")

@@ -227,11 +227,12 @@ and react-hook-form 7.
 
 The Roles table renders with `@workspace/ui` `Table` primitives driven by the
 TanStack instance. It does not use the shared `DataTable` or `useTableState`.
-Presentational controls are reused: `FilterCombobox`, `DateRangePicker`,
-`Input`, `Select`, `TableSkeleton`, `Pagination`, `Sheet`, and `ConfirmDialog`.
+Presentational controls are reused from `@workspace/shared-lib/components` and
+`@workspace/ui`: `ComboboxFilter`, `DateRangeFilter`, `Input`, `Select`,
+`TableSkeleton`, `TableGrid`, `TablePagination`, `EmptyList`, `ErrorPanel`,
+`Sheet`, and `ConfirmDialog`.
 
-A vendored shadcn `Badge` is added to `packages/ui` for the status badge. The
-list error/retry panel is feature-local.
+A vendored shadcn `Badge` is added to `packages/ui` for the status badge.
 
 ### Access control
 

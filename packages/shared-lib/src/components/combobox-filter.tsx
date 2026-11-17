@@ -20,7 +20,7 @@ import { joinFilterValues, parseFilterValues } from "../utils"
 /** A filter choice: the URL value plus its translated display label. */
 export type FilterOption = { value: string; label: string }
 
-type FilterComboboxSharedProps = {
+type ComboboxFilterSharedProps = {
   /** Translated options; callers memoize the array for stable item identity. */
   options: readonly FilterOption[]
   /** Comma-joined for multi-select, scalar for single-select. */
@@ -31,11 +31,21 @@ type FilterComboboxSharedProps = {
   placeholder: string
   /** Forwarded to the multi-select chips wrapper or the single-select input. */
   className?: string
+  /** Associates the input with a form label. */
+  id?: string
+  disabled?: boolean
+  /** Marks the control invalid for form validation. */
+  ariaInvalid?: boolean
+  /**
+   * Single-select only: show the clear control. Filter bars usually want it so
+   * empty can mean "all"; a required form field does not.
+   */
+  showClear?: boolean
 }
 
-export type FilterComboboxProps =
-  | (FilterComboboxSharedProps & { multiple: true })
-  | (FilterComboboxSharedProps & { multiple: false })
+export type ComboboxFilterProps =
+  | (ComboboxFilterSharedProps & { multiple: true })
+  | (ComboboxFilterSharedProps & { multiple: false })
 
 const optionValueEquals = (option: FilterOption, selected: FilterOption) =>
   option.value === selected.value
@@ -47,12 +57,12 @@ const fallbackOption = (value: string): FilterOption => ({
   label: value,
 })
 
-type FilterComboboxContentProps = {
+type ComboboxFilterContentProps = {
   /** Forwarded to `ComboboxContent`; multi-select anchors the popup to its chips. */
   anchor?: ComponentProps<typeof ComboboxContent>["anchor"]
 }
 
-function FilterComboboxContent({ anchor }: FilterComboboxContentProps) {
+function ComboboxFilterContent({ anchor }: ComboboxFilterContentProps) {
   const { t } = useTranslation()
 
   return (
@@ -69,14 +79,17 @@ function FilterComboboxContent({ anchor }: FilterComboboxContentProps) {
   )
 }
 
-function MultiSelectFilterCombobox({
+function MultiSelectComboboxFilter({
   options,
   value,
   onValueChange,
   ariaLabel,
   placeholder,
   className,
-}: FilterComboboxSharedProps) {
+  id,
+  disabled,
+  ariaInvalid,
+}: ComboboxFilterSharedProps) {
   const { t } = useTranslation()
   const selectedValues = useMemo(() => parseFilterValues(value), [value])
   const optionByValue = useMemo(
@@ -123,6 +136,7 @@ function MultiSelectFilterCombobox({
         if (!open && details.reason === "item-press") details.cancel()
       }}
       isItemEqualToValue={optionValueEquals}
+      disabled={disabled}
     >
       <ComboboxChips ref={anchor} className={className}>
         <ComboboxValue>
@@ -151,26 +165,33 @@ function MultiSelectFilterCombobox({
                 )
               })}
               <ComboboxChipsInput
+                id={id}
                 aria-label={ariaLabel}
+                aria-invalid={ariaInvalid}
+                disabled={disabled}
                 placeholder={selected.length > 0 ? "" : placeholder}
               />
             </>
           )}
         </ComboboxValue>
       </ComboboxChips>
-      <FilterComboboxContent anchor={anchor} />
+      <ComboboxFilterContent anchor={anchor} />
     </Combobox>
   )
 }
 
-function SingleSelectFilterCombobox({
+function SingleSelectComboboxFilter({
   options,
   value,
   onValueChange,
   ariaLabel,
   placeholder,
   className,
-}: FilterComboboxSharedProps) {
+  id,
+  disabled,
+  ariaInvalid,
+  showClear = true,
+}: ComboboxFilterSharedProps) {
   const selectedOption = useMemo(
     () => options.find((option) => option.value === value) ?? null,
     [options, value]
@@ -184,15 +205,19 @@ function SingleSelectFilterCombobox({
         onValueChange(next?.value ?? "")
       }
       isItemEqualToValue={optionValueEquals}
+      disabled={disabled}
     >
       <ComboboxInput
+        id={id}
         aria-label={ariaLabel}
+        aria-invalid={ariaInvalid}
         placeholder={placeholder}
         className={className}
         showTrigger={true}
-        showClear={true}
+        showClear={showClear}
+        disabled={disabled}
       />
-      <FilterComboboxContent />
+      <ComboboxFilterContent />
     </Combobox>
   )
 }
@@ -201,10 +226,10 @@ function SingleSelectFilterCombobox({
  * Filter control over a scalar URL value: comma-joined chips in multi-select
  * mode, a searchable field with a labelled clear control in single-select mode.
  */
-export function FilterCombobox(props: FilterComboboxProps) {
+export function ComboboxFilter(props: ComboboxFilterProps) {
   return props.multiple ? (
-    <MultiSelectFilterCombobox {...props} />
+    <MultiSelectComboboxFilter {...props} />
   ) : (
-    <SingleSelectFilterCombobox {...props} />
+    <SingleSelectComboboxFilter {...props} />
   )
 }

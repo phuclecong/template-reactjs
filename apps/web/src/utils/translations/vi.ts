@@ -53,6 +53,19 @@ export const vi: Translation = {
     signIn: "Đăng nhập",
     failed: "Đăng ký thất bại.",
   },
+  dateRange: {
+    mode: "Chế độ lọc",
+    modes: {
+      between: "Trong khoảng",
+      from: "Từ",
+      until: "Đến",
+    },
+    presets: {
+      today: "Hôm nay",
+      last7Days: "7 ngày qua",
+      thisMonth: "Tháng này",
+    },
+  },
   table: {
     pagination: {
       label: "Phân trang",
@@ -80,17 +93,6 @@ export const vi: Translation = {
       dueDate: "Hạn chót",
       dueDatePlaceholder: "Mọi hạn chót",
       dueDateClear: "Xóa",
-      dueDateMode: "Chế độ lọc",
-      dueDateModes: {
-        between: "Trong khoảng",
-        from: "Từ",
-        until: "Đến",
-      },
-      dueDatePresets: {
-        today: "Hôm nay",
-        last7Days: "7 ngày qua",
-        thisMonth: "Tháng này",
-      },
       clear: "Xóa bộ lọc",
     },
     bulk: {
@@ -196,8 +198,8 @@ export const vi: Translation = {
       updatedAt: "Cập nhật",
     },
     status: {
-      active: "đang hoạt động",
-      inactive: "ngừng hoạt động",
+      active: "Đang hoạt động",
+      inactive: "Ngừng hoạt động",
     },
     bulk: {
       actions: "Thao tác hàng loạt",
@@ -269,24 +271,11 @@ export const vi: Translation = {
       description: "Mô tả",
       descriptionPlaceholder: "Lọc theo mô tả",
       status: "Trạng thái",
-      statusActive: "Đang hoạt động",
-      statusInactive: "Ngừng hoạt động",
       createdAt: "Ngày tạo",
       updatedAt: "Ngày cập nhật",
       createdPlaceholder: "Bất kỳ ngày tạo nào",
       updatedPlaceholder: "Bất kỳ ngày cập nhật nào",
       dateClear: "Xóa",
-      dateMode: "Chế độ lọc",
-      dateModes: {
-        between: "Khoảng",
-        from: "Từ",
-        until: "Đến",
-      },
-      datePresets: {
-        today: "Hôm nay",
-        last7Days: "7 ngày qua",
-        thisMonth: "Tháng này",
-      },
       activeFilters: "Bộ lọc đang áp dụng",
       clearAll: "Xóa tất cả",
       removeFilter: "Xóa {{filter}}",

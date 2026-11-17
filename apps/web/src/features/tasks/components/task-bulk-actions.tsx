@@ -13,12 +13,8 @@ import type {
   BulkPatch,
   PendingBulkAction,
 } from "@/features/tasks/components/task-bulk-actions-content"
-import {
-  PRIORITY_OPTIONS,
-  STATUS_OPTIONS,
-  formValueToDueDate,
-  type UserOption,
-} from "@/features/tasks/utils"
+import { useEnums } from "@workspace/shared-lib/hooks"
+import { formValueToDueDate, type UserOption } from "@/features/tasks/utils"
 import { useIntentPrefetch } from "@/hooks/use-intent-prefetch"
 
 /**
@@ -46,6 +42,10 @@ export function TaskBulkActions({
   onCreate: () => void
 }) {
   const { t } = useTranslation()
+  const {
+    TASK_STATUS_OPTIONS: statusOptions,
+    TASK_PRIORITY_OPTIONS: priorityOptions,
+  } = useEnums()
   const [dueDate, setDueDate] = useState("")
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState("")
@@ -71,21 +71,21 @@ export function TaskBulkActions({
     return [
       {
         value: statusLabel,
-        items: STATUS_OPTIONS.map((status) => ({
-          id: `status:${status}`,
-          label: t(`tasks.status.${status}`),
+        items: statusOptions.map((option) => ({
+          id: `status:${option.value}`,
+          label: option.label,
           groupLabel: statusLabel,
-          patch: { status },
+          patch: { status: option.value },
         })),
       },
       {
         value: priorityLabel,
         items: [
-          ...PRIORITY_OPTIONS.map((priority) => ({
-            id: `priority:${priority}`,
-            label: t(`tasks.priority.${priority}`),
+          ...priorityOptions.map((option) => ({
+            id: `priority:${option.value}`,
+            label: option.label,
             groupLabel: priorityLabel,
-            patch: { priority },
+            patch: { priority: option.value },
           })),
           {
             id: "priority:none",
@@ -124,7 +124,7 @@ export function TaskBulkActions({
         ],
       },
     ]
-  }, [t, users])
+  }, [priorityOptions, statusOptions, t, users])
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen)

@@ -54,6 +54,19 @@ export const en = {
     signIn: "Sign in",
     failed: "Registration failed.",
   },
+  dateRange: {
+    mode: "Filter mode",
+    modes: {
+      between: "Between",
+      from: "From",
+      until: "Until",
+    },
+    presets: {
+      today: "Today",
+      last7Days: "Last 7 days",
+      thisMonth: "This month",
+    },
+  },
   table: {
     pagination: {
       label: "Pagination",
@@ -81,17 +94,6 @@ export const en = {
       dueDate: "Due date",
       dueDatePlaceholder: "Any due date",
       dueDateClear: "Clear",
-      dueDateMode: "Filter mode",
-      dueDateModes: {
-        between: "Between",
-        from: "From",
-        until: "Until",
-      },
-      dueDatePresets: {
-        today: "Today",
-        last7Days: "Last 7 days",
-        thisMonth: "This month",
-      },
       clear: "Clear filters",
     },
     bulk: {
@@ -196,8 +198,8 @@ export const en = {
       updatedAt: "Updated",
     },
     status: {
-      active: "active",
-      inactive: "inactive",
+      active: "Active",
+      inactive: "Inactive",
     },
     bulk: {
       actions: "Bulk actions",
@@ -268,24 +270,11 @@ export const en = {
       description: "Description",
       descriptionPlaceholder: "Filter by description",
       status: "Status",
-      statusActive: "Active",
-      statusInactive: "Inactive",
       createdAt: "Created date",
       updatedAt: "Updated date",
       createdPlaceholder: "Any created date",
       updatedPlaceholder: "Any updated date",
       dateClear: "Clear",
-      dateMode: "Filter mode",
-      dateModes: {
-        between: "Between",
-        from: "From",
-        until: "Until",
-      },
-      datePresets: {
-        today: "Today",
-        last7Days: "Last 7 days",
-        thisMonth: "This month",
-      },
       activeFilters: "Active filters",
       clearAll: "Clear all",
       removeFilter: "Remove {{filter}}",

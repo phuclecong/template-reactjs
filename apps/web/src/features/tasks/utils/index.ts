@@ -1,7 +1,5 @@
 import type { CrudFilter } from "@refinedev/core"
 import {
-  taskPrioritySchema,
-  taskStatusSchema,
   type TaskPriority,
   type TaskRecord,
   type TaskStatus,
@@ -17,12 +15,6 @@ import {
 } from "@workspace/ui/lib/date"
 
 export type { TaskPriority, TaskRecord, TaskStatus }
-
-/** All Task Statuses in display order, derived from the API contract. */
-export const STATUS_OPTIONS = taskStatusSchema.options
-
-/** All Task Priorities in display order, derived from the API contract. */
-export const PRIORITY_OPTIONS = taskPrioritySchema.options
 
 /**
  * Convert a stored Due date to the form value the DatePicker edits: the UTC

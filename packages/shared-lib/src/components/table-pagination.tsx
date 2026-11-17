@@ -1,5 +1,4 @@
 import { useTranslation } from "react-i18next"
-import { paginationEdgeProps } from "@workspace/shared-lib/utils"
 import {
   Pagination,
   PaginationContent,
@@ -9,6 +8,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@workspace/ui/components/pagination"
+import { paginationItems } from "@workspace/ui/lib/pagination"
 import {
   Select,
   SelectContent,
@@ -16,30 +16,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select"
-import { paginationItems } from "@workspace/ui/lib/pagination"
+import { paginationEdgeProps } from "../utils"
 
 const PAGE_SIZE_OPTIONS = [10, 30, 50, 100]
 
-/**
- * Roles footer: total, page-size control, and page links. It renders the
- * Refine/`useTable` state supplied by the table; later tickets can add bulk
- * controls above it without touching this component.
- */
-export function RolesPagination({
-  page,
-  pageSize,
-  pageCount,
-  total,
-  onPageChange,
-  onPageSizeChange,
-}: {
+export type TablePaginationProps = {
   page: number
   pageSize: number
   pageCount: number
-  total: number
   onPageChange: (page: number) => void
   onPageSizeChange: (pageSize: number) => void
-}) {
+  /**
+   * Optional translated summary rendered before the page-size control, for
+   * example "60 roles". Omit it for tables that show no total.
+   */
+  summary?: string
+}
+
+/**
+ * Table footer with the page-size control and page links. It takes only the
+ * current pagination state and callbacks, so server-paged tables share one
+ * footer whether the state comes from `useTableState` or Refine.
+ */
+export function TablePagination({
+  page,
+  pageSize,
+  pageCount,
+  onPageChange,
+  onPageSizeChange,
+  summary,
+}: TablePaginationProps) {
   const { t } = useTranslation()
   const isFirstPage = page <= 1
   const isLastPage = page >= pageCount
@@ -47,9 +53,9 @@ export function RolesPagination({
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-center gap-3">
-        <span className="text-xs text-muted-foreground">
-          {t("roles.total", { total })}
-        </span>
+        {summary ? (
+          <span className="text-xs text-muted-foreground">{summary}</span>
+        ) : null}
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
             {t("table.pagination.rowsPerPage")}
