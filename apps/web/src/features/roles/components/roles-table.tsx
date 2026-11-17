@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useMemo, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { useCan } from "@refinedev/core"
 import { useTable } from "@refinedev/react-table"
@@ -22,6 +22,10 @@ import {
   TooltipTrigger,
 } from "@workspace/ui/components/tooltip"
 
+import {
+  RoleFormDrawer,
+  type RoleFormDrawerHandle,
+} from "@/features/roles/components/role-form-drawer"
 import { RolesEmptyState } from "@/features/roles/components/roles-empty-state"
 import { RolesErrorPanel } from "@/features/roles/components/roles-error-panel"
 import { RolesPagination } from "@/features/roles/components/roles-pagination"
@@ -32,17 +36,23 @@ const DEFAULT_PAGE_SIZE = 30
 
 /**
  * Reference Refine table (ADR-0015): `useTable` from `@refinedev/react-table`
- * owns server pagination, sorting, and URL sync. Filters, row actions, and bulk
- * controls are intentionally absent here; later tickets add them around this
- * data layer without replacing it.
+ * owns server pagination, sorting, and URL sync. Create and Edit route into the
+ * shared `RoleFormDrawer`; filters and bulk controls belong to later tickets
+ * around this data layer.
  */
 export function RolesTable() {
   const { t } = useTranslation()
+  const drawerRef = useRef<RoleFormDrawerHandle>(null)
   const { data: canCreateRole } = useCan({
     resource: "roles",
     action: "create",
   })
+  const { data: canEditRole } = useCan({
+    resource: "roles",
+    action: "edit",
+  })
   const canCreate = canCreateRole?.can === true
+  const canEdit = canEditRole?.can === true
 
   const columns = useMemo<ColumnDef<RoleRecord>[]>(
     () => [
@@ -95,8 +105,28 @@ export function RolesTable() {
         size: ROLE_COLUMN_WIDTHS.updatedAt,
         cell: ({ row }) => formatLocalDateTime(row.original.updatedAt),
       },
+      ...(canEdit
+        ? [
+            {
+              id: "actions",
+              header: t("roles.actions"),
+              size: ROLE_COLUMN_WIDTHS.actions,
+              enableSorting: false,
+              cell: ({ row }) => (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => drawerRef.current?.openEdit(row.original.id)}
+                >
+                  {t("roles.edit")}
+                </Button>
+              ),
+            } satisfies ColumnDef<RoleRecord>,
+          ]
+        : []),
     ],
-    [t]
+    [t, canEdit]
   )
 
   const {
@@ -134,7 +164,14 @@ export function RolesTable() {
     <div className="flex flex-col gap-4 p-6 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">{t("roles.title")}</h1>
-        {canCreate ? <Button type="button">{t("roles.create")}</Button> : null}
+        {canCreate ? (
+          <Button
+            type="button"
+            onClick={() => drawerRef.current?.openCreate()}
+          >
+            {t("roles.create")}
+          </Button>
+        ) : null}
       </div>
 
       {tableQuery.isLoading ? (
@@ -152,7 +189,10 @@ export function RolesTable() {
           }}
         />
       ) : rows.length === 0 ? (
-        <RolesEmptyState canCreate={canCreate} />
+        <RolesEmptyState
+          canCreate={canCreate}
+          onCreate={() => drawerRef.current?.openCreate()}
+        />
       ) : (
         <>
           <div className="overflow-x-auto border border-border">
@@ -245,6 +285,8 @@ export function RolesTable() {
           />
         </>
       )}
+
+      <RoleFormDrawer ref={drawerRef} />
     </div>
   )
 }
