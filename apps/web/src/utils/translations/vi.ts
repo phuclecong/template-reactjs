@@ -269,7 +269,6 @@ export const vi: Translation = {
       description: "Mô tả",
       descriptionPlaceholder: "Lọc theo mô tả",
       status: "Trạng thái",
-      statusAll: "Tất cả",
       statusActive: "Đang hoạt động",
       statusInactive: "Ngừng hoạt động",
       createdAt: "Ngày tạo",

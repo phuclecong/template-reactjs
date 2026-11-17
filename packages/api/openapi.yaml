@@ -460,9 +460,13 @@ paths:
           description: Case-insensitive substring match on the description.
         - name: status
           in: query
+          style: form
+          explode: true
           schema:
-            $ref: "#/components/schemas/RoleStatus"
-          description: Exact match on the Role status.
+            type: array
+            items:
+              $ref: "#/components/schemas/RoleStatus"
+          description: Repeat the parameter to match any of several Role statuses (OR).
         - name: createdAt_gte
           in: query
           schema:

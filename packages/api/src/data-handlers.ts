@@ -430,8 +430,10 @@ function listRoles(request: Request): Response {
   const descriptionLike = url.searchParams
     .get("description_like")
     ?.toLowerCase()
-  const status = url.searchParams.get("status")
-  if (status != null && status !== "" && !isRoleStatus(status)) {
+  const statuses = url.searchParams
+    .getAll("status")
+    .filter((value) => value !== "")
+  if (statuses.some((value) => !isRoleStatus(value))) {
     return fail(
       "invalid_request",
       "status must be one of: active, inactive.",
@@ -490,8 +492,9 @@ function listRoles(request: Request): Response {
         role.description.toLowerCase().includes(descriptionLike)
     )
   }
-  if (status) {
-    items = items.filter((role) => role.status === status)
+  if (statuses.length > 0) {
+    // OR within the field; other fields are ANDed below.
+    items = items.filter((role) => statuses.includes(role.status))
   }
   if (createdAtGte != null) {
     items = items.filter((role) => Date.parse(role.createdAt) >= createdAtGte)

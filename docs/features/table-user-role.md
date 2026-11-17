@@ -98,30 +98,31 @@ assignment choice. Status never revokes access.
 - `description` — text, contains match.
 - `createdAt` — date range: from / to, inclusive.
 - `updatedAt` — date range: from / to, inclusive.
-- `status` — single select: All / Active / Inactive.
+- `status` — multi-select: Active and/or Inactive; no selection means All.
 - Filters combine with AND semantics and reset pagination to page 1.
 - Active filters are visible as removable chips, with a "Clear all" action.
 - Text filters are debounced by 300 ms.
-- Date bounds are stored as UTC instants representing the local start of the
-  From day and the local end of the To day. The picker converts them back to
-  local dates for display.
-- The table uses Refine's `syncWithLocation`. The URL uses `currentPage`,
-  `pageSize`, `sorters[0][field]`, `sorters[0][order]`, `filters[0][field]`,
-  `filters[0][operator]`, and `filters[0][value]`, so filter, sort, and page
-  state survive reload and are shareable.
+- URL state uses flat, URL-encoded query parameters (ADR-0016): `title`,
+  `description`, `status`, `createdAtFrom`, `createdAtTo`, `updatedAtFrom`,
+  `updatedAtTo`, `sort`, `order`, `page`, and `pageSize`.
+- The URL stores date bounds as local `YYYY-MM-DD` calendar days. The API
+  request converts each From bound to the local start of that day as a UTC
+  instant and each To bound to the local end of that day; the picker renders
+  the same days back.
+- `status` is a comma-joined list (`status=active,inactive`).
+- Defaults are omitted: `page=1`, `pageSize=30`, `sort=updatedAt`, and
+  `order=desc` never appear, so a pristine table has an empty query string.
+- `syncWithLocation` is off. The table mirrors state to the URL itself with
+  `URLSearchParams`, so values are percent-encoded and reserved characters in
+  text filters round-trip. Filter, sort, and page state survive reload and are
+  shareable.
 
 Example:
 
 ```
-/roles?currentPage=1&pageSize=30
-&sorters[0][field]=updatedAt&sorters[0][order]=desc
-&filters[0][field]=title&filters[0][operator]=contains&filters[0][value]=admin
+/roles?title=admin&status=active%2Cinactive&createdAtFrom=2026-01-02
+&createdAtTo=2026-01-03&sort=title&order=asc&page=2
 ```
-
-**Known limitation.** Refine serializes table parameters with `encode: false`.
-A text filter value containing `&`, `=`, `#`, or `%` corrupts the URL and loses
-state on reload. This is accepted and documented; avoid reserved characters in
-text filters.
 
 ### FR-3 Create
 
@@ -179,7 +180,7 @@ text filters.
 | POST   | `/roles/bulk-delete` | admin        | `{ ids }` → `{ deleted, failed }`                    |
 
 - List filters: `title`/`description` contains, `createdAt`/`updatedAt`
-  `gte`/`lte`, `status` eq.
+  `gte`/`lte`, `status` eq or repeated `status` params for `in`.
 - Sortable fields: `title`, `status`, `createdAt`, `updatedAt`.
 - `User` gains `roleId` and the embedded `role` summary; `UpdateRoleRequest`
   becomes `{ roleId }`.
@@ -254,15 +255,16 @@ Emit business events from the existing observability module: `role.created`,
 - Feature unit tests for the filter builders and the bulk payload.
 - Component tests for the filter chips and bulk bar.
 - E2E tests for list/filter/sort/page URL state, create/edit/delete, bulk
-  actions, System Role protection, and the member read-only view. Update URL
-  assertions to Refine's `currentPage`/`sorters[...]`/`filters[...]` format.
+  actions, System Role protection, and the member read-only view. URL
+  assertions use the flat query parameter format and check that defaults are
+  omitted.
 
 ### Known consequences
 
 - Users and Tasks keep the existing `useList` + `useTableState` + `DataTable`
-  stack, so two table paradigms and two URL conventions coexist. ADR-0015
-  records the choice.
-- Refine's unencoded table URL is an accepted limitation (see FR-2).
+  stack, so two table paradigms coexist. Roles now also uses the scalar
+  `sort`/`order`/`page`/`pageSize` URL convention, through its own feature-local
+  adapter (ADR-0016).
 - The Roles list requires `GET /roles/{id}` for edit prefill.
 - Page size is 30 and the seed is 60 Roles, so pagination is exercised.
 
@@ -272,8 +274,8 @@ Emit business events from the existing observability module: `role.created`,
       server-side sorting; the default sort is `updatedAt` descending.
 - [ ] All five filters work, combine with AND semantics, produce removable
       chips, and clear individually or together.
-- [ ] Filter, sort, and page state appears in the URL in Refine's format and
-      restores on reload.
+- [ ] Filter, sort, and page state appears in the URL as flat query parameters
+      and restores on reload.
 - [ ] A Role can be created, edited, and deleted with toasts and a refreshed
       list.
 - [ ] Bulk edit updates only `description` and/or `status` on selected Roles;

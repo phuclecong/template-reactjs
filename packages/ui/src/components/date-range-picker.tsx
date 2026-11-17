@@ -105,7 +105,9 @@ export function getPresetDateRange(
   }
 
   return {
-    from: localDateToDateOnly(new Date(today.getFullYear(), today.getMonth(), 1)),
+    from: localDateToDateOnly(
+      new Date(today.getFullYear(), today.getMonth(), 1)
+    ),
     to: localDateToDateOnly(
       new Date(today.getFullYear(), today.getMonth() + 1, 0)
     ),
@@ -151,7 +153,7 @@ export const DateRangePicker = React.forwardRef<
     placeholder = "",
     clearLabel = "Clear",
     className,
-    labels,
+    labels = [],
     "aria-label": ariaLabel,
     "aria-invalid": ariaInvalid,
     "aria-describedby": ariaDescribedBy,
@@ -253,10 +255,7 @@ export const DateRangePicker = React.forwardRef<
       aria-label={ariaLabel}
       aria-invalid={ariaInvalid}
       aria-describedby={ariaDescribedBy}
-      className={cn(
-        "h-8 w-56 justify-between gap-2 font-normal",
-        className
-      )}
+      className={cn("h-8 w-56 justify-between gap-2 font-normal", className)}
     >
       <span className={cn("truncate", !text && "text-muted-foreground")}>
         {text || placeholder}
@@ -328,7 +327,10 @@ export const DateRangePicker = React.forwardRef<
     return (
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger render={trigger} />
-        <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto p-3">
+        <SheetContent
+          side="bottom"
+          className="max-h-[90vh] overflow-y-auto p-3"
+        >
           <SheetTitle className="sr-only">
             {ariaLabel ?? placeholder}
           </SheetTitle>

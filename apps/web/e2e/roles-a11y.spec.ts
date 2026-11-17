@@ -87,12 +87,12 @@ test.describe("administrator", () => {
     await expectFocusedName(page, "Title")
     await page.keyboard.press("Enter")
     await expect(titleHeader).toHaveAttribute("aria-sort", "ascending")
-    await expect(page).toHaveURL(/sorter.*=asc/)
+    await expect(page).toHaveURL(/[?&]order=asc\b/)
     await expect(page.locator("tbody tr").nth(0)).toContainText("Administrator")
 
     await page.keyboard.press("Enter")
     await expect(titleHeader).toHaveAttribute("aria-sort", "descending")
-    await expect(page).toHaveURL(/sorter.*=desc/)
+    await expect(page).toHaveURL(/[?&]order=desc\b/)
     await expect(page.locator("tbody tr").nth(0)).toContainText("Member")
   })
 
@@ -182,7 +182,7 @@ test.describe("administrator", () => {
     await expectFocusedName(page, "Page 2")
     await page.keyboard.press("Enter")
 
-    await expect(page).toHaveURL(/currentPage=2/)
+    await expect(page).toHaveURL(/[?&]page=2\b/)
     await expect(pageTwo).toHaveAttribute("aria-current", "page")
     await expect(
       pagination.getByRole("button", { name: "Page 1" })
@@ -434,7 +434,7 @@ test.describe("member", () => {
     await page.keyboard.type("demo role 42")
 
     await expect
-      .poll(() => new URL(page.url()).searchParams.get("filters[0][value]"))
+      .poll(() => new URL(page.url()).searchParams.get("title"))
       .toBe("demo role 42")
     await expect(page.locator("tbody tr")).toHaveCount(1)
     await expect(page.locator("tbody tr").nth(0)).toContainText("Demo Role 42")

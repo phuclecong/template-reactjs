@@ -1,5 +1,6 @@
 import type { CrudFilter } from "@refinedev/core"
-import type { RoleStatus } from "@workspace/api/schemas"
+import { roleStatusSchema } from "@workspace/api/schemas"
+import { parseFilterValues } from "@workspace/shared-lib/utils"
 import {
   isDateOnly,
   localDateToDateOnly,
@@ -9,14 +10,15 @@ import {
 
 /**
  * The normalized Roles filter state the filter bar edits. Text values are the
- * raw contains terms, `status` is empty for "All", and every date bound is a
- * local `YYYY-MM-DD` calendar day (the controls' model), while the URL stores
- * UTC instants (see `roleFiltersToCrud`).
+ * raw contains terms, `status` is a comma-joined list (empty means no status
+ * filter), and every date bound is a local `YYYY-MM-DD` calendar day (the
+ * controls' model), while the URL stores UTC instants (see
+ * `roleFiltersToCrud`).
  */
 export type RoleFilterValues = {
   title: string
   description: string
-  status: RoleStatus | ""
+  status: string
   createdAtFrom: string
   createdAtTo: string
   updatedAtFrom: string
@@ -24,7 +26,12 @@ export type RoleFilterValues = {
 }
 
 /** The logical filter a chip removes (a date field clears both bounds). */
-export type RoleFilterKey = "title" | "description" | "status" | "createdAt" | "updatedAt"
+export type RoleFilterKey =
+  | "title"
+  | "description"
+  | "status"
+  | "createdAt"
+  | "updatedAt"
 
 export const EMPTY_ROLE_FILTERS: RoleFilterValues = {
   title: "",
@@ -57,6 +64,30 @@ function readLeafFilter(
   return ""
 }
 
+/**
+ * Reads the status filter as a comma-joined list. A single status may arrive
+ * as `eq` (the operator the UI emits for one value, and what older URLs hold);
+ * several arrive as `in` with an array. Unknown values are dropped.
+ */
+function readStatusFilter(filters: CrudFilter[]): string {
+  const validStatuses = new Set<string>(roleStatusSchema.options)
+  for (const filter of filters) {
+    if (!("field" in filter) || filter.field !== "status") continue
+    const rawValues =
+      filter.operator === "in" && Array.isArray(filter.value)
+        ? filter.value
+        : filter.operator === "eq"
+          ? [filter.value]
+          : []
+    const statuses = rawValues.filter(
+      (value): value is string =>
+        typeof value === "string" && validStatuses.has(value)
+    )
+    if (statuses.length > 0) return statuses.join(",")
+  }
+  return ""
+}
+
 /** Converts a stored UTC instant (or legacy date-only value) to a local day. */
 function toLocalDateOnly(value: string): string {
   if (!value) return ""
@@ -66,34 +97,26 @@ function toLocalDateOnly(value: string): string {
 }
 
 /** Reads Refine's `CrudFilter[]` into the filter bar's editable values. */
-export function roleFiltersFromCrud(
-  filters: CrudFilter[]
-): RoleFilterValues {
-  const status = readLeafFilter(filters, "status", "eq")
+export function roleFiltersFromCrud(filters: CrudFilter[]): RoleFilterValues {
   return {
     title: readLeafFilter(filters, "title", "contains"),
     description: readLeafFilter(filters, "description", "contains"),
-    status: status === "active" || status === "inactive" ? status : "",
-    createdAtFrom: toLocalDateOnly(
-      readLeafFilter(filters, "createdAt", "gte")
-    ),
+    status: readStatusFilter(filters),
+    createdAtFrom: toLocalDateOnly(readLeafFilter(filters, "createdAt", "gte")),
     createdAtTo: toLocalDateOnly(readLeafFilter(filters, "createdAt", "lte")),
-    updatedAtFrom: toLocalDateOnly(
-      readLeafFilter(filters, "updatedAt", "gte")
-    ),
+    updatedAtFrom: toLocalDateOnly(readLeafFilter(filters, "updatedAt", "gte")),
     updatedAtTo: toLocalDateOnly(readLeafFilter(filters, "updatedAt", "lte")),
   }
 }
 
 /**
  * Converts the filter bar's values to Refine filters. Text filters are
- * `contains`; the status filter is `eq` and omitted for "All"; each date From
- * bound becomes the local start of that day as a UTC instant and each To bound
- * the local end of that day, so range bounds are inclusive.
+ * `contains`; the status filter is `eq` for one status and `in` for several
+ * (omitted when none are selected); each date From bound becomes the local
+ * start of that day as a UTC instant and each To bound the local end of that
+ * day, so range bounds are inclusive.
  */
-export function roleFiltersToCrud(
-  values: RoleFilterValues
-): CrudFilter[] {
+export function roleFiltersToCrud(values: RoleFilterValues): CrudFilter[] {
   const filters: CrudFilter[] = []
   if (values.title) {
     filters.push({ field: "title", operator: "contains", value: values.title })
@@ -105,8 +128,12 @@ export function roleFiltersToCrud(
       value: values.description,
     })
   }
-  if (values.status) {
-    filters.push({ field: "status", operator: "eq", value: values.status })
+  const statuses = parseFilterValues(values.status)
+  const [onlyStatus] = statuses
+  if (statuses.length > 1) {
+    filters.push({ field: "status", operator: "in", value: statuses })
+  } else if (onlyStatus) {
+    filters.push({ field: "status", operator: "eq", value: onlyStatus })
   }
   if (isDateOnly(values.createdAtFrom)) {
     filters.push({

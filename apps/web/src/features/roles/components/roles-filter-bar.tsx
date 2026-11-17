@@ -2,18 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import type { CrudFilter } from "@refinedev/core"
 import { XIcon } from "lucide-react"
-import type { RoleStatus } from "@workspace/api/schemas"
 import { Button } from "@workspace/ui/components/button"
 import { DateRangePicker } from "@workspace/ui/components/date-range-picker"
 import { Input } from "@workspace/ui/components/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select"
 import { resolveLocale } from "@workspace/ui/lib/date"
+import {
+  FilterCombobox,
+  type FilterOption,
+} from "@workspace/shared-lib/components"
+import { parseFilterValues } from "@workspace/shared-lib/utils"
 
 import {
   clearRoleFilter,
@@ -141,13 +138,15 @@ export function RolesFilterBar({
       })
     }
     if (values.status) {
+      const statusLabels = parseFilterValues(values.status).map((status) =>
+        status === "active"
+          ? t("roles.filters.statusActive")
+          : t("roles.filters.statusInactive")
+      )
       next.push({
         key: "status",
         label: t("roles.filters.chipStatus", {
-          value:
-            values.status === "active"
-              ? t("roles.filters.statusActive")
-              : t("roles.filters.statusInactive"),
+          value: statusLabels.join(", "),
         }),
       })
     }
@@ -155,11 +154,7 @@ export function RolesFilterBar({
       next.push({
         key: "createdAt",
         label: t("roles.filters.chipCreatedAt", {
-          value: dateRangeText(
-            values.createdAtFrom,
-            values.createdAtTo,
-            t
-          ),
+          value: dateRangeText(values.createdAtFrom, values.createdAtTo, t),
         }),
       })
     }
@@ -167,27 +162,19 @@ export function RolesFilterBar({
       next.push({
         key: "updatedAt",
         label: t("roles.filters.chipUpdatedAt", {
-          value: dateRangeText(
-            values.updatedAtFrom,
-            values.updatedAtTo,
-            t
-          ),
+          value: dateRangeText(values.updatedAtFrom, values.updatedAtTo, t),
         }),
       })
     }
     return next
   }, [values, t])
 
-  const dateLabels = useMemo(
-    () => ({
-      between: t("roles.filters.dateModes.between"),
-      from: t("roles.filters.dateModes.from"),
-      until: t("roles.filters.dateModes.until"),
-      today: t("roles.filters.datePresets.today"),
-      last7Days: t("roles.filters.datePresets.last7Days"),
-      thisMonth: t("roles.filters.datePresets.thisMonth"),
-      mode: t("roles.filters.dateMode"),
-    }),
+  // Stable identity: Base UI re-syncs its selection when `items` changes.
+  const statusOptions = useMemo<FilterOption[]>(
+    () => [
+      { value: "active", label: t("roles.filters.statusActive") },
+      { value: "inactive", label: t("roles.filters.statusInactive") },
+    ],
     [t]
   )
 
@@ -212,41 +199,21 @@ export function RolesFilterBar({
           onChange={(event) => setDescription(event.target.value)}
           className="w-56"
         />
-        <Select
-          value={values.status || "all"}
-          onValueChange={(value) =>
-            commit({
-              status:
-                value === "all" ? "" : (value as RoleStatus),
-            })
-          }
-        >
-          <SelectTrigger
-            size="sm"
-            aria-label={t("roles.filters.status")}
-            className="w-40"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">
-              {t("roles.filters.statusAll")}
-            </SelectItem>
-            <SelectItem value="active">
-              {t("roles.filters.statusActive")}
-            </SelectItem>
-            <SelectItem value="inactive">
-              {t("roles.filters.statusInactive")}
-            </SelectItem>
-          </SelectContent>
-        </Select>
+        <FilterCombobox
+          multiple
+          options={statusOptions}
+          value={values.status}
+          onValueChange={(value) => commit({ status: value })}
+          ariaLabel={t("roles.filters.status")}
+          placeholder={t("roles.filters.status")}
+          className="w-40"
+        />
         <DateRangePicker
           id="roles-created-at-filter"
           aria-label={t("roles.filters.createdAt")}
           locale={locale}
           placeholder={t("roles.filters.createdPlaceholder")}
           clearLabel={t("roles.filters.dateClear")}
-          labels={dateLabels}
           value={{ from: values.createdAtFrom, to: values.createdAtTo }}
           onChange={(next) =>
             commit({
@@ -261,7 +228,6 @@ export function RolesFilterBar({
           locale={locale}
           placeholder={t("roles.filters.updatedPlaceholder")}
           clearLabel={t("roles.filters.dateClear")}
-          labels={dateLabels}
           value={{ from: values.updatedAtFrom, to: values.updatedAtTo }}
           onChange={(next) =>
             commit({

@@ -82,7 +82,7 @@ test("the header checkbox selects the current page and selection clears on page 
 
   // Changing page clears the selection and re-scopes the header checkbox.
   await page.getByLabel("Page 2", { exact: true }).click()
-  await expect(page).toHaveURL(/currentPage=2/)
+  await expect(page).toHaveURL(/[?&]page=2\b/)
   await expect(bulkBar(page)).toHaveCount(0)
   await expect(rowCheckbox(page, "Demo Role 30")).not.toBeChecked()
 

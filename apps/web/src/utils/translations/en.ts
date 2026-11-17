@@ -268,7 +268,6 @@ export const en = {
       description: "Description",
       descriptionPlaceholder: "Filter by description",
       status: "Status",
-      statusAll: "All",
       statusActive: "Active",
       statusInactive: "Inactive",
       createdAt: "Created date",

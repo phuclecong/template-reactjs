@@ -2,24 +2,59 @@ import { expect, test, type Page } from "@playwright/test"
 
 import { login } from "./helpers"
 
-// Date bounds are stored as UTC instants for local start/end of day, and the
-// seed timestamps are UTC. Pin the browser to UTC so the picked days, the URL
-// instants, and the rendered rows line up deterministically.
+// The URL stores picked calendar days, the API request converts them to local
+// start/end-of-day instants, and the seed timestamps are UTC. Pin the browser
+// to UTC so the picked days, the request bounds, and the rendered rows line up
+// deterministically.
 test.use({ timezoneId: "UTC" })
 
-type UrlFilter = { field: string; operator: string; value: string }
+type UrlFilterValue = string | string[]
 
-/** Read Refine's `filters[N][...]` table params from the current URL. */
+type UrlFilter = { field: string; operator: string; value: UrlFilterValue }
+
+/**
+ * Read the table's flat query parameters back as CrudFilter-shaped values.
+ * Defaults (sort `updatedAt`/`desc`, page 1, page size 30) are omitted.
+ */
 function readFilters(page: Page): UrlFilter[] {
   const params = new URL(page.url()).searchParams
   const filters: UrlFilter[] = []
-  for (let index = 0; params.has(`filters[${index}][field]`); index++) {
+
+  const title = params.get("title")
+  if (title)
+    filters.push({ field: "title", operator: "contains", value: title })
+
+  const description = params.get("description")
+  if (description) {
     filters.push({
-      field: params.get(`filters[${index}][field]`) ?? "",
-      operator: params.get(`filters[${index}][operator]`) ?? "",
-      value: params.get(`filters[${index}][value]`) ?? "",
+      field: "description",
+      operator: "contains",
+      value: description,
     })
   }
+
+  // Multi-value filters are stored as one comma-joined parameter.
+  const status = params.get("status")
+  if (status) {
+    const values = status.split(",")
+    filters.push({
+      field: "status",
+      operator: values.length > 1 ? "in" : "eq",
+      value: values.length > 1 ? values : values[0],
+    })
+  }
+
+  const dateBounds = [
+    ["createdAtFrom", "createdAt", "gte"],
+    ["createdAtTo", "createdAt", "lte"],
+    ["updatedAtFrom", "updatedAt", "gte"],
+    ["updatedAtTo", "updatedAt", "lte"],
+  ] as const
+  for (const [param, field, operator] of dateBounds) {
+    const value = params.get(param)
+    if (value) filters.push({ field, operator, value })
+  }
+
   return filters
 }
 
@@ -27,7 +62,7 @@ async function expectFilter(
   page: Page,
   field: string,
   operator: string,
-  value: string
+  value: UrlFilterValue
 ) {
   await expect
     .poll(() => readFilters(page))
@@ -39,8 +74,8 @@ async function expectSorter(page: Page, field: string, order: string) {
     .poll(() => {
       const params = new URL(page.url()).searchParams
       return {
-        field: params.get("sorters[0][field]"),
-        order: params.get("sorters[0][order]"),
+        field: params.get("sort") ?? "updatedAt",
+        order: params.get("order") ?? "desc",
       }
     })
     .toEqual({ field, order })
@@ -67,6 +102,9 @@ function statusFilter(page: Page) {
 async function selectStatus(page: Page, label: string) {
   await statusFilter(page).click()
   await page.getByRole("option", { name: label, exact: true }).click()
+  // Multi-select keeps the popup open after a pick; close it so later
+  // interactions are not covered by the popup.
+  await page.keyboard.press("Escape")
 }
 
 async function openCreatedRange(page: Page) {
@@ -109,7 +147,9 @@ test("filters by description with a contains match", async ({ page }) => {
   await descriptionFilter(page).fill("demo role 42")
 
   await expectFilter(page, "description", "contains", "demo role 42")
-  await expect(page.getByText("Description contains: demo role 42")).toBeVisible()
+  await expect(
+    page.getByText("Description contains: demo role 42")
+  ).toBeVisible()
   await expect(page.locator("tbody tr")).toHaveCount(1)
   await expect(page.locator("tbody tr").nth(0)).toContainText("Demo Role 42")
 })
@@ -134,14 +174,16 @@ test("combines title, description, and status filters with AND semantics", async
   await expect(page.locator("tbody tr").nth(0)).toContainText("Demo Role 44")
 })
 
-test("status filter offers All, Active, and Inactive", async ({ page }) => {
+test("status filter selects one or several statuses", async ({ page }) => {
   await login(page, "admin@example.com", "adminpass")
   await openRoles(page)
 
-  // All is the default: both active and inactive Roles are listed.
+  // No selection is the default: both active and inactive Roles are listed.
   await expect(page.getByText("60 roles")).toBeVisible()
   await expect(page.getByText("active", { exact: true }).first()).toBeVisible()
-  await expect(page.getByText("inactive", { exact: true }).first()).toBeVisible()
+  await expect(
+    page.getByText("inactive", { exact: true }).first()
+  ).toBeVisible()
   expect(readFilters(page)).toHaveLength(0)
 
   await selectStatus(page, "Inactive")
@@ -152,17 +194,21 @@ test("status filter offers All, Active, and Inactive", async ({ page }) => {
     page.locator("tbody").getByText("inactive", { exact: true })
   ).toHaveCount(29)
 
+  // Adding a second status widens the match to either value (OR within the
+  // field) and stores both in an `in` filter.
   await selectStatus(page, "Active")
-  await expectFilter(page, "status", "eq", "active")
-  await expect(page.getByText("31 roles")).toBeVisible()
+  await expectFilter(page, "status", "in", ["inactive", "active"])
+  await expect(page.getByText("60 roles")).toBeVisible()
+  await expect(page.getByText("Status: Inactive, Active")).toBeVisible()
   await expect(page.locator("tbody tr")).toHaveCount(30)
 
-  await selectStatus(page, "All")
-  await expect(page.getByText("60 roles")).toBeVisible()
-  expect(readFilters(page)).toHaveLength(0)
+  // Deselecting one status narrows the filter back to the other.
+  await page.getByRole("button", { name: "Remove Active", exact: true }).click()
+  await expectFilter(page, "status", "eq", "inactive")
+  await expect(page.getByText("29 roles")).toBeVisible()
 })
 
-test("filters by an inclusive created-date range stored as UTC instants", async ({
+test("filters by an inclusive created-date range stored as local days", async ({
   page,
 }) => {
   await login(page, "admin@example.com", "adminpass")
@@ -177,9 +223,10 @@ test("filters by an inclusive created-date range stored as UTC instants", async 
     .getByRole("button", { name: /January 3rd, 2026/, exact: false })
     .click()
 
-  // From is the local start of the day; To is the local end of the day.
-  await expectFilter(page, "createdAt", "gte", "2026-01-02T00:00:00.000Z")
-  await expectFilter(page, "createdAt", "lte", "2026-01-03T23:59:59.999Z")
+  // The URL stores the picked calendar days; the API request converts them to
+  // the local start of the From day and the local end of the To day.
+  await expectFilter(page, "createdAt", "gte", "2026-01-02")
+  await expectFilter(page, "createdAt", "lte", "2026-01-03")
 
   // Both boundary days are included: their noon-UTC seeds match.
   await expect(page.locator("tbody tr")).toHaveCount(2)
@@ -195,8 +242,8 @@ test("filters by an inclusive created-date range stored as UTC instants", async 
   // Both bounds survive a reload from the URL, not just the first one.
   await page.reload()
   await expect(page.getByRole("table")).toBeVisible()
-  await expectFilter(page, "createdAt", "gte", "2026-01-02T00:00:00.000Z")
-  await expectFilter(page, "createdAt", "lte", "2026-01-03T23:59:59.999Z")
+  await expectFilter(page, "createdAt", "gte", "2026-01-02")
+  await expectFilter(page, "createdAt", "lte", "2026-01-03")
   await expect(page.locator("tbody tr")).toHaveCount(2)
   await expect(page.locator("#roles-created-at-filter")).toContainText(
     "Jan 2 – 3, 2026"
@@ -216,8 +263,8 @@ test("filters by an inclusive updated-date range", async ({ page }) => {
     .getByRole("button", { name: /March 3rd, 2026/, exact: false })
     .click()
 
-  await expectFilter(page, "updatedAt", "gte", "2026-03-02T00:00:00.000Z")
-  await expectFilter(page, "updatedAt", "lte", "2026-03-03T23:59:59.999Z")
+  await expectFilter(page, "updatedAt", "gte", "2026-03-02")
+  await expectFilter(page, "updatedAt", "lte", "2026-03-03")
 
   await expect(page.locator("tbody tr")).toHaveCount(2)
   await expect(page.locator("tbody tr").nth(0)).toContainText("Demo Role 03")
@@ -261,12 +308,15 @@ test("changing a filter resets pagination to page 1", async ({ page }) => {
   await openRoles(page)
 
   await page.getByLabel("Page 2", { exact: true }).click()
-  await expect(page).toHaveURL(/currentPage=2/)
+  await expect(page).toHaveURL(/[?&]page=2\b/)
 
   await selectStatus(page, "Active")
 
   await expectFilter(page, "status", "eq", "active")
-  await expect(page).toHaveURL(/currentPage=1/)
+  // Page 1 is the default and is therefore omitted from the URL.
+  await expect
+    .poll(() => new URL(page.url()).searchParams.has("page"))
+    .toBe(false)
   await expect(page.getByText("31 roles")).toBeVisible()
   await expect(page.locator("tbody tr")).toHaveCount(30)
 })
@@ -286,14 +336,14 @@ test("restores filters, sort, and page from the URL after reload", async ({
   await expectSorter(page, "title", "asc")
 
   await page.getByLabel("Page 2", { exact: true }).click()
-  await expect(page).toHaveURL(/currentPage=2/)
+  await expect(page).toHaveURL(/[?&]page=2\b/)
   await expect(page.locator("tbody tr")).toHaveCount(28)
   await expect(page.locator("tbody tr").nth(0)).toContainText("Demo Role 31")
 
   await page.reload()
   await expect(page.getByRole("table")).toBeVisible()
 
-  await expect(page).toHaveURL(/currentPage=2/)
+  await expect(page).toHaveURL(/[?&]page=2\b/)
   await expectSorter(page, "title", "asc")
   await expectFilter(page, "title", "contains", "Demo Role")
 

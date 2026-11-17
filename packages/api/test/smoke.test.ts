@@ -1294,6 +1294,13 @@ describe("roles", () => {
     expect(inactive.headers.get("x-total-count")).toBe("29")
     const inactiveList = (await inactive.json()) as RoleRow[]
     for (const role of inactiveList) expect(role.status).toBe("inactive")
+
+    // A repeated parameter matches any of the listed statuses (OR).
+    const either = await api("/api/roles?status=active&status=inactive", {
+      token: accessToken,
+    })
+    expect(either.status).toBe(200)
+    expect(either.headers.get("x-total-count")).toBe("60")
   })
 
   it("ignores an empty status parameter", async () => {
@@ -1333,6 +1340,7 @@ describe("roles", () => {
 
     for (const path of [
       "/api/roles?status=archived",
+      "/api/roles?status=active&status=archived",
       "/api/roles?createdAt_gte=not-a-date",
       "/api/roles?createdAt_lte=2026-01-05",
       "/api/roles?updatedAt_gte=not-a-date",

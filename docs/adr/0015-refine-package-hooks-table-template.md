@@ -1,6 +1,6 @@
 # Refine package hooks are the table template
 
-**Status**: accepted
+**Status**: accepted; the `syncWithLocation` choice is superseded by ADR-0016
 
 The Roles screen is built with `useTable` and `useModalForm` from
 `@refinedev/react-table` and `@refinedev/react-hook-form`, while Users and Tasks

@@ -951,8 +951,8 @@ export interface operations {
                 title_like?: string;
                 /** @description Case-insensitive substring match on the description. */
                 description_like?: string;
-                /** @description Exact match on the Role status. */
-                status?: components["schemas"]["RoleStatus"];
+                /** @description Repeat the parameter to match any of several Role statuses (OR). */
+                status?: components["schemas"]["RoleStatus"][];
                 /** @description Inclusive lower bound on the creation time as an ISO 8601 date-time. */
                 createdAt_gte?: string;
                 /** @description Inclusive upper bound on the creation time as an ISO 8601 date-time. */

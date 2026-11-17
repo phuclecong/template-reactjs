@@ -4,6 +4,7 @@ import { useCan, useDelete, type CrudFilter } from "@refinedev/core"
 import { useTable } from "@refinedev/react-table"
 import { flexRender, type ColumnDef } from "@tanstack/react-table"
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from "lucide-react"
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import type { RoleRecord } from "@workspace/api/schemas"
 import { TableSkeleton } from "@workspace/shared-lib/components/table-skeleton"
 import { Button } from "@workspace/ui/components/button"
@@ -38,10 +39,12 @@ import {
   ROLE_SELECT_COLUMN_WIDTH,
 } from "@/features/roles/utils/column-widths"
 import { formatLocalDateTime, isSystemRole } from "@/features/roles/utils"
+import {
+  buildRolesSearchParams,
+  parseRolesUrlState,
+} from "@/features/roles/utils/url-state"
 import { track } from "@/observability"
 import { describeError } from "@/utils/http-error"
-
-const DEFAULT_PAGE_SIZE = 30
 
 /**
  * The Delete action owns its access check so the `columns` memo stays stable
@@ -74,17 +77,23 @@ function RoleDeleteAction({
 
 /**
  * Reference Refine table (ADR-0015): `useTable` from `@refinedev/react-table`
- * owns server pagination, sorting, and URL sync. Create and Edit route into the
- * shared `RoleFormDrawer`. Administrators also get a page-scoped selection
- * column and the bulk bar; Members get neither.
+ * owns server pagination, sorting, and filtering. Refine's built-in URL sync is
+ * off; a flat `URLSearchParams` adapter (ADR-0016) seeds and mirrors the table
+ * state instead. Create and Edit route into the shared `RoleFormDrawer`.
+ * Administrators also get a page-scoped selection column and the bulk bar;
+ * Members get neither.
  */
 export function RolesTable() {
   const { t } = useTranslation()
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const { pathname, hash } = useLocation()
   const drawerRef = useRef<RoleFormDrawerHandle>(null)
   const { data: canCreateRole } = useCan({
     resource: "roles",
     action: "create",
   })
+
   const { data: canEditRole } = useCan({
     resource: "roles",
     action: "edit",
@@ -218,13 +227,28 @@ export function RolesTable() {
     return [selectColumn, ...dataColumns]
   }, [t])
 
+  // The URL seeds `useTable` on mount. It is re-parsed whenever the query
+  // string changes so Refine's "empty search" reset sees the current defaults;
+  // after that, table state is the source of truth and the effect below mirrors
+  // it back into the URL.
+  const urlState = useMemo(
+    () => parseRolesUrlState(searchParams),
+    [searchParams]
+  )
+
   const { reactTable, refineCore } = useTable<RoleRecord>({
     refineCoreProps: {
       resource: "roles",
-      syncWithLocation: true,
-      pagination: { pageSize: DEFAULT_PAGE_SIZE, mode: "server" },
-      sorters: { initial: [{ field: "updatedAt", order: "desc" }] },
-      filters: { mode: "server" },
+      // Refine's sync serializes `filters[0][value]` without encoding values.
+      // The table owns its URL format instead (see `url-state.ts`).
+      syncWithLocation: false,
+      pagination: {
+        currentPage: urlState.currentPage,
+        pageSize: urlState.pageSize,
+        mode: "server",
+      },
+      sorters: { initial: urlState.sorters, mode: "server" },
+      filters: { initial: urlState.filters, mode: "server" },
     },
     columns,
     getRowId: (row) => row.id,
@@ -252,11 +276,41 @@ export function RolesTable() {
     result,
     filters,
     sorters,
-    currentPage: urlCurrentPage,
-    pageSize: urlPageSize,
+    currentPage: refineCurrentPage,
+    pageSize: refinePageSize,
     setFilters,
     setCurrentPage,
   } = refineCore
+
+  // Table state is the source of truth while mounted. Mirror it into the URL
+  // with flat, encoded keys, skipping the write when the URL already matches so
+  // our own navigation never re-enters this effect as a change.
+  useEffect(() => {
+    const next = buildRolesSearchParams(
+      {
+        filters,
+        sorters,
+        currentPage: refineCurrentPage,
+        pageSize: refinePageSize,
+      },
+      searchParams
+    )
+    const nextSearch = next.toString()
+    if (nextSearch === searchParams.toString()) return
+    navigate(
+      { pathname, hash, search: nextSearch ? `?${nextSearch}` : "" },
+      { replace: true }
+    )
+  }, [
+    filters,
+    sorters,
+    refineCurrentPage,
+    refinePageSize,
+    searchParams,
+    navigate,
+    pathname,
+    hash,
+  ])
 
   const rows = reactTable.getRowModel().rows
   const { pageIndex, pageSize } = reactTable.getState().pagination
@@ -272,14 +326,14 @@ export function RolesTable() {
     reactTable.resetRowSelection()
   }, [reactTable])
 
-  // URL-driven reset: browser back/forward changes Refine's synced state
-  // without going through the handlers below. Keying on a value signature means
-  // unrelated re-renders (same filters/sort/page) never touch the selection.
+  // State-driven reset: a reload from a shared URL or an action that changes
+  // rows outside the handlers below must not leave a selection behind. Keying
+  // on a value signature means unrelated re-renders never touch the selection.
   const locationSignature = JSON.stringify({
     filters,
     sorters,
-    currentPage: urlCurrentPage,
-    pageSize: urlPageSize,
+    currentPage: refineCurrentPage,
+    pageSize: refinePageSize,
   })
   const lastLocationSignature = useRef(locationSignature)
   useEffect(() => {
@@ -303,9 +357,10 @@ export function RolesTable() {
     reactTable.setPageIndex(0)
   }
 
-  // Filter state is owned by Refine core so it syncs to the URL. Any change
-  // replaces the filters and returns to page 1; both pagination layers are
-  // updated because Refine does not reset the page for `setFilters` on its own.
+  // Filter state is owned by Refine core and mirrored to the URL above. Any
+  // change replaces the filters and returns to page 1; both pagination layers
+  // are updated because Refine does not reset the page for `setFilters` on
+  // its own.
   // `useCallback` keeps the filter bar's 300 ms debounce from re-arming every
   // time an unrelated table render produces a new callback identity.
   const changeFilters = useCallback(
@@ -351,10 +406,7 @@ export function RolesTable() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">{t("roles.title")}</h1>
         {canCreate ? (
-          <Button
-            type="button"
-            onClick={() => drawerRef.current?.openCreate()}
-          >
+          <Button type="button" onClick={() => drawerRef.current?.openCreate()}>
             {t("roles.create")}
           </Button>
         ) : null}
@@ -409,9 +461,7 @@ export function RolesTable() {
                               type="button"
                               onClick={(event) => {
                                 clearSelection()
-                                header.column.getToggleSortingHandler()?.(
-                                  event
-                                )
+                                header.column.getToggleSortingHandler()?.(event)
                               }}
                               className="inline-flex items-center gap-1 text-left"
                             >

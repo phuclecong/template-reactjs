@@ -39,13 +39,10 @@ test("navigates to Roles and renders the server-paged default view", async ({
     page.getByRole("columnheader", { name: "Actions" })
   ).toBeVisible()
 
-  // Refine's URL state carries the default page, size, and updatedAt sort.
-  await expect(page).toHaveURL(/currentPage=1/)
-  await expect(page).toHaveURL(/pageSize=30/)
-  await expect(page).toHaveURL(/sorters(\[|%5B)0(\]|%5D)(\[|%5B)field/)
-  await expect(page).toHaveURL(/=updatedAt/)
-  await expect(page).toHaveURL(/sorters(\[|%5B)0(\]|%5D)(\[|%5B)order/)
-  await expect(page).toHaveURL(/=desc/)
+  // Defaults (page 1, size 30, updatedAt descending) are omitted from the URL.
+  await expect
+    .poll(() => new URL(page.url()).searchParams.toString())
+    .toBe("")
 
   // updatedAt descending puts the newest System Role first, then the older one.
   const rows = page.locator("tbody tr")
@@ -76,7 +73,7 @@ test("navigates to Roles and renders the server-paged default view", async ({
   )
 })
 
-test("sorting headers cycle direction and write Refine sorters to the URL", async ({
+test("sorting headers cycle direction and write sort parameters to the URL", async ({
   page,
 }) => {
   await login(page, "admin@example.com", "adminpass")
@@ -86,23 +83,26 @@ test("sorting headers cycle direction and write Refine sorters to the URL", asyn
   const titleHeader = page.getByRole("button", { name: "Title", exact: true })
 
   await titleHeader.click()
-  await expect(page).toHaveURL(/=title/)
-  await expect(page).toHaveURL(/=asc/)
+  await expect(page).toHaveURL(/[?&]sort=title\b/)
+  await expect(page).toHaveURL(/[?&]order=asc\b/)
   await expect(rows.nth(0)).toContainText("Administrator")
 
   await titleHeader.click()
-  await expect(page).toHaveURL(/=title/)
-  await expect(page).toHaveURL(/=desc/)
+  await expect(page).toHaveURL(/[?&]sort=title\b/)
+  await expect(page).toHaveURL(/[?&]order=desc\b/)
   await expect(rows.nth(0)).toContainText("Member")
 
   // A different sortable header replaces the active sorter.
   await page.getByRole("button", { name: "Status", exact: true }).click()
-  await expect(page).toHaveURL(/=status/)
-  await expect(page).toHaveURL(/=asc/)
+  await expect(page).toHaveURL(/[?&]sort=status\b/)
+  await expect(page).toHaveURL(/[?&]order=asc\b/)
 
+  // `updatedAt` is the default sort field, so only the direction is written.
   await page.getByRole("button", { name: "Updated", exact: true }).click()
-  await expect(page).toHaveURL(/=updatedAt/)
-  await expect(page).toHaveURL(/=asc/)
+  await expect
+    .poll(() => new URL(page.url()).searchParams.has("sort"))
+    .toBe(false)
+  await expect(page).toHaveURL(/[?&]order=asc\b/)
 })
 
 test("paginates on the server and changes the page size", async ({ page }) => {
@@ -114,15 +114,18 @@ test("paginates on the server and changes the page size", async ({ page }) => {
 
   // The second page fetches its own 30 records from the list endpoint.
   await page.getByLabel("Page 2", { exact: true }).click()
-  await expect(page).toHaveURL(/currentPage=2/)
+  await expect(page).toHaveURL(/[?&]page=2\b/)
   await expect(rows).toHaveCount(30)
   await expect(rows.nth(0)).toContainText("Demo Role 30")
 
   // Changing page size resets to page 1 and re-queries with the new size.
   await page.getByLabel("Rows per page").click()
   await page.getByRole("option", { name: "10", exact: true }).click()
-  await expect(page).toHaveURL(/pageSize=10/)
-  await expect(page).toHaveURL(/currentPage=1/)
+  await expect(page).toHaveURL(/[?&]pageSize=10\b/)
+  // Page 1 is the default and is therefore omitted from the URL.
+  await expect
+    .poll(() => new URL(page.url()).searchParams.has("page"))
+    .toBe(false)
   await expect(rows).toHaveCount(10)
   await expect(rows.nth(0)).toContainText("Member")
 })
@@ -138,8 +141,8 @@ test("restores sort, page, and page size from the URL after reload", async ({
 
   await titleHeader.click()
   await titleHeader.click()
-  await expect(page).toHaveURL(/=title/)
-  await expect(page).toHaveURL(/=desc/)
+  await expect(page).toHaveURL(/[?&]sort=title\b/)
+  await expect(page).toHaveURL(/[?&]order=desc\b/)
 
   await page.getByLabel("Rows per page").click()
   await page.getByRole("option", { name: "10", exact: true }).click()
@@ -150,10 +153,10 @@ test("restores sort, page, and page size from the URL after reload", async ({
   await expect(page.getByRole("table")).toBeVisible()
 
   // The URL, not the default updatedAt sort, drives the restored view.
-  await expect(page).toHaveURL(/currentPage=2/)
-  await expect(page).toHaveURL(/pageSize=10/)
-  await expect(page).toHaveURL(/=title/)
-  await expect(page).toHaveURL(/=desc/)
+  await expect(page).toHaveURL(/[?&]page=2\b/)
+  await expect(page).toHaveURL(/[?&]pageSize=10\b/)
+  await expect(page).toHaveURL(/[?&]sort=title\b/)
+  await expect(page).toHaveURL(/[?&]order=desc\b/)
   await expect(rows).toHaveCount(10)
   await expect(rows.nth(0)).toContainText("Demo Role 49")
 })
@@ -170,7 +173,7 @@ test("member sees the table and pagination without any action controls", async (
 
   // Members still paginate the catalogue.
   await page.getByLabel("Page 2", { exact: true }).click()
-  await expect(page).toHaveURL(/currentPage=2/)
+  await expect(page).toHaveURL(/[?&]page=2\b/)
   await expect(rows.nth(0)).toContainText("Demo Role 30")
 
   // No create, edit, delete, selection, or row-action controls render.
