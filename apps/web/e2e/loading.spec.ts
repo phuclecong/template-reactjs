@@ -12,7 +12,8 @@ const SESSION = JSON.stringify({
     id: "usr_admin",
     name: "Ada Admin",
     email: "admin@example.com",
-    role: "admin",
+    roleId: "rol_admin",
+    role: { id: "rol_admin", title: "Administrator", status: "active" },
   },
 })
 
@@ -29,13 +30,15 @@ test("route chunks load on intent only, never at startup or while idle", async (
   await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible()
 
   // The auth screen loads only its own route; register is never fetched.
-  expect(routeModuleRequests.some((url) => REGISTER_ROUTE_MODULE.test(url))).toBe(
-    false
-  )
+  expect(
+    routeModuleRequests.some((url) => REGISTER_ROUTE_MODULE.test(url))
+  ).toBe(false)
 
   await login(page, "admin@example.com", "adminpass")
   // Login lands on the /dashboard placeholder, so navigate to Tasks explicitly.
-  await page.locator('[data-sidebar="menu-button"]', { hasText: "Tasks" }).click()
+  await page
+    .locator('[data-sidebar="menu-button"]', { hasText: "Tasks" })
+    .click()
   await expect(page).toHaveURL(/\/tasks$/)
   await expect(page.getByRole("table")).toBeVisible()
 
@@ -51,7 +54,9 @@ test("route chunks load on intent only, never at startup or while idle", async (
   // Hovering the Settings link is the intent signal that warms its chunk.
   await page.getByRole("link", { name: "Settings" }).hover()
   await expect
-    .poll(() => routeModuleRequests.some((url) => SETTINGS_ROUTE_MODULE.test(url)))
+    .poll(() =>
+      routeModuleRequests.some((url) => SETTINGS_ROUTE_MODULE.test(url))
+    )
     .toBe(true)
 
   await page.getByRole("link", { name: "Settings" }).click()

@@ -169,10 +169,6 @@ export const en = {
       role: "Role",
       actions: "Actions",
     },
-    role: {
-      admin: "admin",
-      member: "member",
-    },
     delete: "Delete",
     deleteTitle: "Delete user?",
     deleteBody: "Delete {{name}}? This cannot be undone.",

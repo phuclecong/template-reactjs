@@ -5,7 +5,6 @@ import {
   roles,
   tasks,
   users,
-  type Role,
   type RoleEntity,
   type RoleStatus,
   type TaskEntity,
@@ -72,10 +71,6 @@ function pathParam(
   return value?.[0]
 }
 
-function isRole(value: unknown): value is Role {
-  return value === "admin" || value === "member"
-}
-
 function isStatus(value: unknown): value is TaskStatus {
   return (
     value === "todo" ||
@@ -117,7 +112,7 @@ function toPublicTask(task: TaskEntity): TaskEntity {
   return { ...task, dueDate: normalizeStoredDueDate(task.dueDate) }
 }
 
-const sortableUserFields = ["name", "email", "role", "createdAt"] as const
+const sortableUserFields = ["name", "email", "roleId", "createdAt"] as const
 type SortableUserField = (typeof sortableUserFields)[number]
 
 function isSortableUserField(value: string | null): value is SortableUserField {
@@ -139,7 +134,7 @@ function compareUserValues(
   return String(av).localeCompare(String(bv))
 }
 
-/** Lists users with simple-rest compatible `_start`/`_end`/`_sort`/`_order`/`q`/`role`. */
+/** Lists users with simple-rest compatible `_start`/`_end`/`_sort`/`_order`/`q`/`roleId`. */
 function listUsers(request: Request): Response {
   if (!getAuthUser(request)) {
     return fail("unauthorized", "Authentication required.", 401)
@@ -147,7 +142,7 @@ function listUsers(request: Request): Response {
 
   const url = new URL(request.url)
   const q = url.searchParams.get("q")?.trim().toLowerCase()
-  const role = url.searchParams.get("role")
+  const roleId = url.searchParams.get("roleId")
   const start = Number(url.searchParams.get("_start") ?? 0)
   const endParam = url.searchParams.get("_end")
   const end = endParam ? Number(endParam) : undefined
@@ -165,8 +160,8 @@ function listUsers(request: Request): Response {
         user.email.toLowerCase().includes(q)
     )
   }
-  if (role && isRole(role)) {
-    items = items.filter((user) => user.role === role)
+  if (roleId) {
+    items = items.filter((user) => user.roleId === roleId)
   }
 
   items.sort((a, b) => {
@@ -362,7 +357,7 @@ async function bulkUpdateTasks(request: Request): Promise<Response> {
       failed.push({ id, reason: "not_found" })
       continue
     }
-    if (actor.role !== "admin" && target.assigneeId !== actor.id) {
+    if (!isAdministrator(actor) && target.assigneeId !== actor.id) {
       failed.push({ id, reason: "forbidden" })
       continue
     }
@@ -538,31 +533,13 @@ const ROLE_TITLE_MAX = 100
 const ROLE_DESCRIPTION_MAX = 500
 const systemRoleIds = new Set(["rol_admin", "rol_member"])
 
-/**
- * Reads the caller's role identity. While the Users migration (ticket #64) is
- * in flight, a stored `roleId` wins when present and the legacy `role` enum is
- * the fallback.
- */
-interface UserRoleIdentity {
-  roleId?: string
-  role?: string
-}
-
+/** Administrator access is holding the `rol_admin` System Role. */
 function isAdministrator(user: UserEntity): boolean {
-  const identity = user as unknown as UserRoleIdentity
-  if (typeof identity.roleId === "string") {
-    return identity.roleId === "rol_admin"
-  }
-  return identity.role === "admin"
+  return user.roleId === "rol_admin"
 }
 
 function userHoldsRole(user: UserEntity, roleId: string): boolean {
-  const identity = user as unknown as UserRoleIdentity
-  if (typeof identity.roleId === "string") return identity.roleId === roleId
-  return (
-    (roleId === "rol_admin" && identity.role === "admin") ||
-    (roleId === "rol_member" && identity.role === "member")
-  )
+  return user.roleId === roleId
 }
 
 function isRoleReferenced(roleId: string): boolean {
@@ -937,7 +914,7 @@ export const dataHandlers = [
   http.patch("*/api/users/:id/role", async ({ request, params }) => {
     const actor = getAuthUser(request)
     if (!actor) return fail("unauthorized", "Authentication required.", 401)
-    if (actor.role !== "admin") {
+    if (!isAdministrator(actor)) {
       return fail("forbidden", "Admin role required.", 403)
     }
     const id = pathParam(params.id)
@@ -947,17 +924,24 @@ export const dataHandlers = [
     if (!target) return fail("not_found", "User not found.", 404)
 
     const body = await readJson(request)
-    if (!body || !isRole(body.role)) {
+    const roleId = body?.roleId
+    if (typeof roleId !== "string" || roleId === "") {
+      return fail("invalid_request", "A roleId is required.", 400)
+    }
+    const role = roles.findFirst((query) => query.where({ id: roleId }))
+    if (!role) {
+      return fail("invalid_request", "The role does not exist.", 400)
+    }
+    if (role.status !== "active") {
       return fail(
         "invalid_request",
-        'A role of "admin" or "member" is required.',
+        "An inactive role cannot be assigned.",
         400
       )
     }
-    const role = body.role
     const updated = await users.update(target, {
       data(draft) {
-        draft.role = role
+        draft.roleId = roleId
       },
       strict: true,
     })
@@ -967,7 +951,7 @@ export const dataHandlers = [
   http.delete("*/api/users/:id", ({ request, params }) => {
     const actor = getAuthUser(request)
     if (!actor) return fail("unauthorized", "Authentication required.", 401)
-    if (actor.role !== "admin") {
+    if (!isAdministrator(actor)) {
       return fail("forbidden", "Admin role required.", 403)
     }
     const id = pathParam(params.id)
@@ -1028,7 +1012,7 @@ export const dataHandlers = [
       ? tasks.findFirst((query) => query.where({ id }))
       : undefined
     if (!target) return fail("not_found", "Task not found.", 404)
-    if (actor.role !== "admin" && target.assigneeId !== actor.id) {
+    if (!isAdministrator(actor) && target.assigneeId !== actor.id) {
       return fail("forbidden", "You can only update your own tasks.", 403)
     }
 
@@ -1077,7 +1061,7 @@ export const dataHandlers = [
       ? tasks.findFirst((query) => query.where({ id }))
       : undefined
     if (!target) return fail("not_found", "Task not found.", 404)
-    if (actor.role !== "admin" && target.assigneeId !== actor.id) {
+    if (!isAdministrator(actor) && target.assigneeId !== actor.id) {
       return fail("forbidden", "You can only delete your own tasks.", 403)
     }
     tasks.delete(target)

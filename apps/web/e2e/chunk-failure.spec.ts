@@ -20,7 +20,8 @@ const SESSION = JSON.stringify({
     id: "usr_admin",
     name: "Ada Admin",
     email: "admin@example.com",
-    role: "admin",
+    roleId: "rol_admin",
+    role: { id: "rol_admin", title: "Administrator", status: "active" },
   },
 })
 

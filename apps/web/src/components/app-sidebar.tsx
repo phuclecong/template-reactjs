@@ -43,7 +43,7 @@ import {
 interface AppSidebarUser {
   name: string
   email: string
-  role: "admin" | "member"
+  role: { id: string; title: string; status: "active" | "inactive" }
 }
 
 /**
@@ -114,9 +114,7 @@ export function AppSidebar({
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              render={
-                <IntentLink to="/dashboard" onClick={handleNavigate} />
-              }
+              render={<IntentLink to="/dashboard" onClick={handleNavigate} />}
             >
               <LayoutDashboardIcon />
               <span className="truncate">{t("shell.title")}</span>
@@ -180,7 +178,7 @@ export function AppSidebar({
                 <div className="ml-2 grid flex-1 text-left leading-tight">
                   <span className="truncate text-sm">{user.name}</span>
                   <span className="truncate text-xs text-muted-foreground">
-                    {user.role}
+                    {user.role.title}
                   </span>
                 </div>
               </DropdownMenuTrigger>

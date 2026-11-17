@@ -75,7 +75,7 @@ export async function ensureSeedUsers(): Promise<void> {
       id: "usr_admin",
       name: "Ada Admin",
       email: "admin@example.com",
-      role: "admin",
+      roleId: "rol_admin",
       password: "adminpass",
       createdAt: nowIso(),
     })
@@ -85,7 +85,7 @@ export async function ensureSeedUsers(): Promise<void> {
       id: "usr_member",
       name: "Mia Member",
       email: "member@example.com",
-      role: "member",
+      roleId: "rol_member",
       password: "memberpass",
       createdAt: nowIso(),
     })

@@ -169,10 +169,6 @@ export const vi: Translation = {
       role: "Vai trò",
       actions: "Hành động",
     },
-    role: {
-      admin: "Quản trị viên",
-      member: "Thành viên",
-    },
     delete: "Xóa",
     deleteTitle: "Xóa người dùng?",
     deleteBody: "Xóa {{name}}? Không thể hoàn tác.",

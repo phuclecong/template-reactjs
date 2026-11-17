@@ -17,7 +17,11 @@ async function renderFilter(
   const props = {
     searchValue: "",
     onSearchChange: vi.fn(),
-    role: "",
+    roleId: "",
+    roleOptions: [
+      { value: "rol_admin", label: "Administrator" },
+      { value: "rol_member", label: "Member" },
+    ],
     onRoleChange: vi.fn(),
     ...overrides,
   }
@@ -55,8 +59,8 @@ describe("UsersFilterBar role filter", () => {
     await user.click(input)
 
     expect(await screen.findByRole("listbox")).toBeInTheDocument()
-    expect(screen.getByRole("option", { name: "admin" })).toBeVisible()
-    expect(screen.getByRole("option", { name: "member" })).toBeVisible()
+    expect(screen.getByRole("option", { name: "Administrator" })).toBeVisible()
+    expect(screen.getByRole("option", { name: "Member" })).toBeVisible()
     expect(
       screen.queryByRole("option", { name: "All" })
     ).not.toBeInTheDocument()
@@ -70,29 +74,29 @@ describe("UsersFilterBar role filter", () => {
     await user.click(input)
     await user.type(input, "mem")
 
-    expect(screen.getByRole("option", { name: "member" })).toBeVisible()
+    expect(screen.getByRole("option", { name: "Member" })).toBeVisible()
     expect(
-      screen.queryByRole("option", { name: "admin" })
+      screen.queryByRole("option", { name: "Administrator" })
     ).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole("option", { name: "member" }))
+    await user.click(screen.getByRole("option", { name: "Member" }))
 
-    expect(props.onRoleChange).toHaveBeenCalledWith("member")
+    expect(props.onRoleChange).toHaveBeenCalledWith("rol_member")
   })
 
   it("shows the selected role and clears it", async () => {
     const user = userEvent.setup()
-    const props = await renderFilter({ role: "admin" })
+    const props = await renderFilter({ roleId: "rol_member" })
 
     const input = screen.getByRole("combobox", { name: "Role" })
-    expect(input).toHaveValue("admin")
+    expect(input).toHaveValue("Member")
 
     await user.click(getClearControl())
 
     expect(props.onRoleChange).toHaveBeenCalledWith("")
   })
 
-  it("localizes the placeholder and the role labels", async () => {
+  it("localizes the placeholder while Role titles stay data", async () => {
     const user = userEvent.setup()
     await renderFilter({}, "vi")
 
@@ -101,8 +105,9 @@ describe("UsersFilterBar role filter", () => {
 
     await user.click(input)
 
+    // Role titles are records, not interface strings.
     expect(
-      await screen.findByRole("option", { name: "Quản trị viên" })
+      await screen.findByRole("option", { name: "Administrator" })
     ).toBeVisible()
   })
 })

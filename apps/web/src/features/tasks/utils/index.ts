@@ -2,7 +2,6 @@ import type { CrudFilter } from "@refinedev/core"
 import {
   taskPrioritySchema,
   taskStatusSchema,
-  type Role,
   type TaskPriority,
   type TaskRecord,
   type TaskStatus,
@@ -17,7 +16,7 @@ import {
   toUtcInstant,
 } from "@workspace/ui/lib/date"
 
-export type { Role, TaskPriority, TaskRecord, TaskStatus }
+export type { TaskPriority, TaskRecord, TaskStatus }
 
 /** All Task Statuses in display order, derived from the API contract. */
 export const STATUS_OPTIONS = taskStatusSchema.options
@@ -47,7 +46,7 @@ export function formValueToDueDate(value: string): string | null {
 export type UserOption = Pick<UserRecord, "id" | "name">
 
 /** The identity the task views read from the auth provider. */
-export type CurrentUser = Pick<UserRecord, "id" | "role">
+export type CurrentUser = Pick<UserRecord, "id" | "roleId">
 
 /** The TaskRecord fields that are optional and nullable in the API contract. */
 type NullableTaskField = "description" | "priority" | "assigneeId" | "dueDate"

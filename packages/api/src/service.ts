@@ -1,8 +1,9 @@
 import { signToken, verifyToken } from "./auth"
 import {
   ensureSeedUsers,
+  roles,
   users,
-  type Role,
+  type RoleStatus,
   type UserEntity,
 } from "./collections"
 
@@ -14,11 +15,19 @@ import {
  * can be bundled into the browser without dragging in the handler machinery.
  */
 
+/** The Role identity and display summary embedded in a User response. */
+export interface RoleSummary {
+  id: string
+  title: string
+  status: RoleStatus
+}
+
 export interface PublicUser {
   id: string
   name: string
   email: string
-  role: Role
+  roleId: string
+  role: RoleSummary
   createdAt: string
 }
 
@@ -34,19 +43,33 @@ export interface ServiceResult {
 }
 
 export function toPublicUser(user: UserEntity): PublicUser {
+  const role = roles.findFirst((query) => query.where({ id: user.roleId }))
   return {
     id: user.id,
     name: user.name,
     email: user.email,
-    role: user.role,
+    roleId: user.roleId,
+    role: role
+      ? { id: role.id, title: role.title, status: role.status }
+      : // The seed and registration paths guarantee the Role exists; the
+        // fallback keeps an unknown reference from turning a read into a 500.
+        { id: user.roleId, title: user.roleId, status: "active" },
     createdAt: user.createdAt,
   }
 }
 
 function authResponse(user: UserEntity): AuthResponseBody {
   return {
-    accessToken: signToken({ sub: user.id, role: user.role, type: "access" }),
-    refreshToken: signToken({ sub: user.id, role: user.role, type: "refresh" }),
+    accessToken: signToken({
+      sub: user.id,
+      roleId: user.roleId,
+      type: "access",
+    }),
+    refreshToken: signToken({
+      sub: user.id,
+      roleId: user.roleId,
+      type: "refresh",
+    }),
     user: toPublicUser(user),
   }
 }
@@ -93,7 +116,7 @@ export async function registerUser(
     id: `usr_${crypto.randomUUID()}`,
     name,
     email: normalizedEmail,
-    role: "member",
+    roleId: "rol_member",
     password,
     createdAt: new Date().toISOString(),
   })
@@ -133,7 +156,17 @@ export function refreshAccessToken(refreshToken: unknown): ServiceResult {
   return {
     status: 200,
     body: {
-      accessToken: signToken({ sub: user.id, role: user.role, type: "access" }),
+      accessToken: signToken({
+        sub: user.id,
+        roleId: user.roleId,
+        type: "access",
+      }),
+      refreshToken: signToken({
+        sub: user.id,
+        roleId: user.roleId,
+        type: "refresh",
+      }),
+      user: toPublicUser(user),
     },
   }
 }

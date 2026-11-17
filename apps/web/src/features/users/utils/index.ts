@@ -1,15 +1,20 @@
 import type { CrudFilter } from "@refinedev/core"
-import { roleSchema, type UserRecord } from "@workspace/api/schemas"
-
-/** All User Roles in display order, derived from the API contract. */
-export const ROLE_OPTIONS = roleSchema.options
+import type { UserRecord } from "@workspace/api/schemas"
 
 /** URL filter values for the user table. */
-export type UserFilters = Record<"role", string>
+export type UserFilters = Record<"roleId", string>
 
 /** The identity the user table reads from the auth provider. */
-export type CurrentUser = Pick<UserRecord, "id" | "role">
-export type UserRow = Omit<UserRecord, "password">
+export type CurrentUser = Pick<UserRecord, "id" | "roleId">
+
+/** A User response, including the Role summary embedded by the API. */
+export type UserRow = Omit<UserRecord, "password"> & {
+  role: {
+    id: string
+    title: string
+    status: "active" | "inactive"
+  }
+}
 
 /**
  * Convert the search query and URL filter values into the `CrudFilter[]` that
@@ -21,7 +26,7 @@ export function toUserCrudFilters(
 ): CrudFilter[] {
   const result: CrudFilter[] = []
   if (q) result.push({ field: "q", operator: "contains", value: q })
-  if (filters.role)
-    result.push({ field: "role", operator: "eq", value: filters.role })
+  if (filters.roleId)
+    result.push({ field: "roleId", operator: "eq", value: filters.roleId })
   return result
 }
