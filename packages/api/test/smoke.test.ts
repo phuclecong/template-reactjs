@@ -8,7 +8,7 @@ import {
   it,
 } from "vitest"
 import { setupServer } from "msw/node"
-import { handlers, resetDb, tasks } from "../src/index"
+import { handlers, resetDb, roles, tasks } from "../src/index"
 
 // The read path interprets legacy date-only records as local midnight. Pin the
 // test process to UTC so the expected instants are deterministic.
@@ -389,10 +389,9 @@ describe("tasks", () => {
   it("combines repeated priority values with another filter using AND", async () => {
     const { accessToken } = await login("admin@example.com", "adminpass")
 
-    const res = await api(
-      "/api/tasks?priority=low&priority=high&status=todo",
-      { token: accessToken }
-    )
+    const res = await api("/api/tasks?priority=low&priority=high&status=todo", {
+      token: accessToken,
+    })
     expect(res.status).toBe(200)
 
     const list = (await res.json()) as Array<{
@@ -843,6 +842,375 @@ describe("tasks", () => {
       token: accessToken,
     })
     expect(res.status).toBe(204)
+  })
+})
+
+interface RoleRow {
+  id: string
+  title: string
+  description: string | null
+  status: "active" | "inactive"
+  createdAt: string
+  updatedAt: string
+}
+
+describe("roles", () => {
+  it("requires auth to list roles (401)", async () => {
+    const res = await api("/api/roles")
+    expect(res.status).toBe(401)
+  })
+
+  it("seeds exactly 60 roles, including inactive ones, for an authenticated caller", async () => {
+    const { accessToken } = await login("member@example.com", "memberpass")
+    const res = await api("/api/roles", { token: accessToken })
+    expect(res.status).toBe(200)
+    expect(res.headers.get("x-total-count")).toBe("60")
+
+    const list = (await res.json()) as RoleRow[]
+    expect(list).toHaveLength(60)
+    expect(list.map((role) => role.id)).toEqual(
+      expect.arrayContaining(["rol_admin", "rol_member"])
+    )
+    expect(
+      list
+        .filter((role) => role.id === "rol_admin" || role.id === "rol_member")
+        .map((role) => role.title)
+        .sort()
+    ).toEqual(["Administrator", "Member"])
+    // No implicit status filter: inactive Roles are part of the default list.
+    expect(new Set(list.map((role) => role.status))).toEqual(
+      new Set(["active", "inactive"])
+    )
+    for (const role of list) {
+      expect(role).toHaveProperty("description")
+      expect(role).toHaveProperty("createdAt")
+      expect(role).toHaveProperty("updatedAt")
+    }
+  })
+
+  it("restores the 60-role seed when the store resets", async () => {
+    await roles.create({
+      id: "rol_extra",
+      title: "Extra Role",
+      description: null,
+      status: "active",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    })
+    expect(roles.all()).toHaveLength(61)
+
+    await resetDb()
+    expect(roles.all()).toHaveLength(60)
+  })
+
+  it("paginates with _start/_end and reports the pre-pagination total", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+
+    const first = await api("/api/roles?_start=0&_end=30", {
+      token: accessToken,
+    })
+    expect(first.status).toBe(200)
+    expect(first.headers.get("x-total-count")).toBe("60")
+    const firstPage = (await first.json()) as RoleRow[]
+    expect(firstPage).toHaveLength(30)
+
+    const second = await api("/api/roles?_start=30&_end=60", {
+      token: accessToken,
+    })
+    expect(second.status).toBe(200)
+    expect(second.headers.get("x-total-count")).toBe("60")
+    const secondPage = (await second.json()) as RoleRow[]
+    expect(secondPage).toHaveLength(30)
+    expect(secondPage.map((role) => role.id)).not.toEqual(
+      expect.arrayContaining(firstPage.map((role) => role.id))
+    )
+  })
+
+  it("sorts by title ascending and descending", async () => {
+    const { accessToken } = await login("member@example.com", "memberpass")
+
+    const asc = await api("/api/roles?_sort=title&_order=asc", {
+      token: accessToken,
+    })
+    expect(asc.status).toBe(200)
+    const ascTitles = ((await asc.json()) as RoleRow[]).map(
+      (role) => role.title
+    )
+    expect(ascTitles).toHaveLength(60)
+    expect(ascTitles).toEqual([...ascTitles].sort((a, b) => a.localeCompare(b)))
+    expect(ascTitles[0]).toBe("Administrator")
+    expect(ascTitles.at(-1)).toBe("Member")
+
+    const desc = await api("/api/roles?_sort=title&_order=desc", {
+      token: accessToken,
+    })
+    expect(desc.status).toBe(200)
+    const descTitles = ((await desc.json()) as RoleRow[]).map(
+      (role) => role.title
+    )
+    expect(descTitles).toEqual([...ascTitles].reverse())
+    expect(descTitles[0]).toBe("Member")
+    expect(descTitles.at(-1)).toBe("Administrator")
+  })
+
+  it("sorts by status ascending and descending", async () => {
+    const { accessToken } = await login("member@example.com", "memberpass")
+
+    const asc = await api("/api/roles?_sort=status&_order=asc", {
+      token: accessToken,
+    })
+    expect(asc.status).toBe(200)
+    const ascList = (await asc.json()) as RoleRow[]
+    expect(ascList).toHaveLength(60)
+    const firstInactive = ascList.findIndex(
+      (role) => role.status === "inactive"
+    )
+    expect(
+      ascList.slice(0, firstInactive).every((r) => r.status === "active")
+    ).toBe(true)
+    expect(
+      ascList.slice(firstInactive).every((r) => r.status === "inactive")
+    ).toBe(true)
+
+    const desc = await api("/api/roles?_sort=status&_order=desc", {
+      token: accessToken,
+    })
+    const descList = (await desc.json()) as RoleRow[]
+    expect(descList[0]?.status).toBe("inactive")
+    expect(descList.at(-1)?.status).toBe("active")
+  })
+
+  it("sorts by createdAt and updatedAt as instants", async () => {
+    const { accessToken } = await login("member@example.com", "memberpass")
+
+    const created = await api("/api/roles?_sort=createdAt&_order=asc", {
+      token: accessToken,
+    })
+    const createdList = (await created.json()) as RoleRow[]
+    expect(createdList[0]?.id).toBe("rol_admin")
+    expect(createdList[1]?.id).toBe("rol_member")
+    for (let i = 1; i < createdList.length; i++) {
+      expect(
+        Date.parse(createdList[i]!.createdAt) >=
+          Date.parse(createdList[i - 1]!.createdAt)
+      ).toBe(true)
+    }
+
+    const updatedDesc = await api("/api/roles?_sort=updatedAt&_order=desc", {
+      token: accessToken,
+    })
+    const updatedList = (await updatedDesc.json()) as RoleRow[]
+    expect(updatedList[0]?.id).toBe("rol_member")
+    expect(updatedList[1]?.id).toBe("rol_admin")
+    for (let i = 1; i < updatedList.length; i++) {
+      expect(
+        Date.parse(updatedList[i]!.updatedAt) <=
+          Date.parse(updatedList[i - 1]!.updatedAt)
+      ).toBe(true)
+    }
+  })
+
+  it("falls back to a safe default for an unknown sort field", async () => {
+    const { accessToken } = await login("member@example.com", "memberpass")
+
+    const fallback = await api("/api/roles?_sort=unknown&_order=asc", {
+      token: accessToken,
+    })
+    expect(fallback.status).toBe(200)
+    const fallbackTitles = ((await fallback.json()) as RoleRow[]).map(
+      (role) => role.title
+    )
+    expect(fallbackTitles).toEqual(
+      [...fallbackTitles].sort((a, b) => a.localeCompare(b))
+    )
+  })
+
+  it("filters by a case-insensitive title contains match", async () => {
+    const { accessToken } = await login("member@example.com", "memberpass")
+
+    const lower = await api("/api/roles?title_like=demo", {
+      token: accessToken,
+    })
+    expect(lower.status).toBe(200)
+    expect(lower.headers.get("x-total-count")).toBe("58")
+    const lowerList = (await lower.json()) as RoleRow[]
+    expect(lowerList).toHaveLength(58)
+    for (const role of lowerList) {
+      expect(role.title.toLowerCase()).toContain("demo")
+    }
+
+    const upper = await api("/api/roles?title_like=DEMO%20ROLE%200", {
+      token: accessToken,
+    })
+    expect(upper.status).toBe(200)
+    expect(upper.headers.get("x-total-count")).toBe("9")
+
+    const none = await api("/api/roles?title_like=no-such-role", {
+      token: accessToken,
+    })
+    expect(none.status).toBe(200)
+    expect(none.headers.get("x-total-count")).toBe("0")
+  })
+
+  it("filters by a case-insensitive description contains match", async () => {
+    const { accessToken } = await login("member@example.com", "memberpass")
+
+    const res = await api("/api/roles?description_like=DESCRIPTION", {
+      token: accessToken,
+    })
+    expect(res.status).toBe(200)
+    expect(res.headers.get("x-total-count")).toBe("43")
+    const list = (await res.json()) as RoleRow[]
+    expect(list).toHaveLength(43)
+    for (const role of list) {
+      expect(role.description?.toLowerCase()).toContain("description")
+    }
+  })
+
+  it("filters by an inclusive createdAt range", async () => {
+    const { accessToken } = await login("member@example.com", "memberpass")
+
+    const exact = await api(
+      "/api/roles?createdAt_gte=2026-01-10T12:00:00.000Z&createdAt_lte=2026-01-10T12:00:00.000Z",
+      { token: accessToken }
+    )
+    expect(exact.status).toBe(200)
+    const exactList = (await exact.json()) as RoleRow[]
+    expect(exactList.map((role) => role.id)).toEqual(["rol_demo_10"])
+
+    const range = await api(
+      "/api/roles?createdAt_gte=2026-01-10T12:00:00.000Z&createdAt_lte=2026-01-20T12:00:00.000Z",
+      { token: accessToken }
+    )
+    expect(range.status).toBe(200)
+    expect(range.headers.get("x-total-count")).toBe("11")
+    const rangeList = (await range.json()) as RoleRow[]
+    expect(rangeList).toHaveLength(11)
+    for (const role of rangeList) {
+      expect(Date.parse(role.createdAt)).toBeGreaterThanOrEqual(
+        Date.parse("2026-01-10T12:00:00.000Z")
+      )
+      expect(Date.parse(role.createdAt)).toBeLessThanOrEqual(
+        Date.parse("2026-01-20T12:00:00.000Z")
+      )
+    }
+  })
+
+  it("filters by an inclusive updatedAt range", async () => {
+    const { accessToken } = await login("member@example.com", "memberpass")
+
+    const exact = await api(
+      "/api/roles?updatedAt_gte=2026-03-10T09:30:00.000Z&updatedAt_lte=2026-03-10T09:30:00.000Z",
+      { token: accessToken }
+    )
+    expect(exact.status).toBe(200)
+    const exactList = (await exact.json()) as RoleRow[]
+    expect(exactList.map((role) => role.id)).toEqual(["rol_demo_10"])
+
+    const range = await api(
+      "/api/roles?updatedAt_gte=2026-03-10T09:30:00.000Z&updatedAt_lte=2026-03-20T09:30:00.000Z",
+      { token: accessToken }
+    )
+    expect(range.status).toBe(200)
+    expect(range.headers.get("x-total-count")).toBe("11")
+  })
+
+  it("filters by status", async () => {
+    const { accessToken } = await login("member@example.com", "memberpass")
+
+    const active = await api("/api/roles?status=active", {
+      token: accessToken,
+    })
+    expect(active.status).toBe(200)
+    expect(active.headers.get("x-total-count")).toBe("31")
+    const activeList = (await active.json()) as RoleRow[]
+    for (const role of activeList) expect(role.status).toBe("active")
+
+    const inactive = await api("/api/roles?status=inactive", {
+      token: accessToken,
+    })
+    expect(inactive.status).toBe(200)
+    expect(inactive.headers.get("x-total-count")).toBe("29")
+    const inactiveList = (await inactive.json()) as RoleRow[]
+    for (const role of inactiveList) expect(role.status).toBe("inactive")
+  })
+
+  it("ignores an empty status parameter", async () => {
+    const { accessToken } = await login("member@example.com", "memberpass")
+    const res = await api("/api/roles?status=", { token: accessToken })
+    expect(res.status).toBe(200)
+    expect(res.headers.get("x-total-count")).toBe("60")
+  })
+
+  it("combines filters with AND semantics", async () => {
+    const { accessToken } = await login("member@example.com", "memberpass")
+
+    const titleAndStatus = await api(
+      "/api/roles?title_like=demo&status=inactive",
+      { token: accessToken }
+    )
+    expect(titleAndStatus.status).toBe(200)
+    expect(titleAndStatus.headers.get("x-total-count")).toBe("29")
+
+    const dateAndStatus = await api(
+      "/api/roles?createdAt_gte=2026-01-10T12:00:00.000Z&createdAt_lte=2026-01-20T12:00:00.000Z&status=active",
+      { token: accessToken }
+    )
+    expect(dateAndStatus.status).toBe(200)
+    expect(dateAndStatus.headers.get("x-total-count")).toBe("5")
+
+    const threeFilters = await api(
+      "/api/roles?title_like=demo%20role%200&description_like=description&status=inactive",
+      { token: accessToken }
+    )
+    expect(threeFilters.status).toBe(200)
+    expect(threeFilters.headers.get("x-total-count")).toBe("4")
+  })
+
+  it("rejects an invalid status or date bound with 400", async () => {
+    const { accessToken } = await login("member@example.com", "memberpass")
+
+    for (const path of [
+      "/api/roles?status=archived",
+      "/api/roles?createdAt_gte=not-a-date",
+      "/api/roles?createdAt_lte=2026-01-05",
+      "/api/roles?updatedAt_gte=not-a-date",
+      "/api/roles?updatedAt_lte=2026-01-05",
+    ]) {
+      const res = await api(path, { token: accessToken })
+      expect(res.status).toBe(400)
+      const body = (await res.json()) as { code: string }
+      expect(body.code).toBe("invalid_request")
+    }
+  })
+
+  it("returns a role by id for any authenticated caller", async () => {
+    const member = await login("member@example.com", "memberpass")
+    const res = await api("/api/roles/rol_admin", {
+      token: member.accessToken,
+    })
+    expect(res.status).toBe(200)
+    const role = (await res.json()) as RoleRow
+    expect(role).toMatchObject({
+      id: "rol_admin",
+      title: "Administrator",
+      status: "active",
+    })
+    expect(typeof role.createdAt).toBe("string")
+    expect(typeof role.updatedAt).toBe("string")
+  })
+
+  it("requires auth to read a role detail (401)", async () => {
+    const res = await api("/api/roles/rol_admin")
+    expect(res.status).toBe(401)
+  })
+
+  it("returns 404 for an unknown role", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+    const res = await api("/api/roles/rol_missing", { token: accessToken })
+    expect(res.status).toBe(404)
+    const body = (await res.json()) as { code: string }
+    expect(body.code).toBe("not_found")
   })
 })
 

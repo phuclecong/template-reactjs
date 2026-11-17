@@ -30,6 +30,21 @@ describe("generated client types", () => {
     expectTypeOf<BulkResponse>().toHaveProperty("failed")
   })
 
+  it("matches the contract for Role and RoleStatus", () => {
+    type Role = components["schemas"]["Role"]
+    type RoleStatus = components["schemas"]["RoleStatus"]
+
+    expectTypeOf<Role>().toMatchTypeOf<{
+      id: string
+      title: string
+      description: string | null
+      status: "active" | "inactive"
+      createdAt: string
+      updatedAt: string
+    }>()
+    expectTypeOf<RoleStatus>().toEqualTypeOf<"active" | "inactive">()
+  })
+
   it("accepts nullable string dueDate on every write request", () => {
     type CreateRequest = components["schemas"]["TaskCreateRequest"]
     type UpdateRequest = components["schemas"]["TaskUpdateRequest"]

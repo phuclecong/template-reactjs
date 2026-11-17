@@ -12,6 +12,7 @@ tags:
   - name: auth
   - name: users
   - name: tasks
+  - name: roles
   - name: password
 
 paths:
@@ -118,7 +119,7 @@ paths:
         - name: role
           in: query
           schema:
-            $ref: "#/components/schemas/Role"
+            $ref: "#/components/schemas/UserRole"
         - name: _start
           in: query
           schema:
@@ -440,6 +441,114 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /roles:
+    get:
+      tags: [roles]
+      operationId: listRoles
+      summary: List all roles
+      parameters:
+        - name: title_like
+          in: query
+          schema:
+            type: string
+          description: Case-insensitive substring match on the title.
+        - name: description_like
+          in: query
+          schema:
+            type: string
+          description: Case-insensitive substring match on the description.
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/RoleStatus"
+          description: Exact match on the Role status.
+        - name: createdAt_gte
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive lower bound on the creation time as an ISO 8601 date-time.
+        - name: createdAt_lte
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive upper bound on the creation time as an ISO 8601 date-time.
+        - name: updatedAt_gte
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive lower bound on the last-updated time as an ISO 8601 date-time.
+        - name: updatedAt_lte
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Inclusive upper bound on the last-updated time as an ISO 8601 date-time.
+        - name: _start
+          in: query
+          schema:
+            type: integer
+          description: Number of matching roles to skip before returning results. Defaults to 0.
+        - name: _end
+          in: query
+          schema:
+            type: integer
+          description: "Exclusive upper bound on the result slice. When omitted, all matching roles after `_start` are returned."
+        - name: _sort
+          in: query
+          schema:
+            type: string
+          description: "Field to sort by: `title`, `status`, `createdAt`, or `updatedAt`. Defaults to `title`."
+        - name: _order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+          description: "Sort direction. Defaults to `asc`."
+      responses:
+        "200":
+          description: List of roles.
+          headers:
+            x-total-count:
+              description: Total number of roles matching the filters before pagination.
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Role"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /roles/{id}:
+    get:
+      tags: [roles]
+      operationId: getRole
+      summary: Get a role by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The role.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /password:
     put:
       tags: [password]
@@ -461,9 +570,31 @@ paths:
 
 components:
   schemas:
-    Role:
+    UserRole:
       type: string
       enum: [admin, member]
+    RoleStatus:
+      type: string
+      enum: [active, inactive]
+    Role:
+      type: object
+      required: [id, title, description, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/RoleStatus"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
     Status:
       type: string
       enum: [todo, in-progress, done, blocked]
@@ -504,7 +635,7 @@ components:
           type: string
           format: email
         role:
-          $ref: "#/components/schemas/Role"
+          $ref: "#/components/schemas/UserRole"
         createdAt:
           type: string
           format: date-time
@@ -559,7 +690,7 @@ components:
       required: [role]
       properties:
         role:
-          $ref: "#/components/schemas/Role"
+          $ref: "#/components/schemas/UserRole"
     Task:
       type: object
       required: [id, title, status, createdAt, updatedAt]

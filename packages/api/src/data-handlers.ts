@@ -1,9 +1,13 @@
 import { http, HttpResponse, type JsonBodyType } from "msw"
 import {
+  dateTimeSchema,
   dueDateWriteSchema,
+  roles,
   tasks,
   users,
   type Role,
+  type RoleEntity,
+  type RoleStatus,
   type TaskEntity,
   type TaskPriority,
   type TaskStatus,
@@ -228,9 +232,7 @@ function listTasks(request: Request): Response {
   }
   const userIds = new Set(users.all().map((user) => user.id))
   if (
-    assigneeIds.some(
-      (value) => value !== "unassigned" && !userIds.has(value)
-    )
+    assigneeIds.some((value) => value !== "unassigned" && !userIds.has(value))
   ) {
     return fail(
       "invalid_request",
@@ -379,6 +381,157 @@ async function bulkUpdateTasks(request: Request): Promise<Response> {
   }
 
   return ok({ updated, failed })
+}
+
+function isRoleStatus(value: unknown): value is RoleStatus {
+  return value === "active" || value === "inactive"
+}
+
+const sortableRoleFields = [
+  "title",
+  "status",
+  "createdAt",
+  "updatedAt",
+] as const
+type SortableRoleField = (typeof sortableRoleFields)[number]
+
+function isSortableRoleField(value: string | null): value is SortableRoleField {
+  return (
+    value !== null && (sortableRoleFields as readonly string[]).includes(value)
+  )
+}
+
+function compareRoleValues(
+  a: RoleEntity,
+  b: RoleEntity,
+  field: SortableRoleField
+): number {
+  if (field === "createdAt" || field === "updatedAt") {
+    return Date.parse(a[field]) - Date.parse(b[field])
+  }
+  return a[field].localeCompare(b[field])
+}
+
+/**
+ * Parses a Role date filter bound. Returns `null` when absent, `undefined` when
+ * invalid, or the epoch milliseconds to compare against. Only ISO 8601
+ * date-time instants are accepted.
+ */
+function parseRoleDateBound(raw: string | null): number | null | undefined {
+  if (raw === null || raw === "") return null
+  const parsed = dateTimeSchema.safeParse(raw)
+  if (!parsed.success) return undefined
+  return Date.parse(parsed.data)
+}
+
+/** Lists roles with simple-rest compatible `_start`/`_end`/`_sort`/`_order`. */
+function listRoles(request: Request): Response {
+  if (!getAuthUser(request)) {
+    return fail("unauthorized", "Authentication required.", 401)
+  }
+
+  const url = new URL(request.url)
+  const titleLike = url.searchParams.get("title_like")?.toLowerCase()
+  const descriptionLike = url.searchParams
+    .get("description_like")
+    ?.toLowerCase()
+  const status = url.searchParams.get("status")
+  if (status != null && status !== "" && !isRoleStatus(status)) {
+    return fail(
+      "invalid_request",
+      "status must be one of: active, inactive.",
+      400
+    )
+  }
+  const createdAtGte = parseRoleDateBound(url.searchParams.get("createdAt_gte"))
+  if (createdAtGte === undefined) {
+    return fail(
+      "invalid_request",
+      "createdAt_gte must be an ISO 8601 date-time.",
+      400
+    )
+  }
+  const createdAtLte = parseRoleDateBound(url.searchParams.get("createdAt_lte"))
+  if (createdAtLte === undefined) {
+    return fail(
+      "invalid_request",
+      "createdAt_lte must be an ISO 8601 date-time.",
+      400
+    )
+  }
+  const updatedAtGte = parseRoleDateBound(url.searchParams.get("updatedAt_gte"))
+  if (updatedAtGte === undefined) {
+    return fail(
+      "invalid_request",
+      "updatedAt_gte must be an ISO 8601 date-time.",
+      400
+    )
+  }
+  const updatedAtLte = parseRoleDateBound(url.searchParams.get("updatedAt_lte"))
+  if (updatedAtLte === undefined) {
+    return fail(
+      "invalid_request",
+      "updatedAt_lte must be an ISO 8601 date-time.",
+      400
+    )
+  }
+  const start = Number(url.searchParams.get("_start") ?? 0)
+  const endParam = url.searchParams.get("_end")
+  const end = endParam ? Number(endParam) : undefined
+  const sortParam = url.searchParams.get("_sort")
+  const descending = url.searchParams.get("_order") === "desc"
+  const sortField: SortableRoleField = isSortableRoleField(sortParam)
+    ? sortParam
+    : "title"
+
+  let items = roles.all().slice()
+  if (titleLike) {
+    items = items.filter((role) => role.title.toLowerCase().includes(titleLike))
+  }
+  if (descriptionLike) {
+    items = items.filter(
+      (role) =>
+        role.description != null &&
+        role.description.toLowerCase().includes(descriptionLike)
+    )
+  }
+  if (status) {
+    items = items.filter((role) => role.status === status)
+  }
+  if (createdAtGte != null) {
+    items = items.filter((role) => Date.parse(role.createdAt) >= createdAtGte)
+  }
+  if (createdAtLte != null) {
+    items = items.filter((role) => Date.parse(role.createdAt) <= createdAtLte)
+  }
+  if (updatedAtGte != null) {
+    items = items.filter((role) => Date.parse(role.updatedAt) >= updatedAtGte)
+  }
+  if (updatedAtLte != null) {
+    items = items.filter((role) => Date.parse(role.updatedAt) <= updatedAtLte)
+  }
+
+  items.sort((a, b) => {
+    const result = compareRoleValues(a, b, sortField)
+    return descending ? -result : result
+  })
+
+  const total = items.length
+  const page = end === undefined ? items : items.slice(start, end)
+  return HttpResponse.json(page as JsonBodyType, {
+    status: 200,
+    headers: { "x-total-count": String(total) },
+  })
+}
+
+/** Returns a Role by id, or 404. Any authenticated caller may read it. */
+function getRole(request: Request, id: string | undefined): Response {
+  if (!getAuthUser(request)) {
+    return fail("unauthorized", "Authentication required.", 401)
+  }
+  const role = id ? roles.findFirst((query) => query.where({ id })) : undefined
+  if (!role) return fail("not_found", "Role not found.", 404)
+  return ok(role)
 }
 
 export const dataHandlers = [
@@ -557,6 +710,13 @@ export const dataHandlers = [
     tasks.delete(target)
     return new HttpResponse(null, { status: 204 })
   }),
+
+  // ---- roles ----
+  http.get("*/api/roles", ({ request }) => listRoles(request)),
+
+  http.get("*/api/roles/:id", ({ request, params }) =>
+    getRole(request, pathParam(params.id))
+  ),
 
   // ---- password ----
   http.put("*/api/password", async ({ request }) => {

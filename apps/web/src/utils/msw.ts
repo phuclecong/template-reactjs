@@ -1,6 +1,11 @@
 import { setupWorker } from "msw/browser"
 import { dataHandlers } from "@workspace/api/data-handlers"
-import { seedDb, tasks, users } from "@workspace/api/collections"
+import {
+  ensureSeedRoles,
+  seedDb,
+  tasks,
+  users,
+} from "@workspace/api/collections"
 
 /**
  * Boots the in-browser MSW worker that serves the mock API for client-side
@@ -21,6 +26,9 @@ async function seedOnce(): Promise<void> {
   if (users.all().length === 0 && tasks.all().length === 0) {
     await seedDb()
   }
+  // Roles is a newer collection: a store persisted before Roles existed still
+  // has Users and Tasks, so seed Roles on their own rather than skipping.
+  await ensureSeedRoles()
 }
 
 export async function startMockWorker(): Promise<void> {
