@@ -253,6 +253,16 @@ The target is therefore renegotiated with evidence: `"*"` remains 300,000 B for 
 
 Verification: `pnpm perf` exits 0 (byte budgets pass, CLS 0.000, TBT 142 ms locally), `pnpm lint`, `pnpm typecheck`, web unit tests (195), UI unit tests (104), e2e (79), the Storybook interaction suite (31 suites / 103 tests), and the real-backend no-MSW build check all pass.
 
+_Budget drift._ Commit `d1d1c42` replaced the per-route ceilings from §6.5/§6.6 with a single `"*": 500_000` JS default, which loosened `/login` (315,333 B → 500,000 B) against the "never loosen" ratchet in §5. The audited routes must carry their own explicit ceilings; [#73](https://github.com/phuclecong/template-reactjs/issues/73) restores them from a fresh measurement before changing the bundle again.
+
+### 6.7 Vendor chunk split (2026-11-19)
+
+The remaining initial bundle was vendor-heavy: 731,557 B raw / 233.20 kB gzip in one entry, dominated by react-dom (174.5 k), `@base-ui` (134.0 k), Refine (61.2 k), i18next (48.6 k), react-router (41.7 k), sonner (32.7 k), and TanStack Query (32.2 k). Route, overlay, and mock-worker code were already split.
+
+[`improve-performance.md`](./improve-performance.md) specifies splitting the initial closure into named family vendor chunks with rolldown's `codeSplitting.groups`, restricted to `$initial` modules, while leaving route-only vendor code deferred. This is a cache-stability and chunk-boundary change, not a cold-start byte reduction: the `/tasks` LCP gap in §6.6 is unchanged and stays with [#35](https://github.com/phuclecong/template-reactjs/issues/35).
+
+Measured result: the entry chunk fell to 58,679 B raw / 17.2 kB gzip, with seven vendor chunks of 33.6–189.6 kB raw and no chunk over 500 kB. Cold per-route JS transfer rose 0.99–1.54% against the pre-split medians (within the 2% tolerance), with identical byte medians across two runs. Explicit ceilings were restored for every audited route from the pre-split run and re-ratcheted with `min(current, ceil(post-split × 1.05))`; `/tasks` stays at its previously documented 411,893 B (the fresh `ceil(392,320 × 1.05)` is higher, so the never-loosen rule keeps 411,893), and the `"*"` default returns to 300,000 B. `index.html` still references only the initial closure — no route, overlay, or MSW chunk.
+
 ## 7. Done condition
 
 1. Both `/login` and `/tasks`, cold mobile lab, meet LCP ≤ 2.5 s, CLS ≤ 0.1, and TBT ≤ 200 ms.

@@ -1,16 +1,54 @@
 import path from "path"
-import { defineConfig } from "vite"
+import { defineConfig, type Plugin } from "vite"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 
+import { VENDOR_CODE_SPLITTING } from "./scripts/perf/vendor-groups.mjs"
+
+/**
+ * Records which modules landed in each emitted chunk. `build.manifest` lists
+ * chunk files and imports but not module membership, and the build-output gate
+ * must prove the entry chunk carries no vendor code. Emitted only when
+ * `CHUNK_REPORT=1` (set by `verify:real-build`); production builds do not ship
+ * the report, which contains absolute module paths.
+ */
+function chunkReportPlugin(): Plugin {
+  return {
+    name: "chunk-report",
+    generateBundle(_options, bundle) {
+      if (process.env.CHUNK_REPORT !== "1") return
+
+      const report: Record<string, string[]> = {}
+      for (const [file, output] of Object.entries(bundle)) {
+        if (output.type === "chunk" && file.endsWith(".js")) {
+          report[file] = Object.keys(output.modules)
+        }
+      }
+      this.emitFile({
+        type: "asset",
+        fileName: ".vite/chunk-report.json",
+        source: JSON.stringify(report),
+      })
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), chunkReportPlugin()],
   build: {
     // Emit `.vite/manifest.json` so route-chunk separation, preloads, and the
     // "no chunk requested at startup" contract can be verified from the
     // production build rather than inferred from source imports.
     manifest: true,
+    rolldownOptions: {
+      output: {
+        // Family vendor chunks, `$initial` only. Group definitions are shared
+        // with the verifier so the split and its gate cannot drift. See
+        // `docs/features/improve-performance.md` and ADR-0017.
+        codeSplitting: VENDOR_CODE_SPLITTING,
+      },
+    },
   },
   resolve: {
     alias: {
