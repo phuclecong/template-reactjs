@@ -125,14 +125,14 @@ export function TablePageSkeleton({
   kind: keyof typeof TABLE_PAGE_DETAILS
 }) {
   const { t } = useTranslation()
-  const isTasks = kind === "tasks"
   const isRoles = kind === "roles"
+  const hasTitleBar = kind === "roles" || kind === "tasks"
   const { columnWidths, loadingKey } = TABLE_PAGE_DETAILS[kind]
   const loadingLabel = t(loadingKey)
 
   return (
     <div className="flex flex-col gap-4 p-6 text-sm">
-      {isRoles ? (
+      {hasTitleBar ? (
         <div
           className="flex flex-wrap items-center justify-between gap-2"
           aria-hidden="true"
@@ -140,24 +140,16 @@ export function TablePageSkeleton({
           <Bar height={28} width={96} />
           <Bar height={32} width={120} />
         </div>
-      ) : (
+      ) : null}
+      {isRoles ? null : (
         <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
           <Skeleton className="h-8 w-72" />
           <Skeleton className="h-8 w-56" />
           <Skeleton className="h-8 w-56" />
           <Skeleton className="h-8 w-56" />
           <Skeleton className="h-8 w-48" />
-          <Bar height={28} width={80} />
         </div>
       )}
-      {isTasks ? (
-        <div className="flex items-center gap-2" aria-hidden="true">
-          <div className="ml-auto flex items-center gap-2">
-            <Bar height={28} width={128} />
-            <Bar height={28} width={80} />
-          </div>
-        </div>
-      ) : null}
       <TableSkeleton
         columnWidths={columnWidths}
         rowCount={DEFAULT_PAGE_SIZE}

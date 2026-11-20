@@ -96,11 +96,11 @@ export function RolesTable() {
   const canEdit = canEditRole?.can === true
   // There is no "bulk" access-control action; bulk work is an Administrator
   // write gated by the same delete permission as the row actions.
-  const { data: canBulkActRole } = useCan({
+  const { data: canBulkActionRole } = useCan({
     resource: "roles",
     action: "delete",
   })
-  const canBulkAct = canBulkActRole?.can === true
+  const canBulkAction = canBulkActionRole?.can === true
 
   const [deleteTarget, setDeleteTarget] = useState<RoleRecord | null>(null)
   const deleteMutation = useDelete<RoleRecord>({})
@@ -247,7 +247,7 @@ export function RolesTable() {
     columns,
     getRowId: (row) => row.id,
     enableSortingRemoval: false,
-    enableRowSelection: canBulkAct,
+    enableRowSelection: canBulkAction,
     // Row actions and selection start hidden so members never see them.
     // Toggling visibility (rather than rebuilding the columns) keeps the
     // restored page intact.
@@ -260,9 +260,9 @@ export function RolesTable() {
     reactTable.setColumnVisibility((previous) => ({
       ...previous,
       actions: canEdit,
-      select: canBulkAct,
+      select: canBulkAction,
     }))
-  }, [reactTable, canEdit, canBulkAct])
+  }, [reactTable, canEdit, canBulkAction])
 
   const {
     tableQuery,
@@ -399,11 +399,22 @@ export function RolesTable() {
     <div className="flex flex-col gap-4 p-6 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">{t("roles.title")}</h1>
-        {canCreate ? (
-          <Button type="button" onClick={() => drawerRef.current?.openCreate()}>
-            {t("roles.create")}
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {canCreate ? (
+            <Button
+              type="button"
+              onClick={() => drawerRef.current?.openCreate()}
+            >
+              {t("roles.create")}
+            </Button>
+          ) : null}
+          {canBulkAction && selectedRoles.length > 0 ? (
+            <RolesBulkBar
+              selectedRoles={selectedRoles}
+              onDone={clearSelection}
+            />
+          ) : null}
+        </div>
       </div>
 
       <RolesFilterBar filters={filters} onChange={changeFilters} />
@@ -439,7 +450,7 @@ export function RolesTable() {
         />
       ) : (
         <>
-          <TableGrid table={reactTable} onSort={clearSelection} />
+          <TableGrid table={reactTable} />
 
           <TablePagination
             page={page}
@@ -451,15 +462,6 @@ export function RolesTable() {
           />
         </>
       )}
-
-      {/*
-       * The bulk bar follows the table and pagination in document order. When
-       * it sat above the table, activating a row's checkbox inserted controls
-       * behind the keyboard user's focus; now forward tabbing reaches them.
-       */}
-      {canBulkAct && selectedRoles.length > 0 ? (
-        <RolesBulkBar selectedRoles={selectedRoles} onDone={clearSelection} />
-      ) : null}
 
       <RoleFormDrawer ref={drawerRef} />
 

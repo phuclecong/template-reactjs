@@ -1,8 +1,12 @@
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
-import type { RoleStatus } from "@workspace/api/schemas"
+import type { HttpError } from "@refinedev/core"
+import { useForm } from "@refinedev/react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { Controller } from "react-hook-form"
+import type { RoleRecord, RoleStatus } from "@workspace/api/schemas"
 import { Button } from "@workspace/ui/components/button"
-import { Label } from "@workspace/ui/components/label"
+import { Field, FieldError, FieldLabel } from "@workspace/ui/components/field"
 import {
   Sheet,
   SheetContent,
@@ -23,14 +27,17 @@ import type { RoleBulkPatch } from "@/features/roles/hooks/use-roles-bulk-action
 import {
   createRoleBulkFormSchema,
   normalizeRoleDescription,
+  type RoleBulkFormValues,
 } from "@/features/roles/utils/role-schema"
 
 type StatusChoice = RoleStatus | ""
 
 /**
- * Bulk edit form. Titles are excluded because they are unique. The form tracks
- * which fields the Administrator actually touched so the payload carries only
- * dirty fields; a description cleared to empty is sent as `null`.
+ * Bulk edit form. Titles are excluded because they are unique. Refine's
+ * `useForm` tracks which fields the Administrator touched, so the payload
+ * carries only dirty fields; a description cleared to empty is sent as `null`.
+ * The write itself goes through `useRolesBulkActions`, so `refineCore.onFinish`
+ * is deliberately unused.
  */
 export function RolesBulkEditSheet({
   open,
@@ -56,11 +63,25 @@ export function RolesBulkEditSheet({
       }),
     [t]
   )
-  const [description, setDescription] = useState("")
-  const [status, setStatus] = useState<StatusChoice>("")
-  const [descriptionTouched, setDescriptionTouched] = useState(false)
-  const [statusTouched, setStatusTouched] = useState(false)
-  const [descriptionError, setDescriptionError] = useState<string | null>(null)
+
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    formState: { dirtyFields, isDirty },
+  } = useForm<RoleRecord, HttpError, RoleBulkFormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { description: "", status: "" },
+    warnWhenUnsavedChanges: false,
+  })
+
+  // The empty string is both the initial value and the "clear" instruction, so
+  // RHF cannot flag Clear as a change on its own (it unsets dirty when a value
+  // matches the default). This flag records that explicit intent.
+  const [descriptionCleared, setDescriptionCleared] = useState(false)
+  const descriptionDirty =
+    Boolean(dirtyFields.description) || descriptionCleared
+  const hasChanges = isDirty || descriptionCleared
 
   // Empty string is the "unchanged" sentinel, so it doubles as the option that
   // lets the Administrator revert a touched status field.
@@ -72,31 +93,18 @@ export function RolesBulkEditSheet({
     [statusOptions, t]
   )
 
-  const hasChanges = descriptionTouched || statusTouched
-
-  const handleApply = () => {
+  const handleApply = handleSubmit((values) => {
     if (!hasChanges || isApplying) return
-    const parsed = schema.safeParse({ description, status })
-    if (!parsed.success) {
-      const descriptionIssue = parsed.error.issues.find(
-        (issue) => issue.path[0] === "description"
-      )
-      setDescriptionError(
-        descriptionIssue?.message ?? t("roles.validation.descriptionTooLong")
-      )
-      return
-    }
-
-    setDescriptionError(null)
     const patch: RoleBulkPatch = {}
-    if (descriptionTouched) {
-      patch.description = normalizeRoleDescription(parsed.data.description)
+    if (descriptionDirty) {
+      patch.description = normalizeRoleDescription(values.description)
     }
-    if (statusTouched && parsed.data.status !== "") {
-      patch.status = parsed.data.status
+    if (dirtyFields.status && values.status !== "") {
+      patch.status = values.status
     }
+    if (Object.keys(patch).length === 0) return
     onApply(patch)
-  }
+  })
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -109,65 +117,72 @@ export function RolesBulkEditSheet({
         </SheetHeader>
 
         <div className="flex flex-col gap-4 px-4">
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-2">
-              <Label htmlFor="roles-bulk-description">
-                {t("roles.bulk.description")}
-              </Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="xs"
-                onClick={() => {
-                  setDescription("")
-                  setDescriptionTouched(true)
-                  setDescriptionError(null)
-                }}
-              >
-                {t("roles.bulk.clearDescription")}
-              </Button>
-            </div>
-            <Textarea
-              id="roles-bulk-description"
-              value={description}
-              placeholder={t("roles.bulk.descriptionPlaceholder")}
-              aria-invalid={descriptionError !== null}
-              onChange={(event) => {
-                setDescription(event.target.value)
-                setDescriptionTouched(true)
-                if (descriptionError) setDescriptionError(null)
-              }}
-            />
-            {descriptionError ? (
-              <p role="alert" className="text-xs text-destructive">
-                {descriptionError}
-              </p>
-            ) : descriptionTouched &&
-              normalizeRoleDescription(description) === null ? (
-              <p className="text-xs text-muted-foreground">
-                {t("roles.bulk.descriptionWillClear")}
-              </p>
-            ) : null}
-          </div>
+          <Controller
+            control={control}
+            name="description"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <div className="flex items-center justify-between gap-2">
+                  <FieldLabel htmlFor="roles-bulk-description">
+                    {t("roles.bulk.description")}
+                  </FieldLabel>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => {
+                      setValue("description", "", { shouldValidate: true })
+                      setDescriptionCleared(true)
+                    }}
+                  >
+                    {t("roles.bulk.clearDescription")}
+                  </Button>
+                </div>
+                <Textarea
+                  {...field}
+                  id="roles-bulk-description"
+                  placeholder={t("roles.bulk.descriptionPlaceholder")}
+                  aria-invalid={fieldState.invalid}
+                />
+                <FieldError errors={[fieldState.error]} />
+                {!fieldState.error &&
+                descriptionDirty &&
+                normalizeRoleDescription(field.value) === null ? (
+                  <p className="text-xs text-muted-foreground">
+                    {t("roles.bulk.descriptionWillClear")}
+                  </p>
+                ) : null}
+              </Field>
+            )}
+          />
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="roles-bulk-status">{t("roles.bulk.status")}</Label>
-            <ComboboxFilter
-              id="roles-bulk-status"
-              multiple={false}
-              options={statusChoices}
-              value={status}
-              onValueChange={(value) => {
-                setStatus(value as StatusChoice)
-                setStatusTouched(value !== "")
-              }}
-              ariaLabel={t("roles.bulk.status")}
-              placeholder={t("roles.bulk.status")}
-              className="w-full"
-              disabled={isApplying}
-              showClear={false}
-            />
-          </div>
+          <Controller
+            control={control}
+            name="status"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="roles-bulk-status">
+                  {t("roles.bulk.status")}
+                </FieldLabel>
+                <ComboboxFilter
+                  id="roles-bulk-status"
+                  multiple={false}
+                  options={statusChoices}
+                  value={field.value}
+                  onValueChange={(value) =>
+                    field.onChange(value as StatusChoice)
+                  }
+                  ariaLabel={t("roles.bulk.status")}
+                  placeholder={t("roles.bulk.status")}
+                  className="w-full"
+                  disabled={isApplying}
+                  showClear={false}
+                  ariaInvalid={fieldState.invalid}
+                />
+                <FieldError errors={[fieldState.error]} />
+              </Field>
+            )}
+          />
         </div>
 
         <SheetFooter className="flex-row justify-end">
@@ -181,7 +196,7 @@ export function RolesBulkEditSheet({
           </Button>
           <Button
             type="button"
-            onClick={handleApply}
+            onClick={() => void handleApply()}
             disabled={!hasChanges || isApplying}
           >
             {t("roles.bulk.apply")}

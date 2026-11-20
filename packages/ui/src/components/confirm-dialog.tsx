@@ -10,6 +10,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./alert-dialog"
+import { buttonVariants } from "./button"
+import { type VariantProps } from "class-variance-authority"
 
 /**
  * Presentational confirmation dialog: the user must explicitly confirm or
@@ -31,7 +33,7 @@ function ConfirmDialog({
   description,
   confirmLabel,
   cancelLabel,
-  tone = "danger",
+  tone = "default",
   loading = false,
   onConfirm,
 }: {
@@ -41,7 +43,7 @@ function ConfirmDialog({
   description?: ReactNode
   confirmLabel: ReactNode
   cancelLabel: ReactNode
-  tone?: "danger" | "default"
+  tone?: VariantProps<typeof buttonVariants>["variant"]
   loading?: boolean
   onConfirm: () => void
 }) {
@@ -70,7 +72,7 @@ function ConfirmDialog({
         <AlertDialogFooter>
           <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
           <AlertDialogAction
-            variant={tone === "danger" ? "destructive" : "default"}
+            variant={tone}
             disabled={loading}
             onClick={onConfirm}
           >

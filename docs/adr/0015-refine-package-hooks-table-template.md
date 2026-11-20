@@ -46,3 +46,10 @@ justifies extraction.
 - `useModalForm` edit prefill requires `GET /roles/{id}`.
 - The table overrides Refine's default page size of 10 to 30; the seed is 60
   Roles so pagination is exercised.
+
+## Amendments
+
+- ADR-0018 migrates Tasks to the same `useTable` pattern and extracts the flat
+  URL adapter into `shared-lib`. The "two table paradigms" consequence now
+  applies to Users alone, and "a shared wrapper around `useTable` would hide the
+  options" still holds — only the URL layer is shared.

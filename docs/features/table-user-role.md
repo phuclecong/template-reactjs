@@ -31,7 +31,8 @@ code change.
 - Managing the individual permissions attached to a Role.
 - Assigning Roles to Users from this screen; the Users screen owns assignment.
 - Audit history of Role changes.
-- Migrating the Users or Tasks tables to the Refine table pattern.
+- Migrating the Users table to the Refine table pattern. (Tasks was migrated
+  later; see ADR-0018.)
 
 ## Users and permissions
 

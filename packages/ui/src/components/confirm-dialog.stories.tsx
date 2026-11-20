@@ -6,19 +6,16 @@ import { Button } from "./button"
 import { ConfirmDialog } from "./confirm-dialog"
 
 function ConfirmDialogDemo({
-  tone = "danger",
+  tone = "destructive",
   loading = false,
 }: {
-  tone?: "danger" | "default"
+  tone?: "destructive" | "default"
   loading?: boolean
 }) {
   const [open, setOpen] = useState(false)
   return (
     <>
-      <Button
-        variant={tone === "default" ? "default" : "destructive"}
-        onClick={() => setOpen(true)}
-      >
+      <Button variant={tone} onClick={() => setOpen(true)}>
         Open confirm dialog
       </Button>
       <ConfirmDialog

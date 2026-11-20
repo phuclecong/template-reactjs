@@ -171,10 +171,10 @@ type LogSink = (entry: Entry) => void
 
 - `track(event, data?)` emits an `EventEntry`. Event names use `entity.action` in the past tense.
 - The first cut instruments four events at their real success points:
-  - `task.created` — the create mutation's success callback in `task-dialogs.tsx`.
+  - `task.created` — the create mutation's success callback in `task-form-drawer.tsx`.
   - `task.updated` — the update mutation's success callback.
-  - `task.deleted` — the delete mutation's success callback.
-  - `task.bulk_action` — `use-task-bulk-actions.ts`, with `{ action: "status" | "priority" | "assignee" | "due_date", selected, updated, failed }`.
+  - `task.deleted` — the delete mutation's success callback in `task-delete-dialog.tsx`.
+  - `task.bulk_action` — `use-task-bulk-actions.ts`, with `{ action: "update", fields, selected, updated, failed }`, where `fields` names the dirty patch fields (`status`, `priority`, `assignee`, `due_date`).
 - Failures stay on their existing paths: errors through `reportError`, user feedback through Refine's notification provider. A Business event records a completed action, not an attempt.
 - Refine's `auditLogProvider` is not a tracking sink. An Audit log is a durable who-changed-what record; a Business event is aggregate product telemetry. The stub stays untouched.
 
