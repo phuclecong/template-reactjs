@@ -4,6 +4,7 @@ import { useCan, useDelete, type CrudFilter } from "@refinedev/core"
 import { useTable } from "@refinedev/react-table"
 import type { ColumnDef } from "@tanstack/react-table"
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
+import { isSystemRole } from "@workspace/api/policy"
 import type { RoleRecord } from "@workspace/api/schemas"
 import {
   EmptyList,
@@ -32,7 +33,7 @@ import {
   ROLE_COLUMN_WIDTHS,
   ROLE_SELECT_COLUMN_WIDTH,
 } from "@/features/roles/utils/column-widths"
-import { formatLocalDateTime, isSystemRole } from "@/features/roles/utils"
+import { formatLocalDateTime } from "@/features/roles/utils"
 import {
   buildRolesSearchParams,
   parseRolesUrlState,

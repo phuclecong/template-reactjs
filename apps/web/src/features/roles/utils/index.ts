@@ -1,6 +1,3 @@
-/** Adapter: the shared Role policy owns System Role knowledge. */
-export { SYSTEM_ROLE_IDS, isSystemRole } from "@workspace/api/policy"
-
 /**
  * Formats a server instant in the runtime's local timezone as
  * `YYYY-MM-DD HH:mm`. The Roles table deliberately uses a fixed, unambiguous

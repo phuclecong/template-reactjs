@@ -33,17 +33,22 @@ const AUTHENTICATED_ROUTES = new Set([
 ])
 const SESSION_KEY = "auth.session"
 
-// These literals intentionally duplicate the TypeScript seed
-// (`packages/api/src/auth.ts` / `ensureSeedUsers`) so this one-shot Puppeteer
-// script can run outside the app bundle. `apps/web/test/perf-login.test.ts`
-// pins them against `signToken` and the seeded user, so drift fails CI.
-const TOKEN_CLAIMS = { sub: "usr_admin", roleId: "rol_admin", type: "access" }
+// This one-shot Puppeteer script runs outside the app bundle, so it cannot
+// import the TypeScript policy module. The System Role ids come from the JSON
+// that `packages/api/src/policy.ts` itself reads, so there is one source of
+// truth. The remaining User fields duplicate the seeded admin in
+// `packages/api/src/collections.ts`; `apps/web/test/perf-login.test.ts` pins
+// the whole session against `signToken` and the seed, so drift fails CI.
+const {
+  adminRoleId,
+} = require("../../../../packages/api/src/system-roles.json")
+const TOKEN_CLAIMS = { sub: "usr_admin", roleId: adminRoleId, type: "access" }
 const SEEDED_ADMIN = {
   id: "usr_admin",
   name: "Ada Admin",
   email: "admin@example.com",
-  roleId: "rol_admin",
-  role: { id: "rol_admin", title: "Administrator", status: "active" },
+  roleId: adminRoleId,
+  role: { id: adminRoleId, title: "Administrator", status: "active" },
 }
 
 function base64UrlEncode(input) {
