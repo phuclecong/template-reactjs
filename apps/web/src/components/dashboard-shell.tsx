@@ -96,9 +96,12 @@ export function DashboardShell({
 
   return (
     <TooltipProvider>
-      <SidebarProvider defaultOpen={defaultOpen}>
+      <SidebarProvider
+        defaultOpen={defaultOpen}
+        className="h-svh overflow-hidden"
+      >
         <AppSidebar user={user} collapsible="icon" />
-        <SidebarInset>
+        <SidebarInset className="min-h-0 overflow-y-auto">
           <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-2 border-b border-muted/90 bg-background px-4">
             <SidebarTrigger
               aria-label={t("shell.toggleSidebar")}

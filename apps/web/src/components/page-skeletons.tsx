@@ -69,7 +69,7 @@ export function AppShellSkeleton() {
   const { t } = useTranslation()
 
   return (
-    <div className="flex min-h-svh w-full">
+    <div className="flex h-svh w-full overflow-hidden">
       <div
         className="hidden w-64 shrink-0 border-sidebar-border bg-sidebar md:block"
         style={{ borderRightWidth: 1 }}
@@ -87,7 +87,7 @@ export function AppShellSkeleton() {
           <Skeleton style={{ height: 24, width: 24 }} aria-hidden="true" />
           <Bar height={16} width={160} />
         </header>
-        <main className="flex flex-col gap-4 p-6 text-sm">
+        <main className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6 text-sm">
           <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
             <Skeleton className="h-8 w-72" />
             <Skeleton className="h-8 w-56" />

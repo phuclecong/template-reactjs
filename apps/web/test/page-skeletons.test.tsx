@@ -40,6 +40,18 @@ describe("auth and shell skeletons", () => {
     expect(screen.queryByRole("table")).toBeNull()
     expect(screen.queryByRole("link")).toBeNull()
   })
+
+  it("locks the pre-identity frame to the viewport like the resolved shell", () => {
+    const { container } = renderWithI18n(<AppShellSkeleton />)
+
+    const root = container.firstElementChild as HTMLElement
+    expect(root).toHaveClass("h-svh", "overflow-hidden")
+    expect(root).not.toHaveClass("min-h-svh")
+
+    // The content region is the page-level scroll surface, not the window.
+    const main = container.querySelector("main") as HTMLElement
+    expect(main).toHaveClass("min-h-0", "flex-1", "overflow-y-auto")
+  })
 })
 
 describe("page skeletons", () => {
@@ -72,7 +84,9 @@ describe("page skeletons", () => {
     expect(
       Array.from(cells)
         .slice(0, 4)
-        .map((cell) => Number((cell as HTMLElement).style.width.replace("px", "")))
+        .map((cell) =>
+          Number((cell as HTMLElement).style.width.replace("px", ""))
+        )
     ).toEqual([220, 300, 160, 100])
   })
 
