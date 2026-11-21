@@ -140,15 +140,11 @@ const overlayLoader = () =>
   })
 
 function ShellHarness({
-  rows = () => Promise.resolve({ data: ROWS, total: ROWS.length }),
   canSelect,
-  initialEntries = ["/probe"],
-
   initialVisibility,
   skeletonWidths = [40, 220, 100],
   empty = { title: "Nothing here yet." },
   overlay = "none",
-  onList,
 }: {
   rows?: () => Promise<{ data: ProbeRow[]; total: number }>
   /** A predicate selects per row; omit it to use the boolean form. */
