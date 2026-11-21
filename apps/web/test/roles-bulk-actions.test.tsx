@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
-import type { ReactNode } from "react"
 import { act, renderHook, waitFor } from "@testing-library/react"
-import { QueryClient } from "@tanstack/react-query"
-import { Refine, type DataProvider } from "@refinedev/core"
-import { I18nextProvider } from "react-i18next"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import i18n from "@/utils/i18n"
 import { track } from "@/observability"
 import { useRolesBulkActions } from "@/features/roles/hooks/use-roles-bulk-actions"
+import {
+  createBulkHarness,
+  deferred,
+  type BulkCustomCall,
+} from "./bulk-harness"
 
 vi.mock("@/observability", () => ({ track: vi.fn() }))
 
@@ -16,25 +17,11 @@ const trackMock = vi.mocked(track)
 
 type SelectedRole = { id: string; title: string }
 
-type CustomArgs = {
-  url: string
-  method: string
-  payload: unknown
-}
-
-type CustomResult = { data: unknown }
-
-type RecordedNotification = {
-  message: string
-  description?: string
-  type: "success" | "error" | "progress"
-}
-
 type HarnessOptions = {
   selected: SelectedRole[]
   onDone?: () => void
   /** Resolves the payload the stub data provider returns. */
-  custom?: (args: CustomArgs) => Promise<CustomResult>
+  custom?: (call: BulkCustomCall) => Promise<{ data: unknown }>
 }
 
 const ROLES: SelectedRole[] = [
@@ -42,79 +29,26 @@ const ROLES: SelectedRole[] = [
   { id: "rol_member", title: "Member" },
 ]
 
-function deferred<T>() {
-  let resolve!: (value: T) => void
-  let reject!: (reason?: unknown) => void
-  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
-    resolve = resolvePromise
-    reject = rejectPromise
-  })
-  return { promise, resolve, reject }
-}
-
-/**
- * Refine harness for the Roles bulk-action lifecycle. The QueryClient is owned
- * by the test so invalidation can be observed; Refine's v5 wiring takes it as
- * `options.reactQuery.clientConfig`.
- */
 function renderBulkActions({
   selected,
   onDone = () => {},
   custom = async () => ({ data: { updated: 2, failed: [] } }),
 }: HarnessOptions) {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
+  const harness = createBulkHarness({
+    resources: [{ name: "roles" }],
+    respond: custom,
   })
-  const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
-  const notifications: RecordedNotification[] = []
-  const openMock = vi.fn((params: RecordedNotification) => {
-    notifications.push(params)
+  const view = renderHook(() => useRolesBulkActions({ selected, onDone }), {
+    wrapper: harness.Wrapper,
   })
-  const customMock = vi.fn((args: CustomArgs) => custom(args))
 
-  function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <I18nextProvider i18n={i18n}>
-        <Refine
-          dataProvider={
-            {
-              // `getList` marks this as a single (not named) provider; without
-              // it Refine's data context does not install it as `default`.
-              getList: async () => ({ data: [], total: 0 }),
-              getOne: async () => ({ data: {} }),
-              create: async () => ({ data: {} }),
-              update: async () => ({ data: {} }),
-              deleteOne: async () => ({ data: {} }),
-              custom: customMock,
-              getApiUrl: () => "/api",
-            } as unknown as DataProvider
-          }
-          notificationProvider={{
-            open: openMock,
-            close: () => {},
-          }}
-          resources={[{ name: "roles" }]}
-          options={{
-            syncWithLocation: false,
-            disableTelemetry: true,
-            reactQuery: { clientConfig: queryClient },
-          }}
-        >
-          {children}
-        </Refine>
-      </I18nextProvider>
-    )
+  return {
+    ...view,
+    customMock: harness.customMock,
+    invalidateSpy: harness.invalidateSpy,
+    notifications: harness.notifications,
+    openMock: harness.openMock,
   }
-
-  const view = renderHook(
-    () => useRolesBulkActions({ selected, onDone }),
-    { wrapper: Wrapper }
-  )
-
-  return { ...view, customMock, invalidateSpy, notifications, openMock }
 }
 
 beforeEach(async () => {
@@ -377,7 +311,7 @@ describe("useRolesBulkActions — selection and applying state", () => {
   })
 
   it("isApplying is true while an update is pending and false after it settles", async () => {
-    const gate = deferred<CustomResult>()
+    const gate = deferred<{ data: unknown }>()
     const { result } = renderBulkActions({
       selected: ROLES,
       custom: () => gate.promise,
@@ -398,7 +332,7 @@ describe("useRolesBulkActions — selection and applying state", () => {
   })
 
   it("isApplying is true while a delete is pending and false after it settles", async () => {
-    const gate = deferred<CustomResult>()
+    const gate = deferred<{ data: unknown }>()
     const { result } = renderBulkActions({
       selected: ROLES,
       custom: () => gate.promise,
