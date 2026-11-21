@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react"
 import { useTranslation } from "react-i18next"
 import { useList } from "@refinedev/core"
+import { isAdministratorRole } from "@workspace/api/policy"
 import type { TaskRecord } from "@workspace/api/schemas"
 
 import type { UserOption } from "@/features/tasks/utils"
@@ -45,6 +46,7 @@ export function canModifyTask(
   currentUser: CurrentUser
 ): boolean {
   return (
-    currentUser.roleId === "rol_admin" || task.assigneeId === currentUser.id
+    isAdministratorRole(currentUser.roleId) ||
+    task.assigneeId === currentUser.id
   )
 }

@@ -6,6 +6,7 @@ import {
   type RoleStatus,
   type UserEntity,
 } from "./collections"
+import { MEMBER_ROLE_ID } from "./policy"
 
 /**
  * The mock backend's business logic, shared by the MSW handlers (browser +
@@ -116,7 +117,7 @@ export async function registerUser(
     id: `usr_${crypto.randomUUID()}`,
     name,
     email: normalizedEmail,
-    roleId: "rol_member",
+    roleId: MEMBER_ROLE_ID,
     password,
     createdAt: new Date().toISOString(),
   })
