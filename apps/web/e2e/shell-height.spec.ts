@@ -93,21 +93,29 @@ test("list screens render through the shared viewport-fitted page frame", async 
     const frame = page.locator(PAGE_FRAME)
     await expect(frame).toBeVisible()
 
-    const { frameHeight, regionHeight } = await page.evaluate(() => {
-      const frameElement = document.querySelector(
-        '[data-slot="table-page-layout"]'
-      ) as HTMLElement
-      const regionElement = document.querySelector(
-        '[data-slot="sidebar-inset"]'
-      ) as HTMLElement
-      return {
-        frameHeight: frameElement.getBoundingClientRect().height,
-        regionHeight: regionElement.clientHeight,
-      }
-    })
+    const { frameTop, frameBottom, headerBottom, regionBottom } =
+      await page.evaluate(() => {
+        const frameElement = document.querySelector(
+          '[data-slot="table-page-layout"]'
+        ) as HTMLElement
+        const regionElement = document.querySelector(
+          '[data-slot="sidebar-inset"]'
+        ) as HTMLElement
+        const headerElement = document.querySelector(
+          '[data-slot="sidebar-inset"] header'
+        ) as HTMLElement
+        return {
+          frameTop: frameElement.getBoundingClientRect().top,
+          frameBottom: frameElement.getBoundingClientRect().bottom,
+          headerBottom: headerElement.getBoundingClientRect().bottom,
+          regionBottom: regionElement.getBoundingClientRect().bottom,
+        }
+      })
 
-    // The frame is at least as tall as the scroll region and grows with its
-    // content, so the height contract cannot drift between the three screens.
-    expect(frameHeight).toBeGreaterThanOrEqual(regionHeight - 1)
+    // The frame fills exactly the area below the fixed header, so the title,
+    // filters, grid, and pagination fit without the content region scrolling
+    // at the default viewport.
+    expect(frameTop).toBeGreaterThanOrEqual(headerBottom - 1)
+    expect(Math.abs(frameBottom - regionBottom)).toBeLessThanOrEqual(1)
   }
 })

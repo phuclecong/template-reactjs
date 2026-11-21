@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from "react"
 import type { Table as TanStackTable } from "@tanstack/react-table"
 import { flexRender } from "@tanstack/react-table"
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon } from "lucide-react"
@@ -13,17 +14,39 @@ import {
 export type TableGridProps<T> = {
   /** TanStack table instance, from `useReactTable` or Refine's `useTable`. */
   table: TanStackTable<T>
+  /**
+   * State signature from `useTableShell`. The body returns to the top when it
+   * changes, so page, page size, filter, and sort changes reset the scroll
+   * while selection and refetches leave it alone.
+   */
+  scrollResetKey: string
 }
 
 /**
- * Sortable header and row rendering for a TanStack table instance. It owns no
+ * Sortable header and row rendering for a TanStack table instance. The outer
+ * wrapper is the table's single scroll container: the vendored primitive's
+ * horizontal overflow is neutralized with a selector variant (ADR-0009 keeps
+ * the primitive unedited), and the header cells stick to its top. It owns no
  * data or state, so every Refine `useTable` consumer shares one set of header
  * semantics (a real sort button per sortable column and `aria-sort`) and one
  * set of selected-row styles.
  */
-export function TableGrid<T>({ table }: TableGridProps<T>) {
+export function TableGrid<T>({ table, scrollResetKey }: TableGridProps<T>) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const element = scrollRef.current
+    if (element) element.scrollTop = 0
+  }, [scrollResetKey])
+
   return (
-    <div className="overflow-x-auto border border-border">
+    <div
+      ref={scrollRef}
+      data-slot="table-scroll"
+      // `scroll-pt-10` keeps the sticky header from covering a row that the
+      // browser scrolls into view for keyboard focus.
+      className="h-full min-h-0 scroll-pt-10 overflow-auto [&>[data-slot=table-container]]:overflow-visible"
+    >
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
@@ -33,6 +56,11 @@ export function TableGrid<T>({ table }: TableGridProps<T>) {
                 return (
                   <TableHead
                     key={header.id}
+                    // Sticky belongs on each cell, not the header group, for
+                    // browser support. The opaque background stops rows
+                    // showing through; the inset shadow survives
+                    // `border-collapse: collapse` where a border can drop.
+                    className="sticky top-0 z-10 bg-background shadow-[inset_0_-1px_0_var(--border)]"
                     style={{ width: header.getSize() }}
                     aria-sort={
                       sortDirection === "asc"

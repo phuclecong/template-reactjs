@@ -80,19 +80,29 @@ describe("page skeletons", () => {
       '[data-slot="table-page-layout"]'
     ) as HTMLElement | null
     expect(frame).not.toBeNull()
-    // The height contract: at least as tall as the scroll region, a column,
+    // The height contract: fills the area below the fixed header, a column,
     // with the existing page padding and gap.
     expect(frame).toHaveClass(
       "flex",
-      "min-h-full",
+      "min-h-0",
+      "flex-1",
       "flex-col",
       "gap-4",
       "p-6",
       "text-sm"
     )
-    expect(
-      frame?.querySelector('[data-slot="table-skeleton"]')
-    ).not.toBeNull()
+
+    // The skeleton grid fills the flexible region and clips any rows that do
+    // not fit; its footer stays pinned below.
+    const grid = frame?.querySelector(
+      '[data-slot="table-skeleton"]'
+    ) as HTMLElement | null
+    expect(grid).not.toBeNull()
+    expect(grid).toHaveClass("min-h-[240px]", "flex-1", "overflow-hidden")
+    const footer = frame?.querySelector(
+      '[data-slot="table-skeleton-footer"]'
+    ) as HTMLElement | null
+    expect(footer).toHaveClass("shrink-0")
   })
 
   it("reserves the Users table columns and announces users loading", () => {
