@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from "react"
-import type { BaseRecord, CrudFilter, CrudSort } from "@refinedev/core"
+import type { BaseRecord, CrudFilter } from "@refinedev/core"
 import { useTable, type UseTableReturnType } from "@refinedev/react-table"
 import type {
   ColumnDef,
@@ -18,11 +18,22 @@ import type { TableUrlState } from "./url-table-state"
 export type TableShellConfig<TData extends BaseRecord> = {
   /** Refine resource name, for example `"roles"`. */
   resource: string
-  /** Seeds the table from the flat URL parameters on mount. */
+  /**
+   * Seeds the table from the flat URL parameters on mount. Must be
+   * referentially stable (a module-level function).
+   */
   parseUrl: (params: URLSearchParams) => TableUrlState
-  /** Mirrors table state back into the flat URL parameters. */
+  /**
+   * Mirrors table state back into the flat URL parameters. Must be
+   * referentially stable (a module-level function), or the mirror effect
+   * re-runs on every render.
+   */
   buildUrl: (state: TableUrlState, current: URLSearchParams) => URLSearchParams
-  /** Column definitions, including any feature-specific gated columns. */
+  /**
+   * Column definitions, including any feature-specific gated columns. Must be
+   * referentially stable (wrap it in `useMemo`); a fresh array re-seeds the
+   * table and can reset a URL-restored page.
+   */
   columns: ColumnDef<TData>[]
   /** Stable row identity, usually the record `id`. */
   getRowId: (row: TData) => string
@@ -37,8 +48,6 @@ export type TableShellConfig<TData extends BaseRecord> = {
    * rebuilding `columns` (and resetting a URL-restored page).
    */
   initialState?: InitialTableState
-  /** Defaults to `false`, matching the existing tables. */
-  enableSortingRemoval?: boolean
 }
 
 /**
@@ -49,9 +58,7 @@ export type TableShellConfig<TData extends BaseRecord> = {
 export type TableShell<TData extends BaseRecord> = {
   reactTable: UseTableReturnType<TData>["reactTable"]
   refineCore: UseTableReturnType<TData>["refineCore"]
-  rows: Row<TData>[]
   filters: CrudFilter[]
-  sorters: CrudSort[]
   tableQuery: UseTableReturnType<TData>["refineCore"]["tableQuery"]
   /** One-based current page, matching the URL and pagination component. */
   page: number
@@ -76,6 +83,12 @@ export type TableShell<TData extends BaseRecord> = {
  * strategy, access gating, and copy with the feature. See ADR-0015's
  * amendment: `refineCore` and `reactTable` stay exposed so no Refine option is
  * hidden.
+ *
+ * **Stability contract:** `parseUrl`, `buildUrl`, and `columns` must keep the
+ * same identity across renders — define `parseUrl`/`buildUrl` at module level
+ * and wrap `columns` in `useMemo`. They feed the URL seed memo and the mirror
+ * effect; a fresh function or array each render re-runs those effects and can
+ * rewrite the URL or reset a restored page.
  */
 export function useTableShell<TData extends BaseRecord>({
   resource,
@@ -85,7 +98,6 @@ export function useTableShell<TData extends BaseRecord>({
   getRowId,
   enableRowSelection,
   initialState,
-  enableSortingRemoval = false,
 }: TableShellConfig<TData>): TableShell<TData> {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -116,7 +128,9 @@ export function useTableShell<TData extends BaseRecord>({
     },
     columns,
     getRowId,
-    enableSortingRemoval,
+    // Every feature keeps its designed order: a third click does not clear the
+    // sort. This is the shell's fixed behaviour, not a per-feature option.
+    enableSortingRemoval: false,
     enableRowSelection,
     initialState,
   })
@@ -231,9 +245,7 @@ export function useTableShell<TData extends BaseRecord>({
   return {
     reactTable,
     refineCore,
-    rows,
     filters,
-    sorters,
     tableQuery,
     page,
     pageSize,

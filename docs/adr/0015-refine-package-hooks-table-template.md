@@ -67,3 +67,14 @@ justifies extraction.
   overlays and delete mutations, access gating, widths, and translated copy.
   The "shared wrapper would hide the options" sentence above is superseded by
   this amendment.
+
+  A custom hook is justified rather than reusing a Refine hook directly: no
+  Refine hook owns this combination. `useTable` does not mirror table state
+  into the flat, encoded URL format required by ADR-0016, does not reset the
+  page-scoped selection when filters, sorters, or pagination change, and does
+  not expose the feature-facing `goToPage` / `changePageSize` /
+  `changeFilters` handlers that update both pagination layers. `useTableShell`
+  composes `useTable` and adds only that glue — it does not reimplement
+  Refine's data, sort, filter, or pagination logic. It also returns
+  `refineCore` and `reactTable` unchanged, so the hook exposes the composed
+  Refine surface rather than hiding it.

@@ -19,7 +19,7 @@ import { RetryableLazy } from "@/components/retryable-lazy"
 import i18n from "@/utils/i18n"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import { useDialog } from "@workspace/shared-lib/hooks"
-import { useTableShell } from "@workspace/shared-lib/hooks/use-table-shell"
+import { useTableShell } from "@workspace/shared-lib/hooks"
 import {
   createSelectionColumn,
   TableShellView,
@@ -259,12 +259,14 @@ function ShellHarness({
         errorDescription="Something broke."
         retryLabel="Try again"
         empty={empty}
-        page={shell.page}
-        pageSize={shell.pageSize}
-        pageCount={shell.pageCount}
-        summary={`${shell.total} probes`}
-        onPageChange={shell.goToPage}
-        onPageSizeChange={shell.changePageSize}
+        pagination={{
+          page: shell.page,
+          pageSize: shell.pageSize,
+          pageCount: shell.pageCount,
+          summary: `${shell.total} probes`,
+          onPageChange: shell.goToPage,
+          onPageSizeChange: shell.changePageSize,
+        }}
       />
       <RefOverlay
         ref={refOverlay}

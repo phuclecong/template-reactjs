@@ -6,8 +6,7 @@ import {
   createSelectionColumn,
   TableShellView,
 } from "@workspace/shared-lib/components"
-import { useDialog } from "@workspace/shared-lib/hooks"
-import { useTableShell } from "@workspace/shared-lib/hooks/use-table-shell"
+import { useDialog, useTableShell } from "@workspace/shared-lib/hooks"
 import { Button } from "@workspace/ui/components/button"
 import { formatDateTime, resolveLocale } from "@workspace/ui/lib/date"
 
@@ -277,12 +276,14 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
                 onClick: () => formDialog.open(),
               },
         }}
-        page={page}
-        pageSize={pageSize}
-        pageCount={pageCount}
-        summary={t("tasks.total", { total })}
-        onPageChange={goToPage}
-        onPageSizeChange={changePageSize}
+        pagination={{
+          page,
+          pageSize,
+          pageCount,
+          summary: t("tasks.total", { total }),
+          onPageChange: goToPage,
+          onPageSizeChange: changePageSize,
+        }}
       />
 
       {formDialog.version > 0 ? (
