@@ -46,27 +46,27 @@ beforeEach(async () => {
 })
 
 describe("DashboardShell viewport frame", () => {
-  it("locks the shell to the viewport and makes the inset the scroll region", () => {
+  it("places the scroll region below the fixed header, not around it", () => {
     const { container } = renderShell()
 
-    const wrapper = container.querySelector(
-      '[data-slot="sidebar-wrapper"]'
-    ) as HTMLElement
-    expect(wrapper).toHaveClass("h-svh", "overflow-hidden")
+    const wrapper = container.querySelector('[data-slot="sidebar-wrapper"]')
+    expect(wrapper).not.toBeNull()
 
-    const inset = container.querySelector(
-      '[data-slot="sidebar-inset"]'
-    ) as HTMLElement
-    expect(inset).toHaveClass(
-      "min-h-0",
-      "flex-1",
-      "flex-col",
-      "overflow-y-auto"
+    const inset = container.querySelector('[data-slot="sidebar-inset"]')
+    expect(inset).not.toBeNull()
+
+    // The header is the fixed band and the route content scrolls below it, so
+    // the header must stay outside the scrolling region.
+    const header = inset?.querySelector<HTMLElement>("header") ?? null
+    expect(header).not.toBeNull()
+
+    const content = container.querySelector<HTMLElement>(
+      '[data-slot="shell-content"]'
     )
-
-    // The header is the fixed band; the route content scrolls below it.
-    const header = inset.querySelector("header") as HTMLElement
-    expect(header).toHaveClass("sticky", "top-0", "h-12", "shrink-0")
-    expect(screen.getByText("Page content")).toBeInTheDocument()
+    expect(content).not.toBeNull()
+    expect(inset).toContainElement(content)
+    expect(content).not.toContainElement(header)
+    expect(header?.nextElementSibling).toBe(content)
+    expect(content).toContainElement(screen.getByText("Page content"))
   })
 })

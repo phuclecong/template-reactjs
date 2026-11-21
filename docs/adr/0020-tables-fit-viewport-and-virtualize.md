@@ -52,13 +52,18 @@ rather than by editing the primitive.
 ### Shell and page frame
 
 - The authenticated shell owns the viewport height: `SidebarProvider` is
-  `h-svh overflow-hidden`; the region below the 48px header is
-  `flex min-h-0 flex-1 flex-col overflow-y-auto`. Non-table routes (Dashboard,
-  Settings) scroll inside that region. `svh` is used instead of `dvh` so mobile
-  browser chrome does not resize the shell during scroll.
+  `h-svh overflow-hidden`. Inside `SidebarInset`, a non-scrolling 48px
+  `<header>` sits above a `<div data-slot="shell-content">` with
+  `flex min-h-0 flex-1 flex-col overflow-y-auto`; that region, not the inset, is
+  the page-level scroller. Non-table routes (Dashboard, Settings) scroll inside
+  it. `svh` is used instead of `dvh` so mobile browser chrome does not resize
+  the shell during scroll.
 - `TablePageLayout` in `packages/shared-lib/src/components/` owns the page
-  contract for every list screen: `flex min-h-full flex-col gap-4 p-6 text-sm`.
-  It is children-only; the feature keeps its title, filters, bulk bar, and
+  contract for every list screen:
+  `flex min-h-full shrink-0 flex-col gap-4 p-6 text-sm`. `shrink-0` stops the
+  scroll region's flex sizing from compressing the frame back to the region
+  height, so the frame grows (rather than clipping) when its content cannot
+  fit. It is children-only; the feature keeps its title, filters, bulk bar, and
   overlays. Roles, Tasks, Users, and `TablePageSkeleton` all use it. It has a
   direct `exports` subpath because `page-skeletons.tsx` is in the entry chunk
   and must not pull the whole components index (ADR-0017).
@@ -78,10 +83,16 @@ rather than by editing the primitive.
   pagination stays hidden for error and empty, as before.
 - `TableGrid` owns the virtualizer and the single scroll element. The outer
   wrapper is `overflow-auto` with `data-slot="table-scroll"`,
-  `data-row-count`, and `[&>[data-slot=table-container]]:overflow-visible`,
-  which neutralizes the vendored wrapper's horizontal scroll without editing
-  it. Column headers stick with `position: sticky` on each `th` (not on
-  `thead`, for browser support), with an opaque background and bottom border.
+  `data-row-count`, `contain: size`, and
+  `[&>[data-slot=table-container]]:overflow-visible`, which neutralizes the
+  vendored wrapper's horizontal scroll without editing it. Size containment
+  stops the virtual list's content height from inflating the page frame's
+  intrinsic size: the element is sized by `h-full` and scrolls its rows
+  internally. The skeleton grid mirrors the containment so the loading frame
+  has the same intrinsic height. Column headers stick with `position: sticky`
+  on each `th` (not on `thead`, for browser support), with an opaque background
+  and a 1px bottom hairline drawn as an inset box-shadow, which
+  `border-collapse: collapse` cannot drop.
 - Two spacer `<tr>`s carry the virtualizer's total size; they are
   `aria-hidden`, `role="none"`, and marked `data-slot="table-spacer-row"`.
 - Rows use `measureElement` refs with `data-index`, `data-slot="table-row"`,

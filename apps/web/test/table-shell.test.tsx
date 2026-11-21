@@ -526,33 +526,51 @@ function scrollElement(container: HTMLElement): HTMLElement {
 }
 
 describe("fitted table shell", () => {
-  it("keeps the grid and pagination in one flexible column", async () => {
+  it("keeps the grid and pagination in one shell", async () => {
     const { container } = renderHarness({
       rows: () => Promise.resolve({ data: ROWS, total: 90 }),
     })
 
     await screen.findByRole("cell", { name: "Alpha" })
 
-    const shell = container.querySelector('[data-slot="table-shell"]')
+    const shell = container.querySelector<HTMLElement>(
+      '[data-slot="table-shell"]'
+    )
     expect(shell).not.toBeNull()
-    expect(shell).toHaveClass("flex", "min-h-0", "flex-1", "flex-col")
+    expect(shell).toHaveAttribute("data-state", "ready")
 
-    const region = shell?.querySelector('[data-slot="table-region"]')
-    expect(region).toHaveClass("flex", "min-h-[240px]", "flex-1", "flex-col")
+    const region = shell?.querySelector<HTMLElement>(
+      '[data-slot="table-region"]'
+    )
+    expect(region).not.toBeNull()
     expect(region?.querySelector('[data-slot="table-scroll"]')).not.toBeNull()
 
-    const footer = shell?.querySelector('[data-slot="table-footer"]')
-    expect(footer).toHaveClass("shrink-0")
+    const footer = shell?.querySelector<HTMLElement>(
+      '[data-slot="table-footer"]'
+    )
+    expect(footer).not.toBeNull()
     expect(footer).toContainElement(
       screen.getByRole("navigation", { name: "Pagination" })
     )
+
+    // The grid region and the footer are sibling branches of the shell, with
+    // the footer after the grid so it stays below the scrolling body.
+    expect(region?.parentElement).toBe(shell)
+    expect(footer?.parentElement).toBe(shell)
+    expect(region?.nextElementSibling).toBe(footer)
   })
 
-  it("makes the header cells sticky above the body", async () => {
-    renderHarness()
+  it("renders the sortable headers in a header section above the body", async () => {
+    const { container } = renderHarness()
 
     const header = await screen.findByRole("columnheader", { name: "Name" })
-    expect(header).toHaveClass("sticky", "top-0", "z-10")
+    const headerSection = header.closest('[data-slot="table-header"]')
+    const bodySection = container.querySelector('[data-slot="table-body"]')
+
+    expect(headerSection).not.toBeNull()
+    expect(bodySection).not.toBeNull()
+    expect(headerSection?.contains(header)).toBe(true)
+    expect(bodySection?.contains(header)).toBe(false)
   })
 
   it("resets the body scroll only when the list state changes", async () => {
@@ -611,21 +629,19 @@ describe("fitted table shell", () => {
     }
   })
 
-  it("fills the grid region with the skeleton while loading", () => {
+  it("fills the shell with the skeleton while loading", () => {
     const { container } = renderHarness({ rows: () => new Promise(() => {}) })
 
-    const shell = container.querySelector('[data-slot="table-shell"]')
+    const shell = container.querySelector<HTMLElement>(
+      '[data-slot="table-shell"]'
+    )
     expect(shell).not.toBeNull()
     expect(shell).toHaveAttribute("data-state", "loading")
-    expect(shell).toHaveClass("flex", "min-h-0", "flex-1", "flex-col")
 
-    const grid = container.querySelector('[data-slot="table-skeleton"]')
-    expect(grid).toHaveClass("min-h-[240px]", "flex-1", "overflow-hidden")
-
-    const footer = container.querySelector(
-      '[data-slot="table-skeleton-footer"]'
-    )
-    expect(footer).toHaveClass("shrink-0")
+    expect(shell?.querySelector('[data-slot="table-skeleton"]')).not.toBeNull()
+    expect(
+      shell?.querySelector('[data-slot="table-skeleton-footer"]')
+    ).not.toBeNull()
     expect(screen.queryByRole("navigation", { name: "Pagination" })).toBeNull()
   })
 
@@ -637,9 +653,10 @@ describe("fitted table shell", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Could not load probes."
     )
-    const shell = container.querySelector('[data-slot="table-shell"]')
+    const shell = container.querySelector<HTMLElement>(
+      '[data-slot="table-shell"]'
+    )
     expect(shell).toHaveAttribute("data-state", "error")
-    expect(shell).toHaveClass("flex", "min-h-0", "flex-1", "flex-col")
     expect(
       shell
         ?.querySelector('[data-slot="table-region"]')
@@ -654,9 +671,10 @@ describe("fitted table shell", () => {
     })
 
     expect(await screen.findByText("Nothing here yet.")).toBeVisible()
-    const shell = container.querySelector('[data-slot="table-shell"]')
+    const shell = container.querySelector<HTMLElement>(
+      '[data-slot="table-shell"]'
+    )
     expect(shell).toHaveAttribute("data-state", "empty")
-    expect(shell).toHaveClass("flex", "min-h-0", "flex-1", "flex-col")
     expect(
       shell?.querySelector('[data-slot="table-region"]')
     ).toHaveTextContent("Nothing here yet.")

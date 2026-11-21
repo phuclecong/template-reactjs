@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import type { Table as TanStackTable } from "@tanstack/react-table"
 
 import { EmptyList, type EmptyListProps } from "./empty-list"
@@ -57,6 +58,40 @@ export type TableShellViewProps<T> = {
 const SHELL_CLASS_NAME = "flex min-h-0 flex-1 flex-col gap-4"
 const REGION_CLASS_NAME = "flex min-h-[240px] flex-1 flex-col"
 
+type ShellState = "loading" | "error" | "empty" | "ready"
+
+/**
+ * The one outer frame every state shares. It keeps the fitted column contract
+ * (and the state attribute tests read) in a single place instead of repeating
+ * the wrapper in each branch.
+ */
+function ShellFrame({
+  state,
+  children,
+}: {
+  state: ShellState
+  children: ReactNode
+}) {
+  return (
+    <div
+      className={SHELL_CLASS_NAME}
+      data-slot="table-shell"
+      data-state={state}
+    >
+      {children}
+    </div>
+  )
+}
+
+/** The flexible grid region that fills the same area in every data state. */
+function ShellRegion({ children }: { children: ReactNode }) {
+  return (
+    <div className={REGION_CLASS_NAME} data-slot="table-region">
+      {children}
+    </div>
+  )
+}
+
 /**
  * Presentational half of the table shell: the loading, error, empty, grid, and
  * pagination states in one place. It owns no data, state, or translated copy —
@@ -81,28 +116,20 @@ export function TableShellView<T>({
 }: TableShellViewProps<T>) {
   if (isLoading) {
     return (
-      <div
-        className={SHELL_CLASS_NAME}
-        data-slot="table-shell"
-        data-state="loading"
-      >
+      <ShellFrame state="loading">
         <TableSkeleton
           columnWidths={[...skeletonColumnWidths]}
           rowCount={skeletonRowCount}
           label={loadingLabel}
         />
-      </div>
+      </ShellFrame>
     )
   }
 
   if (isError) {
     return (
-      <div
-        className={SHELL_CLASS_NAME}
-        data-slot="table-shell"
-        data-state="error"
-      >
-        <div className={REGION_CLASS_NAME} data-slot="table-region">
+      <ShellFrame state="error">
+        <ShellRegion>
           <ErrorPanel
             title={errorTitle}
             description={errorDescription}
@@ -110,37 +137,29 @@ export function TableShellView<T>({
             isRetrying={isRetrying}
             onRetry={onRetry}
           />
-        </div>
-      </div>
+        </ShellRegion>
+      </ShellFrame>
     )
   }
 
   if (table.getRowModel().rows.length === 0) {
     return (
-      <div
-        className={SHELL_CLASS_NAME}
-        data-slot="table-shell"
-        data-state="empty"
-      >
-        <div className={REGION_CLASS_NAME} data-slot="table-region">
+      <ShellFrame state="empty">
+        <ShellRegion>
           <EmptyList {...empty} />
-        </div>
-      </div>
+        </ShellRegion>
+      </ShellFrame>
     )
   }
 
   return (
-    <div
-      className={SHELL_CLASS_NAME}
-      data-slot="table-shell"
-      data-state="ready"
-    >
-      <div className={REGION_CLASS_NAME} data-slot="table-region">
+    <ShellFrame state="ready">
+      <ShellRegion>
         <TableGrid table={table} scrollResetKey={scrollResetKey} />
-      </div>
+      </ShellRegion>
       <div className="shrink-0" data-slot="table-footer">
         <TablePagination {...pagination} />
       </div>
-    </div>
+    </ShellFrame>
   )
 }

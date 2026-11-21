@@ -41,16 +41,22 @@ describe("auth and shell skeletons", () => {
     expect(screen.queryByRole("link")).toBeNull()
   })
 
-  it("locks the pre-identity frame to the viewport like the resolved shell", () => {
+  it("mirrors the resolved shell's header-over-scroll-region structure", () => {
     const { container } = renderWithI18n(<AppShellSkeleton />)
 
     const root = container.firstElementChild as HTMLElement
-    expect(root).toHaveClass("h-svh", "overflow-hidden")
-    expect(root).not.toHaveClass("min-h-svh")
+    expect(root).not.toBeNull()
 
-    // The content region is the page-level scroll surface, not the window.
-    const main = container.querySelector("main") as HTMLElement
-    expect(main).toHaveClass("min-h-0", "flex-1", "overflow-y-auto")
+    const header = root.querySelector<HTMLElement>("header")
+    const content = root.querySelector<HTMLElement>(
+      '[data-slot="shell-content"]'
+    )
+    expect(header).not.toBeNull()
+    expect(content).not.toBeNull()
+
+    // The header is outside the scrolling region, exactly as in the real shell.
+    expect(content).not.toContainElement(header)
+    expect(header?.nextElementSibling).toBe(content)
   })
 })
 
@@ -76,33 +82,23 @@ describe("page skeletons", () => {
   it("renders the table skeleton inside the shared viewport-fitted page frame", () => {
     const { container } = renderWithI18n(<TablePageSkeleton kind="tasks" />)
 
-    const frame = container.querySelector(
+    const frame = container.querySelector<HTMLElement>(
       '[data-slot="table-page-layout"]'
-    ) as HTMLElement | null
-    expect(frame).not.toBeNull()
-    // The height contract: fills the area below the fixed header, a column,
-    // with the existing page padding and gap.
-    expect(frame).toHaveClass(
-      "flex",
-      "min-h-0",
-      "flex-1",
-      "flex-col",
-      "gap-4",
-      "p-6",
-      "text-sm"
     )
+    expect(frame).not.toBeNull()
 
-    // The skeleton grid fills the flexible region and clips any rows that do
-    // not fit; its footer stays pinned below.
-    const grid = frame?.querySelector(
+    // The skeleton grid and its pinned footer both live inside the shared
+    // page frame, so the route skeleton and the real table share one contract.
+    const grid = frame?.querySelector<HTMLElement>(
       '[data-slot="table-skeleton"]'
-    ) as HTMLElement | null
-    expect(grid).not.toBeNull()
-    expect(grid).toHaveClass("min-h-[240px]", "flex-1", "overflow-hidden")
-    const footer = frame?.querySelector(
+    )
+    const footer = frame?.querySelector<HTMLElement>(
       '[data-slot="table-skeleton-footer"]'
-    ) as HTMLElement | null
-    expect(footer).toHaveClass("shrink-0")
+    )
+    expect(grid).not.toBeNull()
+    expect(footer).not.toBeNull()
+    expect(grid?.parentElement).toBe(footer?.parentElement)
+    expect(grid?.nextElementSibling).toBe(footer)
   })
 
   it("reserves the Users table columns and announces users loading", () => {

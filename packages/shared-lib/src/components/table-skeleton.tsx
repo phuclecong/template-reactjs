@@ -37,7 +37,9 @@ export function TableSkeleton({
         data-slot="table-skeleton-frame"
       >
         <div
-          className="min-h-[240px] flex-1 overflow-hidden border border-border"
+          // `contain:size` mirrors the real grid: the placeholder rows are
+          // clipped by the fitted region instead of inflating the page frame.
+          className="min-h-[240px] flex-1 overflow-hidden border border-border [contain:size]"
           data-slot="table-skeleton"
         >
           <div style={{ minWidth: "max-content" }}>

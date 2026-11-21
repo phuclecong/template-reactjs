@@ -7,6 +7,18 @@ import { expect, type Locator, type Page } from "@playwright/test"
  */
 export const TABLE_SCROLL = '[data-slot="table-scroll"]'
 
+/** The page-level scroll region below the fixed shell header. */
+export const CONTENT_REGION = '[data-slot="shell-content"]'
+
+/** The shared frame every list screen renders through. */
+export const PAGE_FRAME = '[data-slot="table-page-layout"]'
+
+/** The pinned pagination footer. */
+export const TABLE_FOOTER = '[data-slot="table-footer"]'
+
+/** A virtualizer spacer that reserves unmounted-row height. */
+export const SPACER_ROW = 'tbody tr[data-slot="table-spacer-row"]'
+
 /**
  * The logical data rows for the current page. The `data-slot` filter excludes
  * the header row and any virtualizer spacer rows, so this matches data rows
@@ -52,11 +64,20 @@ export async function expectLogicalRowCount(
     .toBe(expected)
 }
 
-export type ScrollRowIntoViewOptions = {
-  /** Maximum number of body scroll steps before failing. */
-  maxSteps?: number
-  /** Pixels added to the body's `scrollTop` per step. */
-  stepPx?: number
+/**
+ * Assert the browser window itself cannot scroll. The document must not
+ * overflow vertically, and a large programmatic scroll must leave `scrollY`
+ * at zero rather than moving the page.
+ */
+export async function expectWindowLocked(page: Page): Promise<void> {
+  const overflow = await page.evaluate(() => {
+    const root = document.scrollingElement ?? document.documentElement
+    return root.scrollHeight - root.clientHeight
+  })
+  expect(overflow).toBeLessThanOrEqual(1)
+
+  await page.evaluate(() => window.scrollTo(0, 10_000))
+  expect(await page.evaluate(() => window.scrollY)).toBe(0)
 }
 
 /**
@@ -74,10 +95,10 @@ export type ScrollRowIntoViewOptions = {
  */
 export async function scrollRowIntoView(
   page: Page,
-  row: Locator,
-  options: ScrollRowIntoViewOptions = {}
+  row: Locator
 ): Promise<Locator> {
-  const { maxSteps = 120, stepPx = 240 } = options
+  const maxSteps = 120
+  const stepPx = 240
   const target = row.first()
   const scroller = page.locator(TABLE_SCROLL)
 

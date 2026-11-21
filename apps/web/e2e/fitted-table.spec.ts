@@ -1,18 +1,13 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
 
-import { login } from "./helpers"
-
-/** The page-level scroll region below the fixed header. */
-const CONTENT_REGION = '[data-slot="sidebar-inset"]'
-
-/** The shared frame every list screen renders through. */
-const PAGE_FRAME = '[data-slot="table-page-layout"]'
-
-/** The one scroll container inside the fitted table. */
-const TABLE_SCROLL = '[data-slot="table-scroll"]'
-
-/** The pinned pagination footer. */
-const TABLE_FOOTER = '[data-slot="table-footer"]'
+import {
+  CONTENT_REGION,
+  PAGE_FRAME,
+  TABLE_FOOTER,
+  TABLE_SCROLL,
+  expectWindowLocked,
+  login,
+} from "./helpers"
 
 type Screen = {
   path: string
@@ -44,18 +39,6 @@ const SCREENS: Screen[] = [
     header: "Name",
   },
 ]
-
-/** Asserts the browser window itself cannot scroll. */
-async function expectWindowLocked(page: Page) {
-  const overflow = await page.evaluate(() => {
-    const root = document.scrollingElement ?? document.documentElement
-    return root.scrollHeight - root.clientHeight
-  })
-  expect(overflow).toBeLessThanOrEqual(1)
-
-  await page.evaluate(() => window.scrollTo(0, 10_000))
-  expect(await page.evaluate(() => window.scrollY)).toBe(0)
-}
 
 type FrameGeometry = {
   regionClientHeight: number
@@ -284,7 +267,9 @@ test("page, page-size, filter, and sort changes return the body to the top", asy
 test("horizontal overflow stays inside the table at a narrow width", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 700, height: 800 })
+  // 700px is wide enough for the auto table layout to fit; 480px is where all
+  // three tables are genuinely wider than their content region.
+  await page.setViewportSize({ width: 480, height: 800 })
   await login(page, "admin@example.com", "adminpass")
 
   for (const screen of SCREENS) {
@@ -292,39 +277,43 @@ test("horizontal overflow stays inside the table at a narrow width", async ({
     await expect(screen.ready(page)).toBeVisible()
     await expect(page.getByRole("table")).toBeVisible()
 
-    const pageOverflow = await page.evaluate(() => {
-      const root = document.scrollingElement ?? document.documentElement
-      return root.scrollWidth - root.clientWidth
-    })
-    expect(pageOverflow).toBeLessThanOrEqual(1)
+    // The table really is wider than its frame at this viewport, so the
+    // overflow is not absent - it is owned by the table.
+    const widths = await page.evaluate(
+      ({ scrollSelector }) => {
+        const scroll = document.querySelector(scrollSelector) as HTMLElement
+        const root = document.scrollingElement ?? document.documentElement
+        return {
+          scrollWidth: scroll.scrollWidth,
+          clientWidth: scroll.clientWidth,
+          documentScrollWidth: root.scrollWidth,
+          documentClientWidth: root.clientWidth,
+        }
+      },
+      { scrollSelector: TABLE_SCROLL }
+    )
+    expect(widths.scrollWidth).toBeGreaterThan(widths.clientWidth)
+    // The document itself does not gain horizontal overflow.
+    expect(widths.documentScrollWidth).toBeLessThanOrEqual(
+      widths.documentClientWidth + 1
+    )
     await expectWindowLocked(page)
 
-    // When the table is wider than the frame, the table (not the page) owns
-    // the horizontal overflow.
-    const widths = await page.evaluate((selector) => {
-      const scroll = document.querySelector(selector) as HTMLElement
-      return {
-        scrollWidth: scroll.scrollWidth,
-        clientWidth: scroll.clientWidth,
-      }
-    }, TABLE_SCROLL)
+    // Scrolling the table body horizontally moves the table, not the page.
+    await page.locator(TABLE_SCROLL).evaluate((element) => {
+      element.scrollLeft = element.scrollWidth
+    })
+    await expect
+      .poll(() =>
+        page.locator(TABLE_SCROLL).evaluate((element) => element.scrollLeft)
+      )
+      .toBeGreaterThan(0)
 
-    if (widths.scrollWidth > widths.clientWidth) {
-      await page.locator(TABLE_SCROLL).evaluate((element) => {
-        element.scrollLeft = element.scrollWidth
-      })
-      await expect
-        .poll(() =>
-          page.locator(TABLE_SCROLL).evaluate((element) => element.scrollLeft)
-        )
-        .toBeGreaterThan(0)
-    }
-
-    const pageOverflowAfterScroll = await page.evaluate(() => {
+    const documentOverflowAfterScroll = await page.evaluate(() => {
       const root = document.scrollingElement ?? document.documentElement
       return root.scrollWidth - root.clientWidth
     })
-    expect(pageOverflowAfterScroll).toBeLessThanOrEqual(1)
+    expect(documentOverflowAfterScroll).toBeLessThanOrEqual(1)
     await expectWindowLocked(page)
   }
 })

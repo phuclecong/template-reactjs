@@ -1,7 +1,11 @@
-import { expect, test, type Page } from "@playwright/test"
+import { expect, test, type Locator, type Page } from "@playwright/test"
 
 import {
+  SPACER_ROW,
+  TABLE_FOOTER,
+  TABLE_SCROLL,
   expectLogicalRowCount,
+  expectWindowLocked,
   login,
   logicalRowCount,
   rowByText,
@@ -9,24 +13,17 @@ import {
   tableRows,
 } from "./helpers"
 
-/** The one scroll container inside the fitted table. */
-const TABLE_SCROLL = '[data-slot="table-scroll"]'
-
-/** A virtualizer spacer that reserves unmounted-row height. */
-const SPACER_ROW = 'tbody tr[data-slot="table-spacer-row"]'
-
-/** The pinned pagination footer. */
-const TABLE_FOOTER = '[data-slot="table-footer"]'
-
 async function openRoles(page: Page, search = "") {
   await login(page, "admin@example.com", "adminpass")
   await page.goto(`/roles${search}`)
   await expect(page.getByRole("table")).toBeVisible()
 }
 
-async function expectWindowLocked(page: Page) {
-  await page.evaluate(() => window.scrollTo(0, 10_000))
-  expect(await page.evaluate(() => window.scrollY)).toBe(0)
+/** The body scroll offset, used by the restored-URL assertions. */
+function bodyScrollTop(page: Page): Promise<number> {
+  return page
+    .locator(TABLE_SCROLL)
+    .evaluate((element) => (element as HTMLElement).scrollTop)
 }
 
 async function scrollBodyToEnd(page: Page) {
@@ -143,36 +140,157 @@ test("exposes the logical row count and indexes while only some rows are mounted
   await expect(table).toHaveAttribute("aria-rowcount", "61")
 })
 
+/**
+ * Register extra members through the mock API so the Users page has enough
+ * rows to virtualize. `login` has already started the worker and seeded it.
+ */
+async function seedUsers(page: Page, count: number): Promise<void> {
+  await page.evaluate(async (total) => {
+    for (let index = 1; index <= total; index += 1) {
+      const suffix = String(index).padStart(2, "0")
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: `Load User ${suffix}`,
+          email: `load-user-${suffix}@example.com`,
+          password: "loadpass",
+        }),
+      })
+      if (!response.ok) {
+        throw new Error(
+          `Failed to register Load User ${suffix}: ${response.status}`
+        )
+      }
+    }
+  }, count)
+}
+
+/**
+ * A Users row must be measured taller than the 36px estimate (the role
+ * SelectTrigger makes it ~48px) and contain that trigger, or the virtualizer
+ * fell back to the estimate and would clip the control.
+ */
+async function expectMeasuredUsersRow(row: Locator): Promise<void> {
+  await expect
+    .poll(async () => (await row.boundingBox())?.height ?? 0)
+    .toBeGreaterThan(36)
+
+  const rowBox = await row.boundingBox()
+  const triggerBox = await row.getByLabel(/^Role for /).boundingBox()
+  expect(rowBox).not.toBeNull()
+  expect(triggerBox).not.toBeNull()
+  if (!rowBox || !triggerBox) return
+
+  const tolerance = 0.5
+  expect(triggerBox.y).toBeGreaterThanOrEqual(rowBox.y - tolerance)
+  expect(triggerBox.y + triggerBox.height).toBeLessThanOrEqual(
+    rowBox.y + rowBox.height + tolerance
+  )
+  expect(triggerBox.x).toBeGreaterThanOrEqual(rowBox.x - tolerance)
+  expect(triggerBox.x + triggerBox.width).toBeLessThanOrEqual(
+    rowBox.x + rowBox.width + tolerance
+  )
+}
+
 test("measures the taller Users role rows without overlap or clipping", async ({
   page,
 }) => {
   await login(page, "admin@example.com", "adminpass")
+  // Load the table first so the page-side mock worker is serving requests
+  // before we register the extra rows.
   await page.goto("/users")
   await expect(page.getByRole("table")).toBeVisible()
-  await expectLogicalRowCount(page, 2)
+  await seedUsers(page, 40)
+  await page.goto("/users?pageSize=100")
+  await expect(page.getByRole("table")).toBeVisible()
+  await expectLogicalRowCount(page, 42)
 
-  const boxes = await tableRows(page).evaluateAll((rows) =>
-    rows.map((row) => {
-      const rect = row.getBoundingClientRect()
-      return { top: rect.top, bottom: rect.bottom, height: rect.height }
-    })
+  // A first-viewport row is measured, not left at the estimate.
+  const firstRow = tableRows(page).first()
+  await expect(firstRow).toBeVisible()
+  await expectMeasuredUsersRow(firstRow)
+
+  // Rows that enter the window later are measured too: scroll to the middle
+  // of the logical list and assert a row that was outside the initial window.
+  const midRow = await scrollRowIntoView(page, rowByText(page, "Load User 20"))
+  await expect(midRow).toBeVisible()
+  await expectMeasuredUsersRow(midRow)
+})
+
+test("a shared or restored URL opens the body at the top", async ({ page }) => {
+  await login(page, "admin@example.com", "adminpass")
+
+  // Page 2 of the 60-row list is a mid-list URL; the body must still open at
+  // its top so the page's first result is visible.
+  await page.goto("/roles?page=2&pageSize=30")
+  await expect(page.getByRole("table")).toBeVisible()
+  await expectLogicalRowCount(page, 30)
+
+  const firstLogicalRow = page.locator(
+    'tbody tr[data-slot="table-row"][data-index="0"]'
   )
-  expect(boxes.length).toBeGreaterThan(1)
+  await expect(firstLogicalRow).toBeInViewport()
+  await expect.poll(() => bodyScrollTop(page)).toBe(0)
 
-  for (let index = 0; index < boxes.length; index += 1) {
-    // The role selector inside the cell is taller than the 36px estimate;
-    // dynamic measurement must let the row grow to contain it.
-    expect(boxes[index].height).toBeGreaterThanOrEqual(36)
-    if (index > 0) {
-      // Adjacent rows stack: earlier bottom never crosses the next top.
-      expect(boxes[index - 1].bottom).toBeLessThanOrEqual(
-        boxes[index].top + 0.5
-      )
-      expect(
-        Math.abs(boxes[index].height - boxes[index - 1].height)
-      ).toBeLessThanOrEqual(1)
-    }
-  }
+  // Scrolling the body then reloading must not restore that offset.
+  await page.locator(TABLE_SCROLL).evaluate((element) => {
+    ;(element as HTMLElement).scrollTop = 320
+  })
+  await expect.poll(() => bodyScrollTop(page)).toBeGreaterThan(0)
+
+  await page.reload()
+  await expect(page.getByRole("table")).toBeVisible()
+  await expect(page).toHaveURL(/page=2/)
+  await expect.poll(() => bodyScrollTop(page)).toBe(0)
+  await expect(
+    page.locator('tbody tr[data-slot="table-row"][data-index="0"]')
+  ).toBeInViewport()
+})
+
+test("focusing a mounted row below the visible edge keeps it clear of the sticky header", async ({
+  page,
+}) => {
+  await openRoles(page, "?pageSize=100")
+
+  // Overscan mounts rows below the visible edge. Pick the first one so the
+  // focus scroll has to move the body.
+  const belowFoldIndex = await page.evaluate((scrollSelector) => {
+    const scroll = document.querySelector(scrollSelector) as HTMLElement
+    const bottom = scroll.getBoundingClientRect().bottom
+    const rows = Array.from(
+      document.querySelectorAll<HTMLElement>('tbody tr[data-slot="table-row"]')
+    )
+    const below = rows.find(
+      (row) => row.getBoundingClientRect().top >= bottom + 1
+    )
+    return below?.getAttribute("data-index") ?? null
+  }, TABLE_SCROLL)
+  expect(belowFoldIndex).not.toBeNull()
+
+  const row = page.locator(
+    `tbody tr[data-slot="table-row"][data-index="${belowFoldIndex}"]`
+  )
+  await expect(row).toHaveCount(1)
+  const edit = row.getByRole("button", { name: "Edit" })
+  await expect(edit).toHaveCount(1)
+
+  // Focus in the page (not through Playwright's actionability scroll) so the
+  // browser's own focus scrolling runs and honours the scroll padding.
+  await edit.evaluate((element) => (element as HTMLElement).focus())
+
+  await expect(row).toBeInViewport()
+
+  const headerBox = await page
+    .getByRole("columnheader", { name: "Title" })
+    .boundingBox()
+  const rowBox = await row.boundingBox()
+  expect(headerBox).not.toBeNull()
+  expect(rowBox).not.toBeNull()
+  if (!headerBox || !rowBox) return
+  // `scroll-pt-10` matches the 40px sticky header, so the focused row is not
+  // hidden beneath it.
+  expect(rowBox.y).toBeGreaterThanOrEqual(headerBox.y + headerBox.height - 1)
 })
 
 test("keeps the header and pagination pinned while the body scrolls", async ({
