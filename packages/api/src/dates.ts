@@ -1,28 +1,26 @@
 /**
  * Due-date normalization and comparison for the mock API.
  *
- * The API package must not depend on the design system; the small
- * dependency-free date-only parsing primitive both packages need lives in
- * `@workspace/date-utils`. Due dates are UTC instants. Writes only accept
+ * The API package must not depend on the design system; the read/write
+ * normalizers live in `@workspace/date-utils`, which owns ADR-0007's local-day
+ * to UTC-instant rule. Due dates are UTC instants. Writes only accept
  * date-time instants; the stored-record read path still interprets legacy
  * date-only values as local midnight so persisted data survives the migration.
  */
 
-import { isDateOnly, parseLocalDateOnly } from "@workspace/date-utils"
+import {
+  normalizeInstantValue,
+  normalizeStoredDateValue,
+} from "@workspace/date-utils"
 
 /**
  * Normalizes a stored Due date to a UTC instant for reads. Legacy date-only
- * records become local midnight; null/empty/invalid becomes null.
+ * records become local midnight; null/empty/invalid/overflowed becomes null.
  */
 export function normalizeStoredDueDate(
   value: string | null | undefined
 ): string | null {
-  if (value == null || value === "") return null
-  if (isDateOnly(value)) {
-    return parseLocalDateOnly(value)?.toISOString() ?? null
-  }
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? null : date.toISOString()
+  return normalizeStoredDateValue(value)
 }
 
 /**
@@ -33,9 +31,7 @@ export function normalizeStoredDueDate(
 export function normalizeDueDateInstant(
   value: string | null | undefined
 ): string | null {
-  if (value == null || value === "" || isDateOnly(value)) return null
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? null : date.toISOString()
+  return normalizeInstantValue(value)
 }
 
 /** Parses a stored Due date (legacy or instant) to epoch milliseconds. */

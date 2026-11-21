@@ -31,6 +31,10 @@ describe("task Due date form boundary", () => {
     expect(dueDateToFormValue(undefined)).toBe("")
   })
 
+  it("treats an overflowed legacy date as no Due date", () => {
+    expect(dueDateToFormValue("2026-02-31")).toBe("")
+  })
+
   it("sends the selected instant unchanged", () => {
     expect(formValueToDueDate("2026-01-05T12:30:00.000Z")).toBe(
       "2026-01-05T12:30:00.000Z"
@@ -39,6 +43,10 @@ describe("task Due date form boundary", () => {
 
   it("rejects a date-only form value instead of normalizing it", () => {
     expect(formValueToDueDate("2026-01-05")).toBeNull()
+  })
+
+  it("rejects an overflowed date-only form value", () => {
+    expect(formValueToDueDate("2026-02-31")).toBeNull()
   })
 
   it("sends null when the form value is empty", () => {

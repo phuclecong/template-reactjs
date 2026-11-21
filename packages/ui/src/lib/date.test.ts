@@ -109,6 +109,10 @@ describe("legacy date-only normalization", () => {
     expect(normalizeLegacyDateValue("")).toBeNull()
     expect(normalizeLegacyDateValue("nope")).toBeNull()
   })
+
+  it("returns null for an overflowed date-only value", () => {
+    expect(normalizeLegacyDateValue("2026-02-31")).toBeNull()
+  })
 })
 
 describe("local day boundaries", () => {
@@ -142,6 +146,13 @@ describe("local day boundaries", () => {
     )
   })
 
+  it("returns null for invalid, empty, and overflowed values", () => {
+    expect(localStartOfDayUtcInstant("2026-02-31")).toBeNull()
+    expect(localEndOfDayUtcInstant("2026-02-31")).toBeNull()
+    expect(localStartOfDayUtcInstant("")).toBeNull()
+    expect(localEndOfDayUtcInstant("not-a-date")).toBeNull()
+    expect(localStartOfDayUtcInstant(new Date(Number.NaN))).toBeNull()
+  })
 })
 
 describe("write instant serialization", () => {
@@ -189,9 +200,15 @@ describe("locale resolution", () => {
 describe("local datetime helpers", () => {
   it("builds a UTC instant from a local calendar day and wall-clock time", () => {
     process.env.TZ = "Asia/Ho_Chi_Minh"
-    expect(
-      localDateTimeToUtcInstant(new Date(2026, 0, 20, 0, 0), 14, 30)
-    ).toBe("2026-01-20T07:30:00.000Z")
+    expect(localDateTimeToUtcInstant(new Date(2026, 0, 20, 0, 0), 14, 30)).toBe(
+      "2026-01-20T07:30:00.000Z"
+    )
+  })
+
+  it("returns null for invalid and overflowed values", () => {
+    expect(localDateTimeToUtcInstant("2026-02-31", 10, 0)).toBeNull()
+    expect(localDateTimeToUtcInstant("", 10, 0)).toBeNull()
+    expect(localDateTimeToUtcInstant(new Date(Number.NaN), 10, 0)).toBeNull()
   })
 
   it("formats the HH:mm value a time input expects", () => {
