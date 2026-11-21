@@ -9,6 +9,12 @@ import { TableSkeleton } from "./table-skeleton"
 export type TableShellViewProps<T> = {
   /** TanStack table instance returned by `useTableShell`. */
   table: TanStackTable<T>
+  /**
+   * State signature from `useTableShell`. The body returns to the top when it
+   * changes: page, page size, filter, and sort changes reset, while selection,
+   * bulk actions, and refetches do not.
+   */
+  scrollResetKey: string
   isLoading: boolean
   isError: boolean
   /** Whether a retry request is already in flight. */
@@ -42,6 +48,16 @@ export type TableShellViewProps<T> = {
 }
 
 /**
+ * The fitted column every list screen shares: a flexible grid region with a
+ * 240px minimum, and a non-shrinking pagination footer. Loading, error, and
+ * empty states fill the same region so the frame height never changes as data
+ * resolves. Presentational only: the feature supplies every label, width, and
+ * empty-state variant in.
+ */
+const SHELL_CLASS_NAME = "flex min-h-0 flex-1 flex-col gap-4"
+const REGION_CLASS_NAME = "flex min-h-[240px] flex-1 flex-col"
+
+/**
  * Presentational half of the table shell: the loading, error, empty, grid, and
  * pagination states in one place. It owns no data, state, or translated copy —
  * the feature passes every label, width, and empty-state variant in — so the
@@ -49,6 +65,7 @@ export type TableShellViewProps<T> = {
  */
 export function TableShellView<T>({
   table,
+  scrollResetKey,
   isLoading,
   isError,
   isRetrying = false,
@@ -64,34 +81,66 @@ export function TableShellView<T>({
 }: TableShellViewProps<T>) {
   if (isLoading) {
     return (
-      <TableSkeleton
-        columnWidths={[...skeletonColumnWidths]}
-        rowCount={skeletonRowCount}
-        label={loadingLabel}
-      />
+      <div
+        className={SHELL_CLASS_NAME}
+        data-slot="table-shell"
+        data-state="loading"
+      >
+        <TableSkeleton
+          columnWidths={[...skeletonColumnWidths]}
+          rowCount={skeletonRowCount}
+          label={loadingLabel}
+        />
+      </div>
     )
   }
 
   if (isError) {
     return (
-      <ErrorPanel
-        title={errorTitle}
-        description={errorDescription}
-        retryLabel={retryLabel}
-        isRetrying={isRetrying}
-        onRetry={onRetry}
-      />
+      <div
+        className={SHELL_CLASS_NAME}
+        data-slot="table-shell"
+        data-state="error"
+      >
+        <div className={REGION_CLASS_NAME} data-slot="table-region">
+          <ErrorPanel
+            title={errorTitle}
+            description={errorDescription}
+            retryLabel={retryLabel}
+            isRetrying={isRetrying}
+            onRetry={onRetry}
+          />
+        </div>
+      </div>
     )
   }
 
   if (table.getRowModel().rows.length === 0) {
-    return <EmptyList {...empty} />
+    return (
+      <div
+        className={SHELL_CLASS_NAME}
+        data-slot="table-shell"
+        data-state="empty"
+      >
+        <div className={REGION_CLASS_NAME} data-slot="table-region">
+          <EmptyList {...empty} />
+        </div>
+      </div>
+    )
   }
 
   return (
-    <>
-      <TableGrid table={table} />
-      <TablePagination {...pagination} />
-    </>
+    <div
+      className={SHELL_CLASS_NAME}
+      data-slot="table-shell"
+      data-state="ready"
+    >
+      <div className={REGION_CLASS_NAME} data-slot="table-region">
+        <TableGrid table={table} scrollResetKey={scrollResetKey} />
+      </div>
+      <div className="shrink-0" data-slot="table-footer">
+        <TablePagination {...pagination} />
+      </div>
+    </div>
   )
 }

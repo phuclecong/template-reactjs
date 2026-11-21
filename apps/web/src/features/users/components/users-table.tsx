@@ -277,6 +277,7 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
     pageSize,
     pageCount,
     total,
+    stateKey,
     goToPage,
     changePageSize,
     changeFilters,
@@ -360,6 +361,7 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
 
         <TableShellView
           table={reactTable}
+          scrollResetKey={stateKey}
           isLoading={tableQuery.isLoading}
           isError={tableQuery.isError}
           isRetrying={tableQuery.isFetching}

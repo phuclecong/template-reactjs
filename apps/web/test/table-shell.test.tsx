@@ -218,12 +218,19 @@ function ShellHarness({
       </output>
       <button
         type="button"
-        onClick={() => shell.changeFilters([{ field: "q", operator: "contains", value: "release" }])}
+        onClick={() =>
+          shell.changeFilters([
+            { field: "q", operator: "contains", value: "release" },
+          ])
+        }
       >
         Commit search filter
       </button>
       <button type="button" onClick={() => shell.goToPage(2)}>
         Go to page 2
+      </button>
+      <button type="button" onClick={() => shell.changePageSize(10)}>
+        Change to 10 per page
       </button>
       <button
         type="button"
@@ -248,6 +255,7 @@ function ShellHarness({
       </button>
       <TableShellView
         table={reactTable}
+        scrollResetKey={shell.stateKey}
         isLoading={tableQuery.isLoading}
         isError={tableQuery.isError}
         isRetrying={tableQuery.isFetching}
@@ -396,9 +404,7 @@ describe("escape hatch 2: Roles-only column visibility", () => {
     await waitFor(() =>
       expect(screen.getByTestId("location-search")).toHaveTextContent("page=2")
     )
-    expect(
-      screen.queryByRole("columnheader", { name: "Actions" })
-    ).toBeNull()
+    expect(screen.queryByRole("columnheader", { name: "Actions" })).toBeNull()
 
     // A committed filter after mount is the state the toggle must preserve.
     await user.click(
@@ -414,9 +420,7 @@ describe("escape hatch 2: Roles-only column visibility", () => {
       expect(screen.getByTestId("location-search")).toHaveTextContent("page=2")
     )
 
-    await user.click(
-      screen.getByRole("button", { name: "Show gated columns" })
-    )
+    await user.click(screen.getByRole("button", { name: "Show gated columns" }))
 
     // The columns appear without rebuilding the table...
     expect(
@@ -503,6 +507,153 @@ describe("escape hatch 4: feature-supplied skeleton widths", () => {
 
     resolveRows({ data: ROWS, total: ROWS.length })
     expect(await screen.findByRole("cell", { name: "Alpha" })).toBeVisible()
+  })
+})
+
+function scrollElement(container: HTMLElement): HTMLElement {
+  const element = container.querySelector('[data-slot="table-scroll"]')
+  if (!(element instanceof HTMLElement)) {
+    throw new Error("table scroll element was not rendered")
+  }
+  return element
+}
+
+describe("fitted table shell", () => {
+  it("keeps the grid and pagination in one flexible column", async () => {
+    const { container } = renderHarness({
+      rows: () => Promise.resolve({ data: ROWS, total: 90 }),
+    })
+
+    await screen.findByRole("cell", { name: "Alpha" })
+
+    const shell = container.querySelector('[data-slot="table-shell"]')
+    expect(shell).not.toBeNull()
+    expect(shell).toHaveClass("flex", "min-h-0", "flex-1", "flex-col")
+
+    const region = shell?.querySelector('[data-slot="table-region"]')
+    expect(region).toHaveClass("flex", "min-h-[240px]", "flex-1", "flex-col")
+    expect(region?.querySelector('[data-slot="table-scroll"]')).not.toBeNull()
+
+    const footer = shell?.querySelector('[data-slot="table-footer"]')
+    expect(footer).toHaveClass("shrink-0")
+    expect(footer).toContainElement(
+      screen.getByRole("navigation", { name: "Pagination" })
+    )
+  })
+
+  it("makes the header cells sticky above the body", async () => {
+    renderHarness()
+
+    const header = await screen.findByRole("columnheader", { name: "Name" })
+    expect(header).toHaveClass("sticky", "top-0", "z-10")
+  })
+
+  it("resets the body scroll only when the list state changes", async () => {
+    const user = userEvent.setup()
+    const { container, listCalls } = renderHarness({
+      rows: () => Promise.resolve({ data: ROWS, total: 90 }),
+    })
+
+    await screen.findByRole("cell", { name: "Alpha" })
+    const scroller = scrollElement(container)
+
+    // Selection, a bulk-bar-clearing clear, gated columns, and a refetch do
+    // not change the page/filter/sort signature, so the body stays put.
+    scroller.scrollTop = 140
+    await user.click(screen.getByRole("checkbox", { name: "Select Alpha" }))
+    await waitFor(() =>
+      expect(shellState()).toMatchObject({ selected: ["one"] })
+    )
+    expect(scroller.scrollTop).toBe(140)
+
+    await user.click(screen.getByRole("button", { name: "Clear selection" }))
+    expect(scroller.scrollTop).toBe(140)
+
+    await user.click(screen.getByRole("button", { name: "Show gated columns" }))
+    expect(scroller.scrollTop).toBe(140)
+
+    const callsBeforeRefetch = listCalls.length
+    await user.click(
+      screen.getByRole("button", { name: "Refetch via refineCore" })
+    )
+    await waitFor(() =>
+      expect(listCalls.length).toBeGreaterThan(callsBeforeRefetch)
+    )
+    expect(scroller.scrollTop).toBe(140)
+
+    // Each of page, page size, filter, and sort is a new list state and
+    // returns the body to the top.
+    const listStateChanges = [
+      () => user.click(screen.getByRole("button", { name: "Go to page 2" })),
+      () =>
+        user.click(
+          screen.getByRole("button", { name: "Change to 10 per page" })
+        ),
+      () =>
+        user.click(
+          screen.getByRole("button", { name: "Commit search filter" })
+        ),
+      () => user.click(screen.getByRole("button", { name: "Name" })),
+    ]
+
+    for (const change of listStateChanges) {
+      scroller.scrollTop = 140
+      expect(scroller.scrollTop).toBe(140)
+      await change()
+      await waitFor(() => expect(scroller.scrollTop).toBe(0))
+    }
+  })
+
+  it("fills the grid region with the skeleton while loading", () => {
+    const { container } = renderHarness({ rows: () => new Promise(() => {}) })
+
+    const shell = container.querySelector('[data-slot="table-shell"]')
+    expect(shell).not.toBeNull()
+    expect(shell).toHaveAttribute("data-state", "loading")
+    expect(shell).toHaveClass("flex", "min-h-0", "flex-1", "flex-col")
+
+    const grid = container.querySelector('[data-slot="table-skeleton"]')
+    expect(grid).toHaveClass("min-h-[240px]", "flex-1", "overflow-hidden")
+
+    const footer = container.querySelector(
+      '[data-slot="table-skeleton-footer"]'
+    )
+    expect(footer).toHaveClass("shrink-0")
+    expect(screen.queryByRole("navigation", { name: "Pagination" })).toBeNull()
+  })
+
+  it("shows the error state in the grid region without pagination", async () => {
+    const { container } = renderHarness({
+      rows: () => Promise.reject(new Error("probe failed")),
+    })
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not load probes."
+    )
+    const shell = container.querySelector('[data-slot="table-shell"]')
+    expect(shell).toHaveAttribute("data-state", "error")
+    expect(shell).toHaveClass("flex", "min-h-0", "flex-1", "flex-col")
+    expect(
+      shell
+        ?.querySelector('[data-slot="table-region"]')
+        ?.querySelector('[role="alert"]')
+    ).not.toBeNull()
+    expect(screen.queryByRole("navigation", { name: "Pagination" })).toBeNull()
+  })
+
+  it("shows the empty state in the grid region without pagination", async () => {
+    const { container } = renderHarness({
+      rows: () => Promise.resolve({ data: [], total: 0 }),
+    })
+
+    expect(await screen.findByText("Nothing here yet.")).toBeVisible()
+    const shell = container.querySelector('[data-slot="table-shell"]')
+    expect(shell).toHaveAttribute("data-state", "empty")
+    expect(shell).toHaveClass("flex", "min-h-0", "flex-1", "flex-col")
+    expect(
+      shell?.querySelector('[data-slot="table-region"]')
+    ).toHaveTextContent("Nothing here yet.")
+    expect(screen.queryByRole("navigation", { name: "Pagination" })).toBeNull()
   })
 })
 

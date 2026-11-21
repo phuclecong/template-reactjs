@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react"
 import type { BaseRecord, CrudFilter } from "@refinedev/core"
 import { useTable, type UseTableReturnType } from "@refinedev/react-table"
-import type {
-  ColumnDef,
-  InitialTableState,
-  Row,
-} from "@tanstack/react-table"
+import type { ColumnDef, InitialTableState, Row } from "@tanstack/react-table"
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
 
 import type { TableUrlState } from "./url-table-state"
@@ -66,6 +62,12 @@ export type TableShell<TData extends BaseRecord> = {
   /** At least one, even while loading or when the list is empty. */
   pageCount: number
   total: number
+  /**
+   * Signature of page, page size, filters, and sort. It changes whenever the
+   * list request changes, so the fitted table body can reset its scroll on
+   * exactly those transitions (never on selection or a refetch).
+   */
+  stateKey: string
   /** Rows selected on the current page, in render order. */
   selectedRows: TData[]
   clearSelection: () => void
@@ -194,18 +196,20 @@ export function useTableShell<TData extends BaseRecord>({
   // State-driven reset: a reload from a shared URL or an action that changes
   // rows outside the handlers below must not leave a selection behind. Keying
   // on a value signature means unrelated re-renders never touch the selection.
-  const locationSignature = JSON.stringify({
+  // The same signature is exposed as `stateKey` so the table body resets its
+  // scroll on exactly the transitions that change the list request.
+  const stateKey = JSON.stringify({
     filters,
     sorters,
     currentPage: refineCurrentPage,
     pageSize: refinePageSize,
   })
-  const lastLocationSignature = useRef(locationSignature)
+  const lastStateKey = useRef(stateKey)
   useEffect(() => {
-    if (lastLocationSignature.current === locationSignature) return
-    lastLocationSignature.current = locationSignature
+    if (lastStateKey.current === stateKey) return
+    lastStateKey.current = stateKey
     reactTable.resetRowSelection()
-  }, [locationSignature, reactTable])
+  }, [stateKey, reactTable])
 
   const selectedRows = rows
     .filter((row) => rowSelection[row.id] === true)
@@ -251,6 +255,7 @@ export function useTableShell<TData extends BaseRecord>({
     pageSize,
     pageCount: Math.max(1, pageCount),
     total,
+    stateKey,
     selectedRows,
     clearSelection,
     goToPage,

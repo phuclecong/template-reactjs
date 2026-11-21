@@ -210,6 +210,7 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
     pageSize,
     pageCount,
     total,
+    stateKey,
     selectedRows,
     clearSelection,
     goToPage,
@@ -256,6 +257,7 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
 
       <TableShellView
         table={reactTable}
+        scrollResetKey={stateKey}
         isLoading={tableQuery.isLoading}
         isError={tableQuery.isError}
         isRetrying={tableQuery.isFetching}
