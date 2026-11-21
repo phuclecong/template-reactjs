@@ -92,3 +92,61 @@ Create `packages/shared-lib`, `packages/shared-lib/components`, and `packages/sh
   `apps/web/test/use-clear-intent.test.tsx` (shared sentinel); the pinned
   feature behaviour remains in `apps/web/test/roles-bulk-actions.test.tsx` and
   `apps/web/test/tasks-bulk-actions.test.tsx`.
+
+## Virtualized fitted table body
+
+`TableGrid` owns both the fitted table's single scroll element
+(`data-slot="table-scroll"`) and the virtualizer, so features do not wrap or
+reimplement either. The grid composes a native `<table>` inside the scroll
+element: the vendored shadcn primitive stays unedited (ADR-0009), its
+horizontal overflow is neutralized with a selector variant on the wrapper, and
+the header cells stick to the top of the body. The scroll element has no tab
+stop; keyboard users reach the focusable controls inside it and the browser
+scrolls focused rows into view.
+
+The body uses `useVirtualizer` from `@tanstack/react-virtual` with the page row
+model as its count, a 36px estimate, and 10 rows of overscan. Row height is
+measured dynamically: each mounted row registers through `measureElement` and
+carries its virtual index in `data-index`, so the taller Users role selector is
+sized correctly without a per-table height setting and without overlap or
+clipping. The row id is the virtualizer's item key.
+
+Only the virtual items render. Two spacer `<tr>`s carry the virtualizer's
+total size, one before and one after the mounted window, and collapse to zero
+height as the window reaches either end. They are `aria-hidden`, carry
+`role="none"`, expose `data-slot="table-spacer-row"`, and contain no visible
+cell content, so the body's scroll height is exact and assistive technology
+never hears a phantom row.
+
+The accessibility and test contract is explicit:
+
+- `data-row-count` on the scroll element is the logical page row count, not the
+  mounted count, and `aria-rowcount` on the table is that count plus the header
+  row.
+- Each data row keeps `data-slot="table-row"` and exposes
+  `aria-rowindex={data-index + 2}` in the full logical row space.
+- Tests assert logical counts through `data-row-count`/`aria-rowcount`, and
+  scroll the body (via the e2e `scrollRowIntoView` helper) to mount late rows;
+  they never infer data count from mounted `<tr>`s.
+
+The body scroll resets to the top in a layout effect when `scrollResetKey`
+changes. The shell passes `stateKey`, derived from page, page size, filters, and
+sort, so those list-state changes reset the body while selection, bulk actions,
+and refetches leave it where the user left it.
+
+Selection stays page-scoped. TanStack owns it over the full row model, not the
+mounted window: select-all covers every record on the page including unmounted
+rows, the bulk bar reports them, a row checkbox reflects selection when it
+re-mounts, and a bulk action can target a row that was not mounted when it was
+selected. Virtualization is a rendering concern inside the fitted body, not a
+paging strategy; server pagination, the page sizes, and the flat URL contract
+are unchanged. See
+[ADR-0020](../adr/0020-tables-fit-viewport-and-virtualize.md).
+
+Unit tests exercise the real virtualizer in jsdom through a narrow measurement
+shim in `apps/web/test/setup.ts`: it gives only the table scroll element a
+viewport-sized `clientHeight`, virtual rows a fixed `offsetHeight`, and supplies
+a `ResizeObserver` stand-in. The virtualizer is not mocked. Route-level
+behaviour (mounted count, late-row scrolling, dynamic Users row measurement,
+pinned header and pagination, and selection across scroll) is covered by
+`apps/web/e2e/virtualized-table.spec.ts`.

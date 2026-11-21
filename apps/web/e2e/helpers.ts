@@ -93,8 +93,15 @@ export async function scrollRowIntoView(
 
   for (let step = 0; step < maxSteps; step += 1) {
     if ((await target.count()) > 0) {
-      await target.scrollIntoViewIfNeeded()
-      return target
+      // A list-state change can land while we walk: the row mounts, then a
+      // reset or refetch detaches it and re-renders the window. A short
+      // timeout keeps the walk moving instead of waiting out the test.
+      try {
+        await target.scrollIntoViewIfNeeded({ timeout: 1_500 })
+        if ((await target.count()) > 0) return target
+      } catch {
+        // The row detached mid-scroll; keep stepping to remount it.
+      }
     }
 
     const moved = await scroller.evaluate((element, amount) => {
