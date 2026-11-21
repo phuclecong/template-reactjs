@@ -28,6 +28,10 @@ _Avoid_: Role state, enabled/disabled
 A seeded Role the application depends on — `admin` or `member`. A System Role cannot be deleted or deactivated.
 _Avoid_: Built-in role, default role
 
+**Administrator**:
+A User who holds the admin System Role.
+_Avoid_: Admin user, superuser
+
 **Assignee**:
 The User responsible for a Task.
 _Avoid_: Owner

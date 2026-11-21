@@ -65,3 +65,15 @@ trio, including an inline retry Tasks did not have.
 - Tasks URLs still round-trip reserved characters because values are
   percent-encoded by `URLSearchParams`.
 - Bulk delete for Tasks is not available until the contract gains an endpoint.
+
+## Amendments
+
+- The 2026-11-21 architecture review follow-through extends the descriptor to
+  the filter-bar direction: a pure shared module derives bar values,
+  `CrudFilter[]`, clear semantics, and chips from the same declaration, so the
+  operator and date-bound rules are encoded once. Filter bars stay hand-written;
+  only conversion and chip derivation are shared, and no shared chip container
+  is extracted. Invalid or overflowed `YYYY-MM-DD` input becomes "no bound"
+  rather than throwing, matching the URL adapter's deep-link behaviour and
+  replacing Roles' regex-only check; the detailed signatures live in the
+  follow-up issue.
