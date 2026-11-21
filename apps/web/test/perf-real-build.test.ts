@@ -327,6 +327,34 @@ describe("initial closure assertions", () => {
     ).not.toThrow()
   })
 
+  it("rejects the shared components index in the initial closure", () => {
+    const leaked = {
+      ...report,
+      "assets/index-abc.js": [
+        "/repo/apps/web/src/main.tsx",
+        "/repo/packages/shared-lib/src/components/index.ts",
+      ],
+    }
+
+    expect(() =>
+      assertInitialClosure({ manifest, html, report: leaked })
+    ).toThrow(/shared components index/i)
+  })
+
+  it("accepts a direct shared-lib subpath module in the initial closure", () => {
+    const direct = {
+      ...report,
+      "assets/index-abc.js": [
+        "/repo/apps/web/src/main.tsx",
+        "/repo/packages/shared-lib/src/components/table-page-layout.tsx",
+      ],
+    }
+
+    expect(() =>
+      assertInitialClosure({ manifest, html, report: direct })
+    ).not.toThrow()
+  })
+
   it("rejects a forbidden package in a closure chunk", () => {
     const leaked = {
       ...report,

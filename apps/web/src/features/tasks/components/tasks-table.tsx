@@ -4,6 +4,7 @@ import type { ColumnDef, Row } from "@tanstack/react-table"
 import type { TaskRecord } from "@workspace/api/schemas"
 import {
   createSelectionColumn,
+  TablePageLayout,
   TableShellView,
 } from "@workspace/shared-lib/components"
 import { useDialog, useTableShell } from "@workspace/shared-lib/hooks"
@@ -226,7 +227,7 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
   const hasActiveFilters = filters.length > 0
 
   return (
-    <div className="flex flex-col gap-4 p-6 text-sm">
+    <TablePageLayout>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">{t("tasks.title")}</h1>
         <div className="flex items-center gap-2">
@@ -309,6 +310,6 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
           }}
         />
       ) : null}
-    </div>
+    </TablePageLayout>
   )
 }

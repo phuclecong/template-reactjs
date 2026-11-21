@@ -161,6 +161,18 @@ beforeEach(async () => {
   await i18n.changeLanguage("en")
 })
 
+describe("UsersTable page frame", () => {
+  it("renders the table inside the shared viewport-fitted page frame", async () => {
+    const { container } = renderTable({ currentUser: ADMIN })
+
+    const frame = container.querySelector(
+      '[data-slot="table-page-layout"]'
+    ) as HTMLElement | null
+    expect(frame).not.toBeNull()
+    expect(frame).toContainElement(await screen.findByRole("table"))
+  })
+})
+
 describe("UsersTable loading state", () => {
   it("reserves the Users column widths and page size without fake table semantics", async () => {
     let resolveUsers!: (result: ListResult) => void
