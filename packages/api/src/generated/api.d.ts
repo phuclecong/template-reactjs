@@ -277,6 +277,23 @@ export interface paths {
         patch: operations["updateRole"];
         trace?: never;
     };
+    "/dashboard/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the Task summary the Dashboard renders */
+        get: operations["getDashboardSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/password": {
         parameters: {
             query?: never;
@@ -348,6 +365,45 @@ export interface components {
             id: string;
             /** @enum {string} */
             reason: "not_found" | "system_role" | "referenced" | "validation";
+        };
+        DashboardTotals: {
+            total: number;
+            /** @description Every Task whose status is not `done`. */
+            open: number;
+            /** @description Tasks with a past Due date whose status is not `done`. */
+            overdue: number;
+            /**
+             * Format: float
+             * @description `done / total`, or 0 when there are no Tasks.
+             */
+            completionRate: number;
+        };
+        DashboardStatusCount: {
+            status: components["schemas"]["Status"];
+            count: number;
+        };
+        DashboardPriorityCount: {
+            /** @enum {string} */
+            priority: "low" | "medium" | "high" | "unassigned";
+            count: number;
+        };
+        DashboardAssigneeCount: {
+            /** @description `null` for the Unassigned bucket. */
+            assigneeId: string | null;
+            /** @description Empty for the Unassigned bucket; the client supplies the label. */
+            name: string;
+            count: number;
+        };
+        DashboardSummary: {
+            totals: components["schemas"]["DashboardTotals"];
+            /** @description Always lists every Task status, zero-filled. */
+            byStatus: components["schemas"]["DashboardStatusCount"][];
+            /** @description Always lists low, medium, high, and unassigned, zero-filled. */
+            byPriority: components["schemas"]["DashboardPriorityCount"][];
+            /** @description The five busiest assignees plus Unassigned when non-empty. */
+            byAssignee: components["schemas"]["DashboardAssigneeCount"][];
+            /** Format: date-time */
+            generatedAt: string;
         };
         /** @enum {string} */
         Status: "todo" | "in-progress" | "done" | "blocked";
@@ -1150,6 +1206,27 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    getDashboardSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The aggregate Task counts for the authenticated Dashboard. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardSummary"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
     updatePassword: {

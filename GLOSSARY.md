@@ -4,9 +4,13 @@ A reusable starter for an authenticated dashboard. "Task" and "User" are the can
 
 ## Language
 
+**App shell**:
+The persistent frame around every authenticated page: navigation, identity, and the content outlet.
+_Avoid_: Dashboard (for this sense), layout, chrome
+
 **Dashboard**:
-The authenticated area of the application: every page a signed-in User can reach, framed by one persistent navigation shell.
-_Avoid_: Admin panel, back office
+The authenticated home page that summarizes Task activity.
+_Avoid_: Overview, home, admin panel
 
 **Task**:
 A unit of work tracked in the application: a title, an optional description, a lifecycle status, an optional priority, an assignee, and an optional due date.
@@ -63,6 +67,20 @@ _Avoid_: Batch pipeline, bulk flow
 **Locale**:
 A language and region pair (e.g. `en`, `vi`) used to translate the interface and format currency.
 _Avoid_: Language, region
+
+### Realtime
+
+**Live event**:
+A notification that a Task changed, pushed from the server to subscribed clients. It is not a Business event.
+_Avoid_: Update event, notification, change event
+
+**Live subscription**:
+A client's registration for Live events on a channel; the Dashboard holds one while it is open.
+_Avoid_: Listener, socket connection
+
+**Task summary**:
+The aggregate the Dashboard renders: totals for Tasks and counts by Task status, Priority, and Assignee.
+_Avoid_: Stats, metrics, KPI
 
 ### Observability
 

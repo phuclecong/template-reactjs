@@ -24,7 +24,9 @@ test("legacy /dashboard/users redirects to /users and shows the users table", as
   await page.goto("/dashboard/users")
 
   await expect(page).toHaveURL(/\/users$/)
-  await expect(page.getByRole("textbox", { name: "Search users" })).toBeVisible()
+  await expect(
+    page.getByRole("textbox", { name: "Search users" })
+  ).toBeVisible()
   await expect(page.getByRole("table")).toBeVisible()
 })
 
@@ -39,7 +41,7 @@ test("legacy /dashboard/settings redirects to /settings and shows Settings", asy
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible()
 })
 
-test("/dashboard is the placeholder home with the shell, heading, and no table", async ({
+test("/dashboard is the home with the shell, heading, and Task summary", async ({
   page,
 }) => {
   await login(page, "admin@example.com", "adminpass")
@@ -51,8 +53,10 @@ test("/dashboard is the placeholder home with the shell, heading, and no table",
     breadcrumb.getByRole("link", { name: "Dashboard" })
   ).toHaveAttribute("aria-current", "page")
 
+  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible()
+  await expect(page.getByTestId("dashboard-kpi-total")).toBeVisible()
+  // The hidden chart tables are text alternatives, not a data table.
   await expect(
-    page.getByRole("heading", { name: "Dashboard" })
-  ).toBeVisible()
-  await expect(page.getByRole("table")).toHaveCount(0)
+    page.getByRole("table", { name: "Tasks by status" })
+  ).toBeAttached()
 })

@@ -85,3 +85,47 @@ export type UserRecord = z.infer<typeof userRecordSchema>
 export type TaskRecord = z.infer<typeof taskRecordSchema>
 export type RoleRecord = z.infer<typeof roleRecordSchema>
 export type RoleSummary = z.infer<typeof roleSummarySchema>
+
+/** Priority buckets include tasks that have no Priority. */
+export const taskPriorityBucketSchema = z.union([
+  taskPrioritySchema,
+  z.literal("unassigned"),
+])
+
+/**
+ * The Task summary the Dashboard renders. `byStatus` and `byPriority` are
+ * zero-filled in the API so the charts always receive the same categories.
+ * `completionRate` is a fraction in [0, 1]; a store with no Tasks reports 0.
+ */
+export const dashboardSummarySchema = z.object({
+  totals: z.object({
+    total: z.number().int().nonnegative(),
+    open: z.number().int().nonnegative(),
+    overdue: z.number().int().nonnegative(),
+    completionRate: z.number().min(0).max(1),
+  }),
+  byStatus: z.array(
+    z.object({
+      status: taskStatusSchema,
+      count: z.number().int().nonnegative(),
+    })
+  ),
+  byPriority: z.array(
+    z.object({
+      priority: taskPriorityBucketSchema,
+      count: z.number().int().nonnegative(),
+    })
+  ),
+  byAssignee: z.array(
+    z.object({
+      assigneeId: z.string().nullable(),
+      /** Empty for the Unassigned bucket; the client supplies its label. */
+      name: z.string(),
+      count: z.number().int().nonnegative(),
+    })
+  ),
+  generatedAt: dateTimeSchema,
+})
+
+export type TaskPriorityBucket = z.infer<typeof taskPriorityBucketSchema>
+export type DashboardSummary = z.infer<typeof dashboardSummarySchema>

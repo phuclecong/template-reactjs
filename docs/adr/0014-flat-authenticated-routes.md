@@ -7,5 +7,5 @@ The authenticated pages live at top-level paths — `/tasks`, `/users`, `/settin
 ## Consequences
 
 - `/dashboard` is a lazy route inside the same shell as the other authenticated pages, so the placeholder costs its own chunk rather than bytes on `/login` or `/tasks`.
-- `DashboardLayout` and `DashboardShell` keep their names: **Dashboard** names the authenticated surface (see `GLOSSARY.md`), not the `/dashboard` prefix.
+- ~~`DashboardLayout` and `DashboardShell` keep their names: **Dashboard** names the authenticated surface (see `GLOSSARY.md`), not the `/dashboard` prefix.~~ Superseded by ADR-0020's glossary change: **Dashboard** now names the home page and the persistent frame is the **App shell**, so the pair was renamed to `AppShellLayout`/`AppShell`. The routing decision above is unchanged.
 - A catch-all 404, HTTP redirects, or query/hash preservation require revisiting this ADR.

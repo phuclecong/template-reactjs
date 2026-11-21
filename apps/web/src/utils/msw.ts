@@ -1,5 +1,6 @@
 import { setupWorker } from "msw/browser"
 import { dataHandlers } from "@workspace/api/data-handlers"
+import { createLiveHandlers } from "@workspace/api/live-handlers"
 import {
   ensureSeedRoles,
   seedDb,
@@ -34,6 +35,13 @@ async function seedOnce(): Promise<void> {
 export async function startMockWorker(): Promise<void> {
   if (typeof window === "undefined") return
   await seedOnce()
-  const worker = setupWorker(...dataHandlers)
+  const worker = setupWorker(
+    ...dataHandlers,
+    // `sse()` requires a global EventSource, so the Live handler is created
+    // here in the browser rather than in the Node-safe data-handler set.
+    ...createLiveHandlers({
+      simulateActivity: import.meta.env.VITE_MOCK_LIVE_ACTIVITY !== "false",
+    })
+  )
   await worker.start({ onUnhandledFrame: "bypass" })
 }

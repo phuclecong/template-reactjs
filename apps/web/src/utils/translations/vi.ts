@@ -317,6 +317,44 @@ export const vi: Translation = {
       dateRange: "{{from}} – {{to}}",
     },
   },
+  dashboard: {
+    title: "Bảng điều khiển",
+    loading: "Đang tải bảng điều khiển…",
+    error: "Không thể tải bảng điều khiển.",
+    retry: "Thử lại",
+    live: {
+      live: "Trực tiếp",
+      connecting: "Đang kết nối…",
+      reconnecting: "Đang kết nối lại…",
+      offline: "Ngoại tuyến",
+      demo: "Bản demo trực tiếp",
+    },
+    kpi: {
+      total: "Tổng số công việc",
+      open: "Công việc đang mở",
+      overdue: "Công việc quá hạn",
+      completion: "Tỷ lệ hoàn thành",
+    },
+    charts: {
+      byStatus: "Công việc theo trạng thái",
+      byPriority: "Công việc theo mức ưu tiên",
+      byAssignees: "Người được giao nhiều việc nhất",
+      empty: "Chưa có công việc để hiển thị.",
+    },
+    status: {
+      todo: "Việc cần làm",
+      "in-progress": "Đang thực hiện",
+      done: "Hoàn thành",
+      blocked: "Bị chặn",
+    },
+    priority: {
+      low: "Thấp",
+      medium: "Trung bình",
+      high: "Cao",
+      unassigned: "Không ưu tiên",
+    },
+    unassigned: "Chưa giao",
+  },
   settings: {
     title: "Cài đặt",
     theme: {

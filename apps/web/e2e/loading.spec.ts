@@ -35,7 +35,7 @@ test("route chunks load on intent only, never at startup or while idle", async (
   ).toBe(false)
 
   await login(page, "admin@example.com", "adminpass")
-  // Login lands on the /dashboard placeholder, so navigate to Tasks explicitly.
+  // Login lands on the Dashboard, so navigate to Tasks explicitly.
   await page
     .locator('[data-sidebar="menu-button"]', { hasText: "Tasks" })
     .click()

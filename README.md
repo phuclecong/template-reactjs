@@ -64,9 +64,9 @@ pnpm dev
 ## The app
 
 [`apps/web`](./apps/web/) is the user-facing SPA: an authenticated dashboard
-with Tasks, Users, and Settings pages. See
+with a live Task summary and Tasks, Users, and Settings pages. See
 [`apps/web/README.md`](./apps/web/README.md) for its layout, routing, auth,
-i18n, and command reference.
+i18n, live updates, and command reference.
 
 ## Design system
 

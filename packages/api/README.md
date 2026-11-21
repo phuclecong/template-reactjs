@@ -20,6 +20,9 @@ packages/api/
 │   ├── service.ts             # Framework-free auth business logic
 │   ├── handlers.ts            # Spec-derived + data-backed handlers (Node)
 │   ├── data-handlers.ts       # Stateful, hand-written MSW handlers (browser-safe)
+│   ├── dashboard.ts           # Pure Task-summary aggregation
+│   ├── live-events.ts         # Browser- and Node-safe Live event bus
+│   ├── live-handlers.ts       # MSW SSE handler + mock activity loop (browser-only)
 │   ├── collections.ts         # Zod schemas + @msw/data collections + seeding
 │   ├── policy.ts              # Browser-safe System Role ids and predicates
 │   ├── system-roles.json      # System Role ids shared with non-TS tooling
@@ -42,12 +45,23 @@ packages/api/
 ```ts
 import { setupWorker } from "msw/browser"
 import { dataHandlers } from "@workspace/api/data-handlers"
+import { createLiveHandlers } from "@workspace/api/live-handlers"
 import { resetDb } from "@workspace/api/collections"
 
 await resetDb()
-const worker = setupWorker(...dataHandlers)
+const worker = setupWorker(
+  ...dataHandlers,
+  // `sse()` requires a global EventSource, so create it in the browser only.
+  ...createLiveHandlers({ simulateActivity: true })
+)
 await worker.start()
 ```
+
+`createLiveHandlers` serves `GET /api/events?channel=resources/tasks&access_token=…`
+with MSW 3's `sse()`. Task mutations publish ids on the `live-events` bus; the
+handler forwards them as `live` frames. `simulateActivity` toggles a rotating
+seeded Task every 10 s while a client is connected and must stay off in Node
+tests (it is not part of `dataHandlers`).
 
 ### In Node (smoke tests)
 

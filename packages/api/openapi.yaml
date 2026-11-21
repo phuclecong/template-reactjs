@@ -13,6 +13,7 @@ tags:
   - name: users
   - name: tasks
   - name: roles
+  - name: dashboard
   - name: password
 
 paths:
@@ -696,6 +697,21 @@ paths:
         "409":
           $ref: "#/components/responses/Conflict"
 
+  /dashboard/summary:
+    get:
+      tags: [dashboard]
+      operationId: getDashboardSummary
+      summary: Get the Task summary the Dashboard renders
+      responses:
+        "200":
+          description: The aggregate Task counts for the authenticated Dashboard.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /password:
     put:
       tags: [password]
@@ -831,6 +847,85 @@ components:
         reason:
           type: string
           enum: [not_found, system_role, referenced, validation]
+    DashboardTotals:
+      type: object
+      required: [total, open, overdue, completionRate]
+      properties:
+        total:
+          type: integer
+          minimum: 0
+        open:
+          type: integer
+          minimum: 0
+          description: Every Task whose status is not `done`.
+        overdue:
+          type: integer
+          minimum: 0
+          description: Tasks with a past Due date whose status is not `done`.
+        completionRate:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: "`done / total`, or 0 when there are no Tasks."
+    DashboardStatusCount:
+      type: object
+      required: [status, count]
+      properties:
+        status:
+          $ref: "#/components/schemas/Status"
+        count:
+          type: integer
+          minimum: 0
+    DashboardPriorityCount:
+      type: object
+      required: [priority, count]
+      properties:
+        priority:
+          type: string
+          enum: [low, medium, high, unassigned]
+        count:
+          type: integer
+          minimum: 0
+    DashboardAssigneeCount:
+      type: object
+      required: [assigneeId, name, count]
+      properties:
+        assigneeId:
+          type: string
+          nullable: true
+          description: "`null` for the Unassigned bucket."
+        name:
+          type: string
+          description: Empty for the Unassigned bucket; the client supplies the label.
+        count:
+          type: integer
+          minimum: 0
+    DashboardSummary:
+      type: object
+      required: [totals, byStatus, byPriority, byAssignee, generatedAt]
+      properties:
+        totals:
+          $ref: "#/components/schemas/DashboardTotals"
+        byStatus:
+          type: array
+          description: Always lists every Task status, zero-filled.
+          items:
+            $ref: "#/components/schemas/DashboardStatusCount"
+        byPriority:
+          type: array
+          description: Always lists low, medium, high, and unassigned, zero-filled.
+          items:
+            $ref: "#/components/schemas/DashboardPriorityCount"
+        byAssignee:
+          type: array
+          description: The five busiest assignees plus Unassigned when non-empty.
+          items:
+            $ref: "#/components/schemas/DashboardAssigneeCount"
+        generatedAt:
+          type: string
+          format: date-time
+
     Status:
       type: string
       enum: [todo, in-progress, done, blocked]

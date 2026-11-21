@@ -9,13 +9,15 @@ import { accessControlProvider } from "@/providers/access-control-provider"
 import { auditLogProvider } from "@/providers/audit-log-provider"
 import { dataProvider } from "@/providers/data-provider"
 import { i18nProvider } from "@/providers/i18n-provider"
+import { liveProvider } from "@/providers/live-provider"
 import { notificationProvider } from "@/providers/notification-provider"
 import { applyPersistedLocale } from "@/utils/i18n"
 
 /**
  * Single Refine backbone (ADR-0002): every cross-cutting provider is wired
- * here — data, auth, access-control, notifications, i18n, and audit-log. Routes
- * render as children inside `<Refine>` so the hooks resolve their context.
+ * here — data, live, auth, access-control, notifications, i18n, and audit-log.
+ * Routes render as children inside `<Refine>` so the hooks resolve their
+ * context. The live provider is inert until a page subscribes (ADR-0020).
  *
  * Children render immediately. Transports start the mock worker lazily on the
  * first `/api` request (`@/utils/mock-worker`), never as a startup gate, so
@@ -33,6 +35,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <Refine
         routerProvider={routerProvider}
         dataProvider={dataProvider}
+        liveProvider={liveProvider}
         authProvider={authProvider}
         accessControlProvider={accessControlProvider}
         notificationProvider={notificationProvider}

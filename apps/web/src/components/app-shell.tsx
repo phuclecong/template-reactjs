@@ -18,7 +18,7 @@ import { TooltipProvider } from "@workspace/ui/components/tooltip"
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { IntentLink } from "@/components/intent-link"
-import type { DashboardUser } from "@/providers/auth-provider"
+import type { ShellUser } from "@/providers/auth-provider"
 
 /**
  * Route segment → translation key, used to label breadcrumb crumbs for the
@@ -54,16 +54,16 @@ function readSidebarCookie(fallback: boolean): boolean {
 }
 
 /**
- * Client shell for every authenticated route: a collapsible sidebar (icon rail
+ * App shell for every authenticated route: a collapsible sidebar (icon rail
  * on desktop, Sheet drawer on mobile) plus a content inset with a sticky
  * header. The shell is the app-owned seam that restores the persisted sidebar
  * state; the registry provider only writes the cookie.
  */
-export function DashboardShell({
+export function AppShell({
   user,
   children,
 }: {
-  user: DashboardUser
+  user: ShellUser
   children: React.ReactNode
 }) {
   const { t } = useTranslation()

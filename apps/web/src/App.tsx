@@ -5,12 +5,13 @@ import { RetryableLazy } from "@/components/retryable-lazy"
 import { ThemeProvider } from "@/components/theme-provider"
 import {
   AuthPageSkeleton,
+  DashboardPageSkeleton,
   SettingsPageSkeleton,
   TablePageSkeleton,
 } from "@/components/page-skeletons"
 import { Providers } from "@/providers"
 import { ProtectedRoute, RedirectIfAuthed } from "@/routes/protected-route"
-import { DashboardLayout } from "@/routes/dashboard-layout"
+import { AppShellLayout } from "@/routes/app-shell-layout"
 import { routeLoaders, type RoutePath } from "@/routes/route-loaders"
 
 // Route views are split out of the entry chunk. `routeLoaders` is also used by
@@ -76,10 +77,15 @@ export function App() {
               />
             </Route>
             <Route element={<ProtectedRoute />}>
-              <Route element={<DashboardLayout />}>
+              <Route element={<AppShellLayout />}>
                 <Route
                   path="/dashboard"
-                  element={<LazyRoute path="/dashboard" fallback={null} />}
+                  element={
+                    <LazyRoute
+                      path="/dashboard"
+                      fallback={<DashboardPageSkeleton />}
+                    />
+                  }
                 />
                 <Route
                   path="/tasks"

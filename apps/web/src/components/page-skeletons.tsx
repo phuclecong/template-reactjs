@@ -61,7 +61,7 @@ export function AuthPageSkeleton() {
 }
 
 /**
- * Neutral dashboard frame shown while `ProtectedRoute`/`DashboardLayout` run
+ * Neutral app-shell frame shown while `ProtectedRoute`/`AppShellLayout` run
  * their async checks. It mirrors the shell dimensions (sidebar rail + sticky
  * header) without a User, navigation, or any protected content.
  */
@@ -98,6 +98,34 @@ export function AppShellSkeleton() {
         </main>
       </div>
       <LoadingAnnouncement label={t("common.loading")} />
+    </div>
+  )
+}
+
+/** Dashboard shape: header, four KPI cards, two charts, and the assignee chart. */
+export function DashboardPageSkeleton() {
+  const { t } = useTranslation()
+
+  return (
+    <div className="flex flex-col gap-6 p-6 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Bar height={28} width={128} />
+        <Skeleton style={{ height: 22, width: 88 }} />
+      </div>
+      <div
+        className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
+        aria-hidden="true"
+      >
+        {[0, 1, 2, 3].map((index) => (
+          <Skeleton key={index} style={{ height: 88 }} />
+        ))}
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2" aria-hidden="true">
+        <Skeleton style={{ height: 320 }} />
+        <Skeleton style={{ height: 320 }} />
+      </div>
+      <Skeleton style={{ height: 320 }} aria-hidden="true" />
+      <LoadingAnnouncement label={t("dashboard.loading")} />
     </div>
   )
 }
