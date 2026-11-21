@@ -78,3 +78,8 @@ justifies extraction.
   Refine's data, sort, filter, or pagination logic. It also returns
   `refineCore` and `reactTable` unchanged, so the hook exposes the composed
   Refine surface rather than hiding it.
+
+- ADR-0019 records the sibling extraction from the same follow-through: the
+  shared bulk-action lifecycle (`useBulkActions`, #83) composes
+  `useCustomMutation` and `useInvalidate` for the same `simple-rest` reason
+  this ADR records — the provider omits `updateMany`/`deleteMany`.
