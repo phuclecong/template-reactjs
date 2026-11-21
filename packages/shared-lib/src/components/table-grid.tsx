@@ -17,9 +17,9 @@ export type TableGridProps<T> = {
 
 /**
  * Sortable header and row rendering for a TanStack table instance. It owns no
- * data or state, so both `DataTable` and Refine's `useTable` consumers share
- * one set of header semantics (a real sort button per sortable column and
- * `aria-sort`) and one set of selected-row styles.
+ * data or state, so every Refine `useTable` consumer shares one set of header
+ * semantics (a real sort button per sortable column and `aria-sort`) and one
+ * set of selected-row styles.
  */
 export function TableGrid<T>({ table }: TableGridProps<T>) {
   return (

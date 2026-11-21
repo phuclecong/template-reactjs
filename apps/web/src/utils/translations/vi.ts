@@ -188,6 +188,9 @@ export const vi: Translation = {
     loading: "Đang tải người dùng…",
     empty: "Chưa có người dùng nào.",
     emptyNoMatch: "Không có người dùng nào khớp với tìm kiếm hoặc bộ lọc.",
+    error: "Không thể tải người dùng.",
+    retry: "Thử lại",
+    total: "{{total}} người dùng",
     filters: {
       role: "Vai trò",
     },

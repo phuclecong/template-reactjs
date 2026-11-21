@@ -36,7 +36,7 @@ export type TablePaginationProps = {
 /**
  * Table footer with the page-size control and page links. It takes only the
  * current pagination state and callbacks, so server-paged tables share one
- * footer whether the state comes from `useTableState` or Refine.
+ * footer whether the state comes from Refine's `useTable` or a custom source.
  */
 export function TablePagination({
   page,
