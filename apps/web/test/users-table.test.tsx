@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import type { ReactNode } from "react"
-import { render, screen, waitFor } from "@testing-library/react"
+import { act, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Refine, type DataProvider } from "@refinedev/core"
 import { I18nextProvider } from "react-i18next"
-import { MemoryRouter } from "react-router-dom"
+import { MemoryRouter, useLocation } from "react-router-dom"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import i18n from "@/utils/i18n"
@@ -54,20 +54,40 @@ const MEMBER: CurrentUser = { id: "usr_member", roleId: "rol_member" }
 type ListResult = { data: unknown[]; total: number }
 type ListParams = { filters?: unknown[] }
 type GetUsers = (params: ListParams) => Promise<ListResult>
+type GetRoles = () => Promise<ListResult>
+type ListCall = {
+  resource: string
+  filters?: unknown[]
+  pagination?: { currentPage?: number; pageSize?: number }
+}
 
-/** A data provider whose Users list answers with `getUsers`. */
-function makeDataProvider(getUsers: GetUsers): DataProvider {
+const usersCalls = (calls: ListCall[]) =>
+  calls.filter((call) => call.resource === "users")
+
+/** Reports the router's current query string to assertions. */
+function LocationProbe() {
+  const location = useLocation()
+  return <div data-testid="location-search">{location.search}</div>
+}
+
+/** A data provider whose Users and Roles lists answer with the given fakes. */
+function makeDataProvider(
+  getUsers: GetUsers,
+  getRoles: GetRoles,
+  onList?: (call: ListCall) => void
+): DataProvider {
   return {
     getList: async ({
       resource,
       filters,
+      pagination,
     }: {
       resource: string
       filters?: unknown[]
+      pagination?: ListCall["pagination"]
     }) => {
-      if (resource === "roles") {
-        return { data: ROLES, total: ROLES.length }
-      }
+      onList?.({ resource, filters, pagination })
+      if (resource === "roles") return getRoles()
       if (resource === "users") return getUsers({ filters })
       return { data: [], total: 0 }
     },
@@ -81,14 +101,19 @@ function makeDataProvider(getUsers: GetUsers): DataProvider {
 
 function renderTable({
   getUsers = async () => ({ data: USERS, total: USERS.length }),
+  getRoles = async () => ({ data: ROLES, total: ROLES.length }),
   currentUser = ADMIN,
   initialEntries = ["/users"],
 }: {
   getUsers?: GetUsers
+  getRoles?: GetRoles
   currentUser?: CurrentUser
   initialEntries?: string[]
 } = {}) {
-  const provider = makeDataProvider(getUsers)
+  const listCalls: ListCall[] = []
+  const provider = makeDataProvider(getUsers, getRoles, (call) => {
+    listCalls.push(call)
+  })
 
   function Wrapper({ children }: { children: ReactNode }) {
     return (
@@ -112,11 +137,16 @@ function renderTable({
             {children}
           </Refine>
         </I18nextProvider>
+        <LocationProbe />
       </MemoryRouter>
     )
   }
 
-  return render(<UsersTable currentUser={currentUser} />, { wrapper: Wrapper })
+  const result = render(<UsersTable currentUser={currentUser} />, {
+    wrapper: Wrapper,
+  })
+
+  return { ...result, listCalls }
 }
 
 function skeletonWidths(container: HTMLElement): number[] {
@@ -221,6 +251,91 @@ describe("UsersTable role filter", () => {
         filters: [{ field: "roleId", operator: "eq", value: "rol_member" }],
       })
     )
+  })
+})
+
+describe("UsersTable URL state", () => {
+  it("keeps a role-filtered deep link on page 2 after the Roles list resolves", async () => {
+    let resolveRoles!: (result: ListResult) => void
+    const rolesResponse = new Promise<ListResult>((resolve) => {
+      resolveRoles = resolve
+    })
+    const getUsers = vi.fn<GetUsers>(async () => ({ data: USERS, total: 90 }))
+
+    const { listCalls } = renderTable({
+      getUsers,
+      getRoles: () => rolesResponse,
+      initialEntries: ["/users?roleId=rol_member&page=2"],
+    })
+
+    // The deep link seeds the first Users request with page 2.
+    await waitFor(() => expect(getUsers).toHaveBeenCalled())
+    expect(usersCalls(listCalls)[0]?.pagination?.currentPage).toBe(2)
+
+    await act(async () => {
+      resolveRoles({ data: ROLES, total: ROLES.length })
+    })
+
+    // The Role filter shows its fetched title once the Roles list lands.
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Role" })).toHaveValue(
+        "Member"
+      )
+    )
+
+    // Resolving Roles must not rebuild the columns in a way that resets the
+    // restored page or rewrites it out of the URL.
+    await waitFor(() =>
+      expect(screen.getByTestId("location-search")).toHaveTextContent("page=2")
+    )
+    expect(
+      usersCalls(listCalls).every((call) => call.pagination?.currentPage === 2)
+    ).toBe(true)
+  })
+
+  it("does not wipe a filter committed after mount when the Roles list resolves", async () => {
+    let resolveRoles!: (result: ListResult) => void
+    const rolesResponse = new Promise<ListResult>((resolve) => {
+      resolveRoles = resolve
+    })
+    const getUsers = vi.fn<GetUsers>(async () => ({
+      data: USERS,
+      total: USERS.length,
+    }))
+
+    renderTable({ getUsers, getRoles: () => rolesResponse })
+
+    await screen.findByRole("cell", { name: "Ada Admin" })
+
+    const user = userEvent.setup()
+    await user.type(
+      screen.getByRole("textbox", { name: "Search users" }),
+      "ada"
+    )
+
+    await waitFor(() =>
+      expect(getUsers).toHaveBeenLastCalledWith({
+        filters: [{ field: "q", operator: "contains", value: "ada" }],
+      })
+    )
+
+    await act(async () => {
+      resolveRoles({ data: ROLES, total: ROLES.length })
+    })
+
+    // Open the Role filter: its fetched options prove the Roles query has
+    // resolved and the table has re-rendered.
+    await user.click(screen.getByRole("combobox", { name: "Role" }))
+    await screen.findByRole("option", { name: "Member" })
+
+    // The post-mount search filter survives with its value intact rather than
+    // being replaced by an `undefined` value when the columns change.
+    await waitFor(() =>
+      expect(getUsers).toHaveBeenLastCalledWith({
+        filters: [{ field: "q", operator: "contains", value: "ada" }],
+      })
+    )
+    expect(screen.getByTestId("location-search")).toHaveTextContent("q=ada")
   })
 })
 
