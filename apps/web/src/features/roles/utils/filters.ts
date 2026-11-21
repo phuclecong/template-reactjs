@@ -1,19 +1,19 @@
 import type { CrudFilter } from "@refinedev/core"
-import { roleStatusSchema } from "@workspace/api/schemas"
-import { parseFilterValues } from "@workspace/shared-lib/utils"
 import {
-  isDateOnly,
-  localDateToDateOnly,
-  localEndOfDayUtcInstant,
-  localStartOfDayUtcInstant,
-} from "@workspace/ui/lib/date"
+  clear as clearFilters,
+  deriveChips,
+  fromCrud,
+  toCrud,
+  type TableFilterChip,
+} from "@workspace/shared-lib/utils"
+
+import { ROLE_FILTER_DESCRIPTORS, type RoleChipContext } from "./url-state"
 
 /**
  * The normalized Roles filter state the filter bar edits. Text values are the
  * raw contains terms, `status` is a comma-joined list (empty means no status
  * filter), and every date bound is a local `YYYY-MM-DD` calendar day (the
- * controls' model), while the URL stores UTC instants (see
- * `roleFiltersToCrud`).
+ * controls' model), while the URL stores UTC instants.
  */
 export type RoleFilterValues = {
   title: string
@@ -43,127 +43,14 @@ export const EMPTY_ROLE_FILTERS: RoleFilterValues = {
   updatedAtTo: "",
 }
 
-function readLeafFilter(
-  filters: CrudFilter[],
-  field: string,
-  operator: CrudFilter["operator"]
-): string {
-  for (const filter of filters) {
-    if (
-      "field" in filter &&
-      filter.field === field &&
-      filter.operator === operator
-    ) {
-      return typeof filter.value === "string"
-        ? filter.value
-        : filter.value == null
-          ? ""
-          : String(filter.value)
-    }
-  }
-  return ""
-}
-
-/**
- * Reads the status filter as a comma-joined list. A single status may arrive
- * as `eq` (the operator the UI emits for one value, and what older URLs hold);
- * several arrive as `in` with an array. Unknown values are dropped.
- */
-function readStatusFilter(filters: CrudFilter[]): string {
-  const validStatuses = new Set<string>(roleStatusSchema.options)
-  for (const filter of filters) {
-    if (!("field" in filter) || filter.field !== "status") continue
-    const rawValues =
-      filter.operator === "in" && Array.isArray(filter.value)
-        ? filter.value
-        : filter.operator === "eq"
-          ? [filter.value]
-          : []
-    const statuses = rawValues.filter(
-      (value): value is string =>
-        typeof value === "string" && validStatuses.has(value)
-    )
-    if (statuses.length > 0) return statuses.join(",")
-  }
-  return ""
-}
-
-/** Converts a stored UTC instant (or legacy date-only value) to a local day. */
-function toLocalDateOnly(value: string): string {
-  if (!value) return ""
-  if (isDateOnly(value)) return value
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? "" : localDateToDateOnly(date)
-}
-
 /** Reads Refine's `CrudFilter[]` into the filter bar's editable values. */
 export function roleFiltersFromCrud(filters: CrudFilter[]): RoleFilterValues {
-  return {
-    title: readLeafFilter(filters, "title", "contains"),
-    description: readLeafFilter(filters, "description", "contains"),
-    status: readStatusFilter(filters),
-    createdAtFrom: toLocalDateOnly(readLeafFilter(filters, "createdAt", "gte")),
-    createdAtTo: toLocalDateOnly(readLeafFilter(filters, "createdAt", "lte")),
-    updatedAtFrom: toLocalDateOnly(readLeafFilter(filters, "updatedAt", "gte")),
-    updatedAtTo: toLocalDateOnly(readLeafFilter(filters, "updatedAt", "lte")),
-  }
+  return fromCrud(ROLE_FILTER_DESCRIPTORS, filters)
 }
 
-/**
- * Converts the filter bar's values to Refine filters. Text filters are
- * `contains`; the status filter is `eq` for one status and `in` for several
- * (omitted when none are selected); each date From bound becomes the local
- * start of that day as a UTC instant and each To bound the local end of that
- * day, so range bounds are inclusive.
- */
+/** Converts the filter bar's values to Refine filters. */
 export function roleFiltersToCrud(values: RoleFilterValues): CrudFilter[] {
-  const filters: CrudFilter[] = []
-  if (values.title) {
-    filters.push({ field: "title", operator: "contains", value: values.title })
-  }
-  if (values.description) {
-    filters.push({
-      field: "description",
-      operator: "contains",
-      value: values.description,
-    })
-  }
-  const statuses = parseFilterValues(values.status)
-  const [onlyStatus] = statuses
-  if (statuses.length > 1) {
-    filters.push({ field: "status", operator: "in", value: statuses })
-  } else if (onlyStatus) {
-    filters.push({ field: "status", operator: "eq", value: onlyStatus })
-  }
-  if (isDateOnly(values.createdAtFrom)) {
-    filters.push({
-      field: "createdAt",
-      operator: "gte",
-      value: localStartOfDayUtcInstant(values.createdAtFrom),
-    })
-  }
-  if (isDateOnly(values.createdAtTo)) {
-    filters.push({
-      field: "createdAt",
-      operator: "lte",
-      value: localEndOfDayUtcInstant(values.createdAtTo),
-    })
-  }
-  if (isDateOnly(values.updatedAtFrom)) {
-    filters.push({
-      field: "updatedAt",
-      operator: "gte",
-      value: localStartOfDayUtcInstant(values.updatedAtFrom),
-    })
-  }
-  if (isDateOnly(values.updatedAtTo)) {
-    filters.push({
-      field: "updatedAt",
-      operator: "lte",
-      value: localEndOfDayUtcInstant(values.updatedAtTo),
-    })
-  }
-  return filters
+  return toCrud(ROLE_FILTER_DESCRIPTORS, values)
 }
 
 /** Clears one logical filter, including both bounds of a date range. */
@@ -171,16 +58,13 @@ export function clearRoleFilter(
   values: RoleFilterValues,
   key: RoleFilterKey
 ): RoleFilterValues {
-  switch (key) {
-    case "title":
-      return { ...values, title: "" }
-    case "description":
-      return { ...values, description: "" }
-    case "status":
-      return { ...values, status: "" }
-    case "createdAt":
-      return { ...values, createdAtFrom: "", createdAtTo: "" }
-    case "updatedAt":
-      return { ...values, updatedAtFrom: "", updatedAtTo: "" }
-  }
+  return clearFilters(ROLE_FILTER_DESCRIPTORS, values, key)
+}
+
+/** Derives the active-filter chips; copy comes from the bar's context. */
+export function roleFilterChips(
+  values: RoleFilterValues,
+  context: RoleChipContext
+): TableFilterChip<RoleFilterKey>[] {
+  return deriveChips(ROLE_FILTER_DESCRIPTORS, values, context)
 }

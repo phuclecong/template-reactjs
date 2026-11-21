@@ -1,12 +1,15 @@
 import type { CrudFilter, CrudSort } from "@refinedev/core"
 import {
   dateOnlyToLocalDate,
-  isDateOnly,
-  localDateToDateOnly,
   localEndOfDayUtcInstant,
   localStartOfDayUtcInstant,
 } from "@workspace/ui/lib/date"
 
+import {
+  readEnumFilter,
+  readLeafFilter,
+  toLocalDateOnly,
+} from "../utils/table-filters"
 import { DEFAULT_PAGE_SIZE } from "./table-defaults"
 
 /** A single text filter stored as one raw URL parameter. */
@@ -77,62 +80,6 @@ export type TableUrlAdapter = {
   parse: (params: URLSearchParams) => TableUrlState
   /** Writes table state as flat, encoded query parameters. */
   build: (state: TableUrlState, current: URLSearchParams) => URLSearchParams
-}
-
-function readLeafFilter(
-  filters: CrudFilter[],
-  field: string,
-  operator: CrudFilter["operator"]
-): string {
-  for (const filter of filters) {
-    if (
-      "field" in filter &&
-      filter.field === field &&
-      filter.operator === operator
-    ) {
-      return typeof filter.value === "string"
-        ? filter.value
-        : filter.value == null
-          ? ""
-          : String(filter.value)
-    }
-  }
-  return ""
-}
-
-/**
- * Reads a leaf filter for the field as a comma-joined list. A single value may
- * arrive as `eq` (what the UI emits); several arrive as `in`. Values outside
- * `valid` are dropped.
- */
-function readEnumFilter(
-  filters: CrudFilter[],
-  field: string,
-  valid: ReadonlySet<string> | undefined
-): string {
-  for (const filter of filters) {
-    if (!("field" in filter) || filter.field !== field) continue
-    const rawValues =
-      filter.operator === "in" && Array.isArray(filter.value)
-        ? filter.value
-        : filter.operator === "eq"
-          ? [filter.value]
-          : []
-    const values = rawValues.filter(
-      (value): value is string =>
-        typeof value === "string" && (valid === undefined || valid.has(value))
-    )
-    if (values.length > 0) return values.join(",")
-  }
-  return ""
-}
-
-/** Converts a stored UTC instant (or legacy date-only value) to a local day. */
-function toLocalDateOnly(value: string): string {
-  if (!value) return ""
-  if (isDateOnly(value)) return value
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? "" : localDateToDateOnly(date)
 }
 
 function readDate(params: URLSearchParams, key: string): string {
@@ -264,8 +211,7 @@ export function createTableUrlAdapter(
               sortField && sortableFields.has(sortField)
                 ? sortField
                 : config.defaultSortField,
-            order:
-              order === "asc" || order === "desc" ? order : defaultOrder,
+            order: order === "asc" || order === "desc" ? order : defaultOrder,
           },
         ],
         currentPage: readPositiveInt(params.get("page"), 1),
