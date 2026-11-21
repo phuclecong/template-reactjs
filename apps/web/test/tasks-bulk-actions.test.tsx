@@ -1,15 +1,6 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from "@testing-library/react"
-import { QueryClient } from "@tanstack/react-query"
-import {
-  Refine,
-  type DataProvider,
-  type NotificationProvider,
-} from "@refinedev/core"
-import { I18nextProvider } from "react-i18next"
-import { MemoryRouter } from "react-router-dom"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import type { ReactNode } from "react"
 
 import {
   useTaskBulkActions,
@@ -17,30 +8,20 @@ import {
 } from "@/features/tasks/hooks/use-task-bulk-actions"
 import { track } from "@/observability"
 import i18n from "@/utils/i18n"
+import {
+  createBulkHarness,
+  type BulkCustomCall,
+  type BulkResult,
+} from "./bulk-harness"
 
 vi.mock("@/observability", () => ({ track: vi.fn() }))
 
 type SelectedTask = { id: string; title: string }
 
-type CustomParams = {
-  url: string
-  method: string
-  payload: Record<string, unknown>
-}
-
-type BulkResult = {
-  updated: number
-  failed: Array<{ id: string; reason: string }>
-}
-
-type NotificationParams = Parameters<
-  NonNullable<NotificationProvider["open"]>
->[0]
-
 type HarnessOptions = {
   selected?: SelectedTask[]
   result?: BulkResult
-  custom?: (params: CustomParams) => Promise<{ data: unknown }>
+  custom?: (call: BulkCustomCall) => Promise<{ data: unknown }>
 }
 
 const SELECTED: SelectedTask[] = [
@@ -48,81 +29,33 @@ const SELECTED: SelectedTask[] = [
   { id: "task_2", title: "Bravo" },
 ]
 
-function makeDataProvider(
-  custom: (params: CustomParams) => Promise<{ data: unknown }>
-): DataProvider {
-  return {
-    custom,
-    getList: async () => ({ data: [], total: 0 }),
-    getOne: async () => ({ data: {} }),
-    create: async () => ({ data: {} }),
-    update: async () => ({ data: {} }),
-    deleteOne: async () => ({ data: {} }),
-    getApiUrl: () => "/api",
-  } as unknown as DataProvider
-}
-
 function makeHarness(options: HarnessOptions = {}) {
   const selected = options.selected ?? SELECTED
-  const calls: CustomParams[] = []
-  const notifications: NotificationParams[] = []
-
-  const custom = vi.fn(async (params: CustomParams) => {
-    calls.push(params)
-    if (options.custom) return options.custom(params)
-    return { data: options.result ?? { updated: selected.length, failed: [] } }
-  })
-
-  const dataProvider = makeDataProvider(custom)
-  const notificationProvider: NotificationProvider = {
-    open: (params) => {
-      notifications.push(params)
-    },
-  }
-
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  })
-  const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
-
   const onDone = vi.fn()
 
-  function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <MemoryRouter>
-        <I18nextProvider i18n={i18n}>
-          <Refine
-            dataProvider={dataProvider}
-            notificationProvider={notificationProvider}
-            resources={[{ name: "tasks" }]}
-            options={{
-              syncWithLocation: false,
-              disableTelemetry: true,
-              reactQuery: { clientConfig: queryClient },
-            }}
-          >
-            {children}
-          </Refine>
-        </I18nextProvider>
-      </MemoryRouter>
-    )
-  }
+  const harness = createBulkHarness({
+    resources: [{ name: "tasks" }],
+    withRouter: true,
+    respond: (call) => {
+      if (options.custom) return options.custom(call)
+      return Promise.resolve({
+        data: options.result ?? { updated: selected.length, failed: [] },
+      })
+    },
+  })
 
   const view = renderHook(() => useTaskBulkActions({ selected, onDone }), {
-    wrapper: Wrapper,
+    wrapper: harness.Wrapper,
   })
 
   return {
     ...view,
-    calls,
-    custom,
-    notifications,
-    invalidateSpy,
+    calls: harness.calls,
+    custom: harness.customMock,
+    notifications: harness.notifications,
+    invalidateSpy: harness.invalidateSpy,
     onDone,
-    queryClient,
+    queryClient: harness.queryClient,
   }
 }
 

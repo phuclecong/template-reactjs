@@ -1,113 +1,27 @@
 // @vitest-environment jsdom
 import { act, renderHook, waitFor } from "@testing-library/react"
-import { Refine, type DataProvider } from "@refinedev/core"
-import { QueryClient } from "@tanstack/react-query"
-import { I18nextProvider } from "react-i18next"
-import type { ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import i18n from "@/utils/i18n"
 import { useBulkActions } from "@workspace/shared-lib/hooks"
 import type { BulkActionConfig } from "@workspace/shared-lib/hooks"
+import {
+  createBulkHarness,
+  deferred,
+  type BulkCustomCall,
+  type BulkResult,
+} from "./bulk-harness"
 
 type Row = { id: string; title: string }
-type BulkResult = {
-  updated?: number
-  deleted?: number
-  failed?: { id: string; reason: string }[]
-}
-
-type CustomCall = {
-  url: string
-  method: string
-  payload: Record<string, unknown>
-}
-
-type NotificationRecord = {
-  message?: string
-  description?: string
-  type?: string
-}
-
-type Deferred<T> = {
-  promise: Promise<T>
-  resolve: (value: T) => void
-  reject: (reason?: unknown) => void
-}
-
-function deferred<T>(): Deferred<T> {
-  let resolve!: (value: T) => void
-  let reject!: (reason?: unknown) => void
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res
-    reject = rej
-  })
-  return { promise, resolve, reject }
-}
-
-function makeDataProvider(
-  calls: CustomCall[],
-  respond: (call: CustomCall) => Promise<{ data: BulkResult }>
-): DataProvider {
-  return {
-    custom: async ({
-      url,
-      method,
-      payload,
-    }: {
-      url: string
-      method: string
-      payload: Record<string, unknown>
-    }) => {
-      const call = { url, method, payload }
-      calls.push(call)
-      return respond(call)
-    },
-    getList: async () => ({ data: [], total: 0 }),
-    getOne: async () => ({ data: {} }),
-    create: async () => ({ data: {} }),
-    update: async () => ({ data: {} }),
-    deleteOne: async () => ({ data: {} }),
-    getApiUrl: () => "/api",
-  } as unknown as DataProvider
-}
 
 function setup(
-  respond: (call: CustomCall) => Promise<{ data: BulkResult }> = () =>
+  respond: (call: BulkCustomCall) => Promise<{ data: BulkResult }> = () =>
     Promise.resolve({ data: { updated: 2, failed: [] } })
 ) {
-  const calls: CustomCall[] = []
-  const notifications: NotificationRecord[] = []
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+  return createBulkHarness({
+    resources: [{ name: "roles" }, { name: "tasks" }],
+    respond,
   })
-  const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries")
-  const dataProvider = makeDataProvider(calls, respond)
-
-  function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <I18nextProvider i18n={i18n}>
-        <Refine
-          dataProvider={dataProvider}
-          notificationProvider={{
-            open: (notification) => {
-              notifications.push(notification as NotificationRecord)
-            },
-          }}
-          resources={[{ name: "roles" }, { name: "tasks" }]}
-          options={{
-            syncWithLocation: false,
-            disableTelemetry: true,
-            reactQuery: { clientConfig: queryClient },
-          }}
-        >
-          {children}
-        </Refine>
-      </I18nextProvider>
-    )
-  }
-
-  return { calls, notifications, queryClient, invalidateSpy, Wrapper }
 }
 
 const SELECTED: Row[] = [

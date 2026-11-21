@@ -4,6 +4,7 @@ import {
   useCustomMutation,
   useInvalidate,
   type HttpError,
+  type UseCustomMutationReturnType,
 } from "@refinedev/core"
 
 /** A row the lifecycle can name in failure copy. */
@@ -66,6 +67,28 @@ type BulkResponse = {
   updated?: number
   deleted?: number
   failed?: BulkFailure[]
+}
+
+type BulkMutate = UseCustomMutationReturnType<
+  BulkResponse,
+  HttpError,
+  Record<string, unknown>
+>["mutate"]
+
+/** The parts of a bulk write that differ between update and delete. */
+type BulkRun = {
+  action: "update" | "delete"
+  mutate: BulkMutate
+  url: string
+  method: BulkMethod
+  values: Record<string, unknown>
+  /** The response count this action reports: `updated` or `deleted`. */
+  countKey: "updated" | "deleted"
+  /** Translation keys for the clean and partial-failure notifications. */
+  messages: { done: string; withFailures: string }
+  /** Analytics extras, computed only once the write succeeds. */
+  trackData?: () => Record<string, unknown> | undefined
+  options?: BulkActionOptions
 }
 
 /**
@@ -146,26 +169,35 @@ export function useBulkActions<TTarget extends BulkTarget, TPatch>(
     [knownReasons, t, keyPrefix, titlesById]
   )
 
-  const bulkUpdate = useCallback(
-    (patch: TPatch, options?: BulkActionOptions) => {
-      if (selected.length === 0) return
-      const ids = selected.map((target) => target.id)
-      const values = update.values
-        ? update.values(ids, patch)
-        : ({ ids, ...patch } as Record<string, unknown>)
-
-      updateMutation.mutate(
+  /**
+   * Issues one bulk write and runs the shared notify → track → onDone →
+   * invalidate pipeline. Update and delete differ only in the fields on
+   * `BulkRun`, so both actions go through this single implementation.
+   */
+  const runBulkAction = useCallback(
+    ({
+      action,
+      mutate,
+      url,
+      method,
+      values,
+      countKey,
+      messages,
+      trackData,
+      options,
+    }: BulkRun) => {
+      mutate(
         {
-          url: update.url,
-          method: update.method ?? "patch",
+          url,
+          method,
           values,
           successNotification: (data) => {
             const result = data?.data
             const failed = result?.failed ?? []
             if (failed.length > 0) {
               return {
-                message: t(`${keyPrefix}.updatedWithFailures`, {
-                  updated: result?.updated ?? 0,
+                message: t(messages.withFailures, {
+                  [countKey]: result?.[countKey] ?? 0,
                   failed: failed.length,
                 }),
                 description: failuresDescription(failed),
@@ -173,8 +205,8 @@ export function useBulkActions<TTarget extends BulkTarget, TPatch>(
               }
             }
             return {
-              message: t(`${keyPrefix}.updated`, {
-                count: result?.updated ?? 0,
+              message: t(messages.done, {
+                count: result?.[countKey] ?? 0,
               }),
               type: "success" as const,
             }
@@ -189,10 +221,10 @@ export function useBulkActions<TTarget extends BulkTarget, TPatch>(
           onSuccess: (data) => {
             const result = data?.data
             track(event, {
-              action: "update",
-              ...update.trackData?.(patch),
+              action,
+              ...trackData?.(),
               selected: selected.length,
-              updated: result?.updated ?? 0,
+              [countKey]: result?.[countKey] ?? 0,
               failed: result?.failed?.length ?? 0,
             })
             onDone()
@@ -203,90 +235,64 @@ export function useBulkActions<TTarget extends BulkTarget, TPatch>(
       )
     },
     [
-      selected,
-      update,
-      updateMutation,
       t,
       keyPrefix,
-      event,
+      failuresDescription,
+      describeError,
       track,
+      event,
+      selected,
       onDone,
       resource,
       invalidate,
-      failuresDescription,
-      describeError,
     ]
+  )
+
+  const bulkUpdate = useCallback(
+    (patch: TPatch, options?: BulkActionOptions) => {
+      if (selected.length === 0) return
+      const ids = selected.map((target) => target.id)
+      runBulkAction({
+        action: "update",
+        mutate: updateMutation.mutate,
+        url: update.url,
+        method: update.method ?? "patch",
+        values: update.values
+          ? update.values(ids, patch)
+          : ({ ids, ...patch } as Record<string, unknown>),
+        countKey: "updated",
+        messages: {
+          done: `${keyPrefix}.updated`,
+          withFailures: `${keyPrefix}.updatedWithFailures`,
+        },
+        trackData: () => update.trackData?.(patch),
+        options,
+      })
+    },
+    [selected, update, updateMutation, keyPrefix, runBulkAction]
   )
 
   const bulkDelete = useCallback(
     (options?: BulkActionOptions) => {
       if (!deleteConfig || selected.length === 0) return
       const ids = selected.map((target) => target.id)
-      const values = deleteConfig.values
-        ? deleteConfig.values(ids)
-        : ({ ids } as Record<string, unknown>)
-
-      deleteMutation.mutate(
-        {
-          url: deleteConfig.url,
-          method: deleteConfig.method ?? "post",
-          values,
-          successNotification: (data) => {
-            const result = data?.data
-            const failed = result?.failed ?? []
-            if (failed.length > 0) {
-              return {
-                message: t(`${keyPrefix}.deletedWithFailures`, {
-                  deleted: result?.deleted ?? 0,
-                  failed: failed.length,
-                }),
-                description: failuresDescription(failed),
-                type: "error" as const,
-              }
-            }
-            return {
-              message: t(`${keyPrefix}.deleted`, {
-                count: result?.deleted ?? 0,
-              }),
-              type: "success" as const,
-            }
-          },
-          errorNotification: (error) => ({
-            message: t(`${keyPrefix}.failed`),
-            description: describeError(error),
-            type: "error" as const,
-          }),
+      runBulkAction({
+        action: "delete",
+        mutate: deleteMutation.mutate,
+        url: deleteConfig.url,
+        method: deleteConfig.method ?? "post",
+        values: deleteConfig.values
+          ? deleteConfig.values(ids)
+          : ({ ids } as Record<string, unknown>),
+        countKey: "deleted",
+        messages: {
+          done: `${keyPrefix}.deleted`,
+          withFailures: `${keyPrefix}.deletedWithFailures`,
         },
-        {
-          onSuccess: (data) => {
-            const result = data?.data
-            track(event, {
-              action: "delete",
-              selected: selected.length,
-              deleted: result?.deleted ?? 0,
-              failed: result?.failed?.length ?? 0,
-            })
-            onDone()
-            void invalidate({ resource, invalidates: ["list"] })
-          },
-          onSettled: () => options?.onSettled?.(),
-        }
-      )
+        options,
+      })
     },
-    [
-      deleteConfig,
-      selected,
-      deleteMutation,
-      t,
-      keyPrefix,
-      failuresDescription,
-      describeError,
-      track,
-      event,
-      onDone,
-      resource,
-      invalidate,
-    ]
+    [deleteConfig, selected, deleteMutation, keyPrefix, runBulkAction]
   )
 
   return {

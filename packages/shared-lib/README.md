@@ -1,18 +1,27 @@
 # `@workspace/shared-lib` — shared app infrastructure
 
 Reusable, framework-coupled modules that are not part of the design system.
-They carry no domain knowledge (they know nothing about Tasks, Users, or the
-dashboard) and must never import from `apps/web`. That does **not** make the
-whole package framework-neutral: the table shell is coupled to React Router.
-`useTableShell` owns `useSearchParams`, `useNavigate`, and `useLocation` to
-seed and mirror the flat URL state (ADR-0016), so it only works inside a React
-Router app. The URL/filter utilities and the presentational components remain
-framework-agnostic. The one deliberate domain exception is `useEnums` in
-`hooks`: it mirrors the shared API contract's closed value sets and their app
-translation key prefixes, so features cannot redeclare either. The bulk-action
-lifecycle does not need that exception: `useBulkActions` takes `track` and
-`describeError` as injected callbacks, so observability and HTTP-error policy
-stay in `apps/web`.
+They know nothing about Tasks, Users, or the dashboard and must never import
+from `apps/web`. That does **not** make the whole package framework-neutral: the
+table shell is coupled to React Router. `useTableShell` owns `useSearchParams`,
+`useNavigate`, and `useLocation` to seed and mirror the flat URL state
+(ADR-0016), so it only works inside a React Router app. The URL/filter
+utilities and the presentational components remain framework-agnostic.
+
+Two modules in `hooks` deliberately encode shared API contract knowledge so
+features cannot redeclare it:
+
+- `useEnums` mirrors the contract's closed value sets and their app translation
+  key prefixes.
+- `useBulkActions` owns the bulk write envelope: an update defaults to
+  `{ ids, ...patch }`, a delete defaults to `{ ids }`, and a response is
+  `{ updated | deleted, failed }`. Those defaults are the ticket #89
+  parameterization contract; a feature overrides `values` and `method` only
+  when its endpoint differs.
+
+Everything else stays injected: `useBulkActions` takes `track` and
+`describeError` as callbacks, so analytics and HTTP-error formatting keep their
+app dependencies.
 
 ## Modules
 

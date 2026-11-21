@@ -103,9 +103,15 @@ duplicated and a future resource chooses gating in the shell.
 - Copy stays in translations. The module emits keys; the feature's
   `en`/`vi` dictionaries keep the wording, so shared-lib carries no English or
   Vietnamese strings.
-- The shared-lib boundary is preserved. `useBulkActions` does not import from
-  `apps/web`; the app supplies `track` and `describeError` as injected
-  functions, keeping observability and HTTP-error policy in the app.
+- The shared-lib boundary is preserved at the dependency level: `useBulkActions`
+  does not import from `apps/web`, and the app supplies `track` and
+  `describeError` as injected functions, keeping observability and HTTP-error
+  policy in the app. The module does deliberately own the bulk write envelope —
+  default update `{ ids, ...patch }`, default delete `{ ids }`, and response
+  `{ updated | deleted, failed }` — because that is the shared API contract's
+  wire shape rather than resource-specific adaptation. Those defaults are the
+  ticket #89 parameterization contract; a feature overrides `values` / `method`
+  when its endpoint differs.
 - Partial failures are reported uniformly in both features: when some rows
   fail, the success-notification callback returns an error-typed message
   (`updatedWithFailures` / `deletedWithFailures`) whose description carries one
