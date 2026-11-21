@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next"
+import { TablePageLayout } from "@workspace/shared-lib/components/table-page-layout"
 import { TableSkeleton } from "@workspace/shared-lib/components/table-skeleton"
 import { DEFAULT_PAGE_SIZE } from "@workspace/shared-lib/hooks/table-defaults"
 import { Skeleton } from "@workspace/ui/components/skeleton"
@@ -131,7 +132,7 @@ export function TablePageSkeleton({
   const loadingLabel = t(loadingKey)
 
   return (
-    <div className="flex flex-col gap-4 p-6 text-sm">
+    <TablePageLayout>
       {hasTitleBar ? (
         <div
           className="flex flex-wrap items-center justify-between gap-2"
@@ -155,7 +156,7 @@ export function TablePageSkeleton({
         rowCount={DEFAULT_PAGE_SIZE}
         label={loadingLabel}
       />
-    </div>
+    </TablePageLayout>
   )
 }
 

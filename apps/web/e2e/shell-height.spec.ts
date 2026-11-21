@@ -5,6 +5,9 @@ import { login } from "./helpers"
 /** The page-level scroll region below the fixed header. */
 const CONTENT_REGION = '[data-slot="sidebar-inset"]'
 
+/** The shared frame every list screen renders through. */
+const PAGE_FRAME = '[data-slot="table-page-layout"]'
+
 /** Asserts the browser window itself cannot scroll. */
 async function expectWindowLocked(page: Page) {
   const overflow = await page.evaluate(() => {
@@ -76,4 +79,35 @@ test("short-viewport Settings content scrolls inside the content region", async 
   await expect(submit).toBeInViewport()
   await expect(breadcrumb).toBeInViewport()
   await expectWindowLocked(page)
+})
+
+test("list screens render through the shared viewport-fitted page frame", async ({
+  page,
+}) => {
+  await login(page, "admin@example.com", "adminpass")
+
+  for (const path of ["/roles", "/tasks", "/users"]) {
+    await page.goto(path)
+    await expect(page.getByRole("table")).toBeVisible()
+
+    const frame = page.locator(PAGE_FRAME)
+    await expect(frame).toBeVisible()
+
+    const { frameHeight, regionHeight } = await page.evaluate(() => {
+      const frameElement = document.querySelector(
+        '[data-slot="table-page-layout"]'
+      ) as HTMLElement
+      const regionElement = document.querySelector(
+        '[data-slot="sidebar-inset"]'
+      ) as HTMLElement
+      return {
+        frameHeight: frameElement.getBoundingClientRect().height,
+        regionHeight: regionElement.clientHeight,
+      }
+    })
+
+    // The frame is at least as tall as the scroll region and grows with its
+    // content, so the height contract cannot drift between the three screens.
+    expect(frameHeight).toBeGreaterThanOrEqual(regionHeight - 1)
+  }
 })

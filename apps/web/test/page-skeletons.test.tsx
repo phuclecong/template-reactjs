@@ -73,6 +73,28 @@ describe("page skeletons", () => {
     ).toEqual([36, 360, 120, 120, 180, 200, 140])
   })
 
+  it("renders the table skeleton inside the shared viewport-fitted page frame", () => {
+    const { container } = renderWithI18n(<TablePageSkeleton kind="tasks" />)
+
+    const frame = container.querySelector(
+      '[data-slot="table-page-layout"]'
+    ) as HTMLElement | null
+    expect(frame).not.toBeNull()
+    // The height contract: at least as tall as the scroll region, a column,
+    // with the existing page padding and gap.
+    expect(frame).toHaveClass(
+      "flex",
+      "min-h-full",
+      "flex-col",
+      "gap-4",
+      "p-6",
+      "text-sm"
+    )
+    expect(
+      frame?.querySelector('[data-slot="table-skeleton"]')
+    ).not.toBeNull()
+  })
+
   it("reserves the Users table columns and announces users loading", () => {
     const { container } = renderWithI18n(<TablePageSkeleton kind="users" />)
 

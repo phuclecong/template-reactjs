@@ -18,7 +18,10 @@ import {
 import type { ColumnDef } from "@tanstack/react-table"
 import { isAdministratorRole } from "@workspace/api/policy"
 import type { RoleRecord } from "@workspace/api/schemas"
-import { TableShellView } from "@workspace/shared-lib/components"
+import {
+  TablePageLayout,
+  TableShellView,
+} from "@workspace/shared-lib/components"
 import { useDialog, useTableShell } from "@workspace/shared-lib/hooks"
 import { Button } from "@workspace/ui/components/button"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
@@ -345,7 +348,7 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
 
   return (
     <RoleCatalogueContext.Provider value={roleCatalogue}>
-      <div className="flex flex-col gap-4 p-6 text-sm">
+      <TablePageLayout>
         <UsersFilterBar
           searchValue={searchValue}
           onSearchChange={changeSearch}
@@ -396,7 +399,7 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
           loading={deleteMutation.mutation.isPending}
           onConfirm={confirmDelete}
         />
-      </div>
+      </TablePageLayout>
     </RoleCatalogueContext.Provider>
   )
 }

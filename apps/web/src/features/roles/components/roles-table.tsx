@@ -6,6 +6,7 @@ import { isSystemRole } from "@workspace/api/policy"
 import type { RoleRecord } from "@workspace/api/schemas"
 import {
   createSelectionColumn,
+  TablePageLayout,
   TableShellView,
 } from "@workspace/shared-lib/components"
 import { useTableShell } from "@workspace/shared-lib/hooks"
@@ -261,7 +262,7 @@ export function RolesTable() {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-6 text-sm">
+    <TablePageLayout>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">{t("roles.title")}</h1>
         <div className="flex items-center gap-2">
@@ -332,6 +333,6 @@ export function RolesTable() {
         loading={deleteMutation.mutation.isPending}
         onConfirm={confirmDelete}
       />
-    </div>
+    </TablePageLayout>
   )
 }
