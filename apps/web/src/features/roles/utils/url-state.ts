@@ -6,7 +6,9 @@ import {
   type TableUrlState,
 } from "@workspace/shared-lib/hooks"
 import {
+  dateRangeText,
   filterValueLabels,
+  type DateRangeTextCopy,
   type TableFilterDescriptor,
 } from "@workspace/shared-lib/utils"
 
@@ -22,14 +24,12 @@ export type RoleChipContext = {
   statusOptions: readonly EnumOption<RoleStatus>[]
 }
 
-function dateRangeText(
-  from: string,
-  to: string,
-  t: RoleChipContext["t"]
-): string {
-  if (from && to) return t("roles.filters.dateRange", { from, to })
-  if (from) return t("roles.filters.dateFrom", { date: from })
-  return t("roles.filters.dateUntil", { date: to })
+function roleDateRangeCopy(t: RoleChipContext["t"]): DateRangeTextCopy {
+  return {
+    range: (from, to) => t("roles.filters.dateRange", { from, to }),
+    from: (date) => t("roles.filters.dateFrom", { date }),
+    until: (date) => t("roles.filters.dateUntil", { date }),
+  }
 }
 
 /**
@@ -77,7 +77,11 @@ export const ROLE_FILTER_DESCRIPTORS: readonly TableFilterDescriptor<
     key: "createdAt",
     chip: (values, { t }) =>
       t("roles.filters.chipCreatedAt", {
-        value: dateRangeText(values.createdAtFrom, values.createdAtTo, t),
+        value: dateRangeText(
+          values.createdAtFrom,
+          values.createdAtTo,
+          roleDateRangeCopy(t)
+        ),
       }),
   },
   {
@@ -88,7 +92,11 @@ export const ROLE_FILTER_DESCRIPTORS: readonly TableFilterDescriptor<
     key: "updatedAt",
     chip: (values, { t }) =>
       t("roles.filters.chipUpdatedAt", {
-        value: dateRangeText(values.updatedAtFrom, values.updatedAtTo, t),
+        value: dateRangeText(
+          values.updatedAtFrom,
+          values.updatedAtTo,
+          roleDateRangeCopy(t)
+        ),
       }),
   },
 ]

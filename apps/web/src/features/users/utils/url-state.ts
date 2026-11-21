@@ -20,17 +20,19 @@ export type UserFilterValues = {
   roleId: string
 }
 
-export const EMPTY_USER_FILTERS: UserFilterValues = { q: "", roleId: "" }
-
 /**
  * The flat URL format for the Users table (ADR-0016). The keys match the
  * pre-Refine table so existing deep links keep working. These descriptors need
  * no chip metadata, so the URL adapter and the bar conversion share them.
+ *
+ * Typing the descriptors with `UserFilterValues` links each `param` to a value
+ * key: renaming one without renaming the other fails typechecking.
  */
-export const USER_FILTER_DESCRIPTORS: readonly TableUrlFilterDescriptor[] = [
-  { kind: "text", param: "q", field: "q" },
-  { kind: "enumMulti", param: "roleId", field: "roleId" },
-]
+export const USER_FILTER_DESCRIPTORS: readonly TableUrlFilterDescriptor<UserFilterValues>[] =
+  [
+    { kind: "text", param: "q", field: "q" },
+    { kind: "enumMulti", param: "roleId", field: "roleId" },
+  ]
 
 const adapter = createTableUrlAdapter({
   defaultSortField: USERS_DEFAULT_SORT_FIELD,

@@ -5,50 +5,13 @@ import {
   localStartOfDayUtcInstant,
 } from "@workspace/date-utils"
 
+import type { TableUrlFilterDescriptor } from "../utils/table-url-descriptors"
 import {
   readEnumFilter,
   readLeafFilter,
   toLocalDateOnly,
 } from "../utils/table-filters"
 import { DEFAULT_PAGE_SIZE } from "./table-defaults"
-
-/** A single text filter stored as one raw URL parameter. */
-export type TableUrlTextFilter = {
-  kind: "text"
-  /** URL parameter name. */
-  param: string
-  /** API field the `contains` filter targets. */
-  field: string
-}
-
-/**
- * A multi-value filter stored as one comma-joined URL parameter and expanded
- * to an `in` filter (or `eq` for a single value). `values` restricts the
- * accepted options; omit it for open-ended fields such as assignee ids.
- */
-export type TableUrlEnumMultiFilter = {
-  kind: "enumMulti"
-  param: string
-  field: string
-  values?: readonly string[]
-}
-
-/**
- * A date-range filter stored as two local `YYYY-MM-DD` URL parameters. The
- * `parse` direction expands them to inclusive UTC instants for the API; the
- * `build` direction collapses stored instants back to local days.
- */
-export type TableUrlDateRangeFilter = {
-  kind: "dateRange"
-  fromParam: string
-  toParam: string
-  field: string
-}
-
-export type TableUrlFilterDescriptor =
-  | TableUrlTextFilter
-  | TableUrlEnumMultiFilter
-  | TableUrlDateRangeFilter
 
 export type TableUrlAdapterConfig = {
   /** Sort field used when the URL holds no valid `sort` value. */
