@@ -58,3 +58,37 @@ Create `packages/shared-lib`, `packages/shared-lib/components`, and `packages/sh
   is React Router-coupled: it owns `useSearchParams` / `useNavigate` /
   `useLocation`, so `@workspace/shared-lib` is domain-free but not
   framework-neutral.
+
+- Ticket #83 extracted the bulk-action write lifecycle ahead of a third
+  bulk-action resource, an explicitly waived gate (ADR-0019; the review's
+  third-consumer test still stands). `useBulkActions` in
+  `packages/shared-lib/src/hooks/use-bulk-actions.ts` owns guard → mutate →
+  notify (including per-row failure summaries) → track → clear the selection →
+  invalidate. It composes Refine's `useCustomMutation` and `useInvalidate`
+  rather than `useUpdateMany`/`useDeleteMany`, because the `simple-rest`
+  provider omits the many-methods (ADR-0015). Roles and Tasks keep thin
+  feature hooks — `useRolesBulkActions` and `useTaskBulkActions` — that supply
+  only their endpoint (`/roles/bulk`, `/roles/bulk-delete`, `/tasks/bulk`),
+  translation namespace, failure vocabulary, analytics extras, and delete
+  presence; they keep their exported `RoleBulkPatch` / `TaskBulkPatch` types.
+  Selection gating stays in `useTableShell`'s `enableRowSelection` (a boolean
+  permission for Roles, the per-row `canModifyTask` predicate for Tasks) and is
+  not duplicated in the lifecycle.
+
+  `useClearIntent` in `packages/shared-lib/src/hooks/use-clear-intent.ts`
+  replaces the explicit-clear sentinel both bulk-edit sheets copied: React Hook
+  Form unsets `dirtyFields` when a field returns to its default `""`, so the
+  hook records the Clear intent separately and folds it into the dirty checks.
+  Feature code keeps its translated Clear labels and the field it watches
+  (Roles: `description`; Tasks: `dueDate`).
+
+  Why these are custom hooks under `AGENTS.md`: no Refine core hook covers the
+  combination. `useCustomMutation` owns the request and notification but not
+  per-row failure summaries, analytics, selection clearing, or list
+  invalidation; `useInvalidate` is composed beside it. The many-methods are
+  unavailable against `simple-rest`. `useClearIntent` is local form state, not
+  data fetching, so no data hook applies. Tests live in
+  `apps/web/test/bulk-actions.test.tsx` (shared lifecycle) and
+  `apps/web/test/use-clear-intent.test.tsx` (shared sentinel); the pinned
+  feature behaviour remains in `apps/web/test/roles-bulk-actions.test.tsx` and
+  `apps/web/test/tasks-bulk-actions.test.tsx`.
