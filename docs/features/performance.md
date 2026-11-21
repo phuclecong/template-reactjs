@@ -2,7 +2,7 @@
 
 **Status**: accepted
 **Tracking**: spec [#34](https://github.com/phuclecong/template-reactjs/issues/34); work items [#29](https://github.com/phuclecong/template-reactjs/issues/29)–[#33](https://github.com/phuclecong/template-reactjs/issues/33)
-**Decision records**: `docs/adr/0010-performance-measured-on-production-builds.md`, `docs/adr/0011-pagination-over-virtualization.md`
+**Decision records**: `docs/adr/0010-performance-measured-on-production-builds.md`, `docs/adr/0011-pagination-over-virtualization.md`, `docs/adr/0020-tables-fit-viewport-and-virtualize.md`
 **Related**: `docs/features/requirement.md`, `task-table.md`, `error-boundaries.md`, `logging-and-monitoring.md`, ADR-0005 (client-side data fetching), ADR-0009 (shadcn vendoring)
 
 ## 1. Summary
@@ -79,7 +79,9 @@ Not supported by the code: unbounded lists (both tables are server-paginated at 
 - A RUM vendor. Field LCP/CLS/INP are logged locally through the observability sink (`logging-and-monitoring.md`, ADR-0013); no third party receives them, and the lab harness remains the measurement contract.
 - The report's SEO (`meta-description`, `robots-txt`), favicon 404, and accessibility label mismatch — separate issues.
 - Image optimization: no images or web fonts exist. Convention instead: any future image must be responsive, dimensioned, and lazy below the fold.
-- Virtualization (ADR-0011).
+- Infinite scroll or window-level virtualization. The three list tables
+  virtualize only inside their fitted, server-paged body (ADR-0020); that is a
+  rendering change, not a change to the pagination contract.
 - Synthetic interaction microbenchmarks; TBT is the lab proxy for INP.
 - React Compiler or a blanket memoization sweep; apply memoization only where profiling shows real cost.
 
