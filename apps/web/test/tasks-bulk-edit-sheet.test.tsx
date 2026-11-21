@@ -21,7 +21,10 @@ afterEach(async () => {
   await i18n.changeLanguage("en")
 })
 
-function renderSheet(onApply: ReturnType<typeof vi.fn>, selectedCount = 2) {
+async function renderSheet(
+  onApply: ReturnType<typeof vi.fn>,
+  selectedCount = 2
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
@@ -39,6 +42,9 @@ function renderSheet(onApply: ReturnType<typeof vi.fn>, selectedCount = 2) {
       </I18nextProvider>
     </QueryClientProvider>
   )
+  // The sheet mounts one animation frame after `open` so its slide-in
+  // transition runs; wait for the content before querying.
+  await screen.findByRole("button", { name: "Apply changes" })
   return onApply
 }
 
@@ -47,8 +53,8 @@ function applyButton() {
 }
 
 describe("TasksBulkEditSheet", () => {
-  it("starts with every field unchanged and Apply disabled", () => {
-    renderSheet(vi.fn())
+  it("starts with every field unchanged and Apply disabled", async () => {
+    await renderSheet(vi.fn())
 
     expect(
       screen.getByRole("heading", { name: "Edit 2 tasks" })
@@ -58,7 +64,7 @@ describe("TasksBulkEditSheet", () => {
 
   it("applies a chosen status", async () => {
     const user = userEvent.setup()
-    const onApply = renderSheet(vi.fn())
+    const onApply = await renderSheet(vi.fn())
 
     await user.click(screen.getByRole("combobox", { name: "Status" }))
     await user.click(await screen.findByRole("option", { name: "done" }))
@@ -69,7 +75,7 @@ describe("TasksBulkEditSheet", () => {
 
   it("maps the None priority to null", async () => {
     const user = userEvent.setup()
-    const onApply = renderSheet(vi.fn())
+    const onApply = await renderSheet(vi.fn())
 
     await user.click(screen.getByRole("combobox", { name: "Priority" }))
     await user.click(await screen.findByRole("option", { name: "None" }))
@@ -80,7 +86,7 @@ describe("TasksBulkEditSheet", () => {
 
   it("maps Unassigned to a null assignee and a named user to an id", async () => {
     const user = userEvent.setup()
-    const onApply = renderSheet(vi.fn())
+    const onApply = await renderSheet(vi.fn())
 
     await user.click(screen.getByRole("combobox", { name: "Assignee" }))
     await user.click(await screen.findByRole("option", { name: "Unassigned" }))
@@ -91,7 +97,7 @@ describe("TasksBulkEditSheet", () => {
 
   it("sends a named assignee id", async () => {
     const user = userEvent.setup()
-    const onApply = renderSheet(vi.fn())
+    const onApply = await renderSheet(vi.fn())
 
     await user.click(screen.getByRole("combobox", { name: "Assignee" }))
     await user.click(await screen.findByRole("option", { name: "Ada Admin" }))
@@ -102,7 +108,7 @@ describe("TasksBulkEditSheet", () => {
 
   it("applies several dirty fields in one patch", async () => {
     const user = userEvent.setup()
-    const onApply = renderSheet(vi.fn())
+    const onApply = await renderSheet(vi.fn())
 
     await user.click(screen.getByRole("combobox", { name: "Status" }))
     await user.click(await screen.findByRole("option", { name: "done" }))
@@ -115,7 +121,7 @@ describe("TasksBulkEditSheet", () => {
 
   it("clears the due date through an explicit intent flag", async () => {
     const user = userEvent.setup()
-    const onApply = renderSheet(vi.fn())
+    const onApply = await renderSheet(vi.fn())
 
     await user.click(screen.getByRole("button", { name: "Clear due date" }))
 
