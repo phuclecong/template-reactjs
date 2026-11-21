@@ -1,10 +1,15 @@
 # `@workspace/shared-lib` — shared app infrastructure
 
 Reusable, framework-coupled modules that are not part of the design system.
-They are app-agnostic (they know nothing about Tasks, Users, or the dashboard)
-and must never import from `apps/web`. The one deliberate exception is
-`useEnums` in `hooks`: it mirrors the shared API contract's closed value sets
-and their app translation key prefixes, so features cannot redeclare either.
+They carry no domain knowledge (they know nothing about Tasks, Users, or the
+dashboard) and must never import from `apps/web`. That does **not** make the
+whole package framework-neutral: the table shell is coupled to React Router.
+`useTableShell` owns `useSearchParams`, `useNavigate`, and `useLocation` to
+seed and mirror the flat URL state (ADR-0016), so it only works inside a React
+Router app. The URL/filter utilities and the presentational components remain
+framework-agnostic. The one deliberate domain exception is `useEnums` in
+`hooks`: it mirrors the shared API contract's closed value sets and their app
+translation key prefixes, so features cannot redeclare either.
 
 ## Modules
 
@@ -16,8 +21,8 @@ and their app translation key prefixes, so features cannot redeclare either.
 
 ## The boundary rule
 
-`packages/shared-lib` must stay app-agnostic: it **must not import from
-`apps/web`**. This is enforced by `no-restricted-imports` in
+`packages/shared-lib` must stay free of domain knowledge: it **must not import
+from `apps/web`**. This is enforced by `no-restricted-imports` in
 `packages/shared-lib/eslint.config.js`. Domain-specific code (Tasks, Users)
 lives in `apps/web`; presentational primitives live in `packages/ui`.
 
