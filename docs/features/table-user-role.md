@@ -166,6 +166,8 @@ Example:
 - Bulk "Delete" is available to administrators and requires confirmation.
 - Both bulk actions report partial failures per row: a Role referenced by a User
   cannot be deleted, and a System Role cannot be set inactive.
+- Both actions run through the shared `useBulkActions` lifecycle, with delete
+  enabled only for Roles (ADR-0019).
 - Selection is cleared after an action or when filters, sort, or page change.
 - The header checkbox selects/deselects all rows on the current page.
 

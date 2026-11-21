@@ -81,6 +81,9 @@ updates and returns `forbidden` per row when it is violated.
   has an explicit unchanged state; priority "None", assignee "Unassigned", and
   a cleared due date send `null`. Applying sends one PATCH containing only the
   changed fields, to `/tasks/bulk`.
+- The write runs through the shared `useBulkActions` lifecycle (ADR-0019); the
+  feature hook supplies the endpoint, failure vocabulary, and the `fields`
+  analytics payload.
 - The sheet is lazy-loaded because it carries the date picker.
 - Failures report the affected task titles and reasons (`not_found`,
   `forbidden`).

@@ -56,6 +56,10 @@ _Avoid_: Severity, importance
 A single user action that applies a change to many records at once.
 _Avoid_: Batch update, mass edit
 
+**Bulk-action lifecycle**:
+The shared write path for a Bulk action: guard the selection, send one request, report per-row failures, emit the business event, clear the selection, and invalidate the list.
+_Avoid_: Batch pipeline, bulk flow
+
 **Locale**:
 A language and region pair (e.g. `en`, `vi`) used to translate the interface and format currency.
 _Avoid_: Language, region
