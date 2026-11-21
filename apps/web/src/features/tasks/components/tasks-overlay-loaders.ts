@@ -8,16 +8,16 @@
  */
 export const taskOverlayLoaders = {
   form: () =>
-    import("./task-dialogs").then((module) => ({
-      default: module.TaskFormDialog,
+    import("./task-form-drawer").then((module) => ({
+      default: module.TaskFormDrawer,
     })),
   delete: () =>
-    import("./task-dialogs").then((module) => ({
+    import("./task-delete-dialog").then((module) => ({
       default: module.DeleteTaskDialog,
     })),
   bulk: () =>
-    import("./task-bulk-actions-content").then((module) => ({
-      default: module.TaskBulkActionsContent,
+    import("./tasks-bulk-edit-sheet").then((module) => ({
+      default: module.TasksBulkEditSheet,
     })),
 }
 

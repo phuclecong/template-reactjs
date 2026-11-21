@@ -315,7 +315,7 @@ test.describe("administrator", () => {
     await expect(bulkBar(page)).toHaveCount(0)
   })
 
-  test("keyboard order runs filters, headers, row actions, pagination, bulk bar", async ({
+  test("keyboard order runs bulk bar, filters, headers, row actions, pagination", async ({
     page,
   }) => {
     await loginAsAdmin(page)
@@ -346,15 +346,17 @@ test.describe("administrator", () => {
       'nav[aria-label="Pagination"]',
     ])
 
-    // Selecting a row reveals the bulk bar after the table and pagination, so
-    // forward tabbing reaches it instead of jumping back above the table.
+    // Selecting a row reveals the bulk bar in the page header, beside Create,
+    // so the page's primary controls stay together above the filters.
     await rowCheckbox(page, "Member").focus()
     await page.keyboard.press("Space")
     await expect(bulkBar(page)).toBeVisible()
     await expectDocumentOrder(page, [
+      "h1",
+      '[role="region"][aria-label="Bulk actions"]',
+      '[role="group"][aria-label="Filters"]',
       "table",
       'nav[aria-label="Pagination"]',
-      '[role="region"][aria-label="Bulk actions"]',
     ])
 
     await bulkBar(page)

@@ -1,43 +1,61 @@
-import { memo, useCallback, useMemo } from "react"
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import { useTranslation } from "react-i18next"
-import type { ColumnDef } from "@tanstack/react-table"
+import type { CrudFilter } from "@refinedev/core"
+import { useTable } from "@refinedev/react-table"
+import type { ColumnDef, Row } from "@tanstack/react-table"
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
+import type { TaskRecord } from "@workspace/api/schemas"
+import {
+  EmptyList,
+  ErrorPanel,
+  TableGrid,
+  TablePagination,
+} from "@workspace/shared-lib/components"
+import { TableSkeleton } from "@workspace/shared-lib/components/table-skeleton"
+import { useDialog } from "@workspace/shared-lib/hooks"
 import { Button } from "@workspace/ui/components/button"
 import { Checkbox } from "@workspace/ui/components/checkbox"
 import { formatDateTime, resolveLocale } from "@workspace/ui/lib/date"
-import { DataTable } from "@workspace/shared-lib/components"
-import { useDialog, useTableState } from "@workspace/shared-lib/hooks"
+
 import { RetryableLazy } from "@/components/retryable-lazy"
-import { TaskBulkActions } from "@/features/tasks/components/task-bulk-actions"
-import { TaskFiltersBar } from "@/features/tasks/components/task-filters-bar"
+import { TasksBulkBar } from "@/features/tasks/components/tasks-bulk-bar"
+import { TasksFilterBar } from "@/features/tasks/components/tasks-filter-bar"
 import {
   prefetchTaskOverlay,
   taskOverlayLoaders,
-} from "@/features/tasks/components/task-overlay-loaders"
-import { useTaskBulkActions } from "@/features/tasks/hooks/use-task-bulk-actions"
-import { useTasks } from "@/features/tasks/hooks/use-tasks"
-import { toCrudFilters, type TaskRow } from "@/features/tasks/utils"
-import { TASK_COLUMN_WIDTHS } from "@/features/tasks/utils/column-widths"
+} from "@/features/tasks/components/tasks-overlay-loaders"
+import {
+  canModifyTask,
+  useTaskRows,
+} from "@/features/tasks/hooks/use-task-rows"
+import {
+  TASK_COLUMN_WIDTHS,
+  TASK_SKELETON_COLUMN_WIDTHS,
+} from "@/features/tasks/utils/column-widths"
+import {
+  buildTasksSearchParams,
+  parseTasksUrlState,
+} from "@/features/tasks/utils/url-state"
 import type { CurrentUser } from "@/features/users/utils"
 import { useIntentPrefetch } from "@/hooks/use-intent-prefetch"
-
-const FILTER_KEYS = [
-  "status",
-  "priority",
-  "assignee",
-  "dueFrom",
-  "dueTo",
-] as const
+import { describeError } from "@/utils/http-error"
 
 /**
- * Memoized actions cell. `task` (the row object) and
- * `onEdit`/`onDelete`/`onPrefetchEdit`/`onPrefetchDelete` (stable
- * `useCallback`s) are referentially stable across renders, so `React.memo`
- * skips re-rendering these buttons when the table re-renders for selection or
- * pagination changes. `useIntentPrefetch` keeps the spreadable handlers stable
- * for the same reason.
+ * Memoized actions cell. `task` (the row object) and the stable callbacks let
+ * `React.memo` skip re-rendering these buttons when the table re-renders for
+ * selection or pagination changes. `useIntentPrefetch` keeps the spreadable
+ * handlers stable for the same reason.
  */
 const TaskActionsCell = memo(function TaskActionsCell({
   task,
+  canModify,
   editLabel,
   deleteLabel,
   onEdit,
@@ -45,11 +63,12 @@ const TaskActionsCell = memo(function TaskActionsCell({
   onPrefetchEdit,
   onPrefetchDelete,
 }: {
-  task: TaskRow
+  task: TaskRecord
+  canModify: boolean
   editLabel: string
   deleteLabel: string
-  onEdit: (task: TaskRow) => void
-  onDelete: (task: TaskRow) => void
+  onEdit: (task: TaskRecord) => void
+  onDelete: (task: TaskRecord) => void
   onPrefetchEdit: () => void
   onPrefetchDelete: () => void
 }) {
@@ -62,7 +81,7 @@ const TaskActionsCell = memo(function TaskActionsCell({
         type="button"
         variant="ghost"
         size="xs"
-        disabled={!task.canModify}
+        disabled={!canModify}
         onClick={() => onEdit(task)}
         {...editIntentHandlers}
       >
@@ -72,7 +91,7 @@ const TaskActionsCell = memo(function TaskActionsCell({
         type="button"
         variant="ghost"
         size="xs"
-        disabled={!task.canModify}
+        disabled={!canModify}
         onClick={() => onDelete(task)}
         {...deleteIntentHandlers}
       >
@@ -82,69 +101,41 @@ const TaskActionsCell = memo(function TaskActionsCell({
   )
 })
 
+/**
+ * Reference Refine table (ADR-0015) for Tasks: `useTable` owns server
+ * pagination, sorting, and filtering, the flat URL adapter (ADR-0016) seeds
+ * and mirrors that state, and the form/delete overlays stay code-split.
+ */
 export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
   const { t, i18n } = useTranslation()
   const locale = resolveLocale(i18n.language)
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const { pathname, hash } = useLocation()
 
-  const {
-    q,
-    searchValue,
-    onSearchChange,
-    filterValues,
-    sorters,
-    sorting,
-    onSortingChange,
-    page,
-    pageSize,
-    rowSelection,
-    setRowSelection,
-    selectedIds,
-    hasSelection,
-    updateParams,
-  } = useTableState({
-    defaultSortField: "title",
-    filterKeys: FILTER_KEYS,
-  })
+  const { users, assigneeName } = useTaskRows()
+  const formDialog = useDialog<TaskRecord>()
+  const deleteDialog = useDialog<TaskRecord>()
 
-  const { status, priority, assignee, dueFrom, dueTo } = filterValues
+  // `version > 0` keeps the drawer mounted after its first open so Base UI can
+  // run the slide-out transition. `close()` clears `data`, so remember the
+  // last opened session's task (including a null create session) and render
+  // that while the drawer animates out instead of flickering to create mode.
+  const [sessionTask, setSessionTask] = useState<TaskRecord | null>(null)
+  if (formDialog.isOpen && formDialog.data !== sessionTask) {
+    setSessionTask(formDialog.data)
+  }
+  const formTask = formDialog.isOpen ? formDialog.data : sessionTask
 
-  const formDialog = useDialog<TaskRow>()
-  const deleteDialog = useDialog<TaskRow>()
-
-  const filters = useMemo(
-    () => toCrudFilters(q, filterValues),
-    [q, filterValues]
-  )
-
-  const { rows, users, total, isLoading } = useTasks({
-    currentUser,
-    page,
-    pageSize,
-    sorters,
-    filters,
-  })
-
-  const pageCount = Math.max(1, Math.ceil(total / pageSize))
-  const hasActiveFilters = Boolean(
-    q || status || priority || assignee || dueFrom || dueTo
-  )
-
-  const { applyBulk, isApplying } = useTaskBulkActions({
-    selectedIds,
-    onDone: () => {
-      setRowSelection({})
-    },
-  })
-
-  // Stable so `TaskActionsCell`'s memo is not invalidated by table renders.
   const prefetchFormOverlay = useCallback(() => {
     void prefetchTaskOverlay("form")
   }, [])
   const prefetchDeleteOverlay = useCallback(() => {
     void prefetchTaskOverlay("delete")
   }, [])
+  const formIntentHandlers = useIntentPrefetch(prefetchFormOverlay)
 
-  const columns = useMemo<ColumnDef<TaskRow>[]>(
+  const columns = useMemo<ColumnDef<TaskRecord>[]>(
     () => [
       {
         id: "select",
@@ -196,10 +187,11 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
             : "",
       },
       {
-        accessorKey: "assigneeName",
+        id: "assignee",
         header: t("tasks.columns.assignee"),
         size: TASK_COLUMN_WIDTHS.assignee,
         enableSorting: false,
+        cell: ({ row }) => assigneeName(row.original.assigneeId),
       },
       {
         accessorKey: "dueDate",
@@ -218,6 +210,7 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
         cell: ({ row }) => (
           <TaskActionsCell
             task={row.original}
+            canModify={canModifyTask(row.original, currentUser)}
             editLabel={t("tasks.edit")}
             deleteLabel={t("common.delete")}
             onEdit={formDialog.open}
@@ -229,76 +222,221 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
       },
     ],
     [
-      formDialog.open,
+      assigneeName,
+      currentUser,
       deleteDialog.open,
-      prefetchFormOverlay,
-      prefetchDeleteOverlay,
-      t,
+      formDialog.open,
       locale,
+      prefetchDeleteOverlay,
+      prefetchFormOverlay,
+      t,
     ]
   )
 
+  const enableRowSelection = useCallback(
+    (row: Row<TaskRecord>) => canModifyTask(row.original, currentUser),
+    [currentUser]
+  )
+
+  // The URL seeds `useTable` on mount; the effect below mirrors state back.
+  const urlState = useMemo(
+    () => parseTasksUrlState(searchParams),
+    [searchParams]
+  )
+
+  const { reactTable, refineCore } = useTable<TaskRecord>({
+    refineCoreProps: {
+      resource: "tasks",
+      syncWithLocation: false,
+      pagination: {
+        currentPage: urlState.currentPage,
+        pageSize: urlState.pageSize,
+        mode: "server",
+      },
+      sorters: { initial: urlState.sorters, mode: "server" },
+      filters: { initial: urlState.filters, mode: "server" },
+    },
+    columns,
+    getRowId: (row) => row.id,
+    enableSortingRemoval: false,
+    enableRowSelection,
+  })
+
+  const {
+    tableQuery,
+    pageCount,
+    result,
+    filters,
+    sorters,
+    currentPage: refineCurrentPage,
+    pageSize: refinePageSize,
+    setFilters,
+    setCurrentPage,
+  } = refineCore
+
+  // Table state is the source of truth while mounted. Mirror it into the URL
+  // with flat, encoded keys, skipping the write when the URL already matches.
+  useEffect(() => {
+    const next = buildTasksSearchParams(
+      {
+        filters,
+        sorters,
+        currentPage: refineCurrentPage,
+        pageSize: refinePageSize,
+      },
+      searchParams
+    )
+    const nextSearch = next.toString()
+    if (nextSearch === searchParams.toString()) return
+    navigate(
+      { pathname, hash, search: nextSearch ? `?${nextSearch}` : "" },
+      { replace: true }
+    )
+  }, [
+    filters,
+    sorters,
+    refineCurrentPage,
+    refinePageSize,
+    searchParams,
+    navigate,
+    pathname,
+    hash,
+  ])
+
+  const rows = reactTable.getRowModel().rows
+  const { pageIndex, pageSize } = reactTable.getState().pagination
+  const page = pageIndex + 1
+  const total = result.total ?? 0
+  const totalPages = Math.max(1, pageCount)
+
+  const rowSelection = reactTable.getState().rowSelection
+  const clearSelection = useCallback(() => {
+    reactTable.resetRowSelection()
+  }, [reactTable])
+
+  // State-driven reset: a reload from a shared URL or an action that changes
+  // rows outside the handlers below must not leave a selection behind.
+  const locationSignature = JSON.stringify({
+    filters,
+    sorters,
+    currentPage: refineCurrentPage,
+    pageSize: refinePageSize,
+  })
+  const lastLocationSignature = useRef(locationSignature)
+  useEffect(() => {
+    if (lastLocationSignature.current === locationSignature) return
+    lastLocationSignature.current = locationSignature
+    reactTable.resetRowSelection()
+  }, [locationSignature, reactTable])
+
+  const selectedTasks = rows
+    .filter((row) => rowSelection[row.id] === true)
+    .map((row) => row.original)
+
+  const goToPage = (nextPage: number) => {
+    clearSelection()
+    reactTable.setPageIndex(Math.max(0, nextPage - 1))
+  }
+
+  const changePageSize = (nextPageSize: number) => {
+    clearSelection()
+    reactTable.setPageSize(nextPageSize)
+    reactTable.setPageIndex(0)
+  }
+
+  // Any filter change replaces the state and returns to page 1; both
+  // pagination layers are updated because Refine does not reset the page for
+  // `setFilters` on its own. The debounce in the bar needs a stable identity.
+  const changeFilters = useCallback(
+    (nextFilters: CrudFilter[]) => {
+      reactTable.resetRowSelection()
+      setFilters(nextFilters, "replace")
+      setCurrentPage(1)
+      reactTable.setPageIndex(0)
+    },
+    [reactTable, setFilters, setCurrentPage]
+  )
+
+  const hasActiveFilters = filters.length > 0
+
   return (
     <div className="flex flex-col gap-4 p-6 text-sm">
-      <TaskFiltersBar
-        searchValue={searchValue}
-        onSearchChange={onSearchChange}
-        values={filterValues}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-semibold">{t("tasks.title")}</h1>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            onClick={() => formDialog.open()}
+            {...formIntentHandlers}
+          >
+            {t("tasks.new")}
+          </Button>
+          {selectedTasks.length > 0 ? (
+            <TasksBulkBar
+              selectedTasks={selectedTasks}
+              users={users}
+              onDone={clearSelection}
+            />
+          ) : null}
+        </div>
+      </div>
+
+      <TasksFilterBar
+        filters={filters}
         users={users}
-        onChange={(next) => updateParams({ ...next, page: "" })}
-        onClear={() =>
-          updateParams({
-            q: "",
-            status: "",
-            priority: "",
-            assignee: "",
-            dueFrom: "",
-            dueTo: "",
-            page: "",
-          })
-        }
+        onChange={changeFilters}
       />
 
-      <TaskBulkActions
-        hasSelection={hasSelection}
-        selectedCount={selectedIds.length}
-        users={users}
-        applyBulk={applyBulk}
-        isApplying={isApplying}
-        onCreate={formDialog.open}
-      />
+      {tableQuery.isLoading ? (
+        <TableSkeleton
+          columnWidths={TASK_SKELETON_COLUMN_WIDTHS}
+          rowCount={pageSize}
+          label={t("tasks.loading")}
+        />
+      ) : tableQuery.isError ? (
+        <ErrorPanel
+          title={t("tasks.error")}
+          description={describeError(tableQuery.error)}
+          retryLabel={t("tasks.retry")}
+          isRetrying={tableQuery.isFetching}
+          onRetry={() => {
+            void tableQuery.refetch()
+          }}
+        />
+      ) : rows.length === 0 ? (
+        <EmptyList
+          title={hasActiveFilters ? t("tasks.emptyNoMatch") : t("tasks.empty")}
+          action={
+            hasActiveFilters
+              ? undefined
+              : {
+                  label: t("tasks.new"),
+                  onClick: () => formDialog.open(),
+                }
+          }
+        />
+      ) : (
+        <>
+          <TableGrid table={reactTable} />
 
-      <DataTable
-        data={rows}
-        columns={columns}
-        getRowId={(row) => row.id}
-        sorting={sorting}
-        onSortingChange={onSortingChange}
-        rowSelection={rowSelection}
-        onRowSelectionChange={setRowSelection}
-        enableRowSelection={(row) => row.original.canModify}
-        isLoading={isLoading}
-        loadingLabel={t("tasks.loading")}
-        emptyLabel={
-          hasActiveFilters ? t("tasks.emptyNoMatch") : t("tasks.empty")
-        }
-        pagination={{
-          page,
-          pageSize,
-          pageCount,
-          onPageChange: (next) => updateParams({ page: String(next) }),
-          onPageSizeChange: (next) =>
-            updateParams({ pageSize: String(next), page: "" }),
-        }}
-      />
+          <TablePagination
+            page={page}
+            pageSize={pageSize}
+            pageCount={totalPages}
+            summary={t("tasks.total", { total })}
+            onPageChange={goToPage}
+            onPageSizeChange={changePageSize}
+          />
+        </>
+      )}
 
-      {formDialog.isOpen ? (
+      {formDialog.version > 0 ? (
         <RetryableLazy
           key={formDialog.version}
           loader={taskOverlayLoaders.form}
           props={{
             open: formDialog.isOpen,
-            task: formDialog.data,
+            task: formTask,
             users,
             onClose: formDialog.close,
           }}
@@ -306,6 +444,7 @@ export function TasksTable({ currentUser }: { currentUser: CurrentUser }) {
       ) : null}
       {deleteDialog.isOpen ? (
         <RetryableLazy
+          key={deleteDialog.version}
           loader={taskOverlayLoaders.delete}
           props={{
             open: deleteDialog.isOpen,

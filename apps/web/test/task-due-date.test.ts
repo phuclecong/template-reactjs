@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
-import { dueDateToFormValue, formValueToDueDate } from "@/features/tasks/utils"
+import {
+  dueDateToFormValue,
+  formValueToDueDate,
+} from "@/features/tasks/utils/task-schema"
 
 const originalTimeZone = process.env.TZ
 

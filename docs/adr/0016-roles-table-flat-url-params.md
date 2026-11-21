@@ -44,3 +44,11 @@ Tasks tables.
   table defaults on load; the first state change drops the legacy keys.
 - Writes use `replace`, matching the previous sync, so filter, sort, and page
   changes do not add history entries.
+
+## Amendments
+
+- ADR-0018 moves the parsing/serialization into
+  `packages/shared-lib/src/hooks/url-table-state.ts` and migrates Tasks onto the
+  same adapter. This ADR's Roles-specific keys and defaults are unchanged; the
+  feature-local `roles/utils/url-state.ts` now supplies only the descriptor
+  config.

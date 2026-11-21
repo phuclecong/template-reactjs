@@ -139,50 +139,47 @@ test("selects a row and applies a bulk status update", async ({ page }) => {
   await login(page, "admin@example.com", "adminpass")
   await openTasks(page)
 
-  // Bulk actions are disabled until a selection is made.
-  const bulkActions = page.getByRole("combobox", { name: "Bulk actions" })
-  await expect(bulkActions).toBeDisabled()
+  const bulkBar = page.getByRole("region", { name: "Bulk actions" })
+  await expect(bulkBar).toHaveCount(0)
 
   const row = page.getByRole("row").filter({ hasText: "Build the MSW mock" })
   await row.getByRole("checkbox").click()
-  await expect(page.getByText("1 selected")).toBeVisible()
+  await expect(bulkBar).toBeVisible()
+  await expect(bulkBar.getByText("1 selected", { exact: true })).toBeVisible()
 
-  await bulkActions.click()
-  await page.getByRole("option", { name: "done" }).click()
+  await bulkBar.getByRole("button", { name: "Edit", exact: true }).click()
+  const sheet = page.getByRole("dialog")
+  await expect(sheet).toBeVisible()
+  await expect(
+    sheet.getByRole("heading", { name: "Edit 1 tasks" })
+  ).toBeVisible()
 
-  // Every discrete action is confirmed before it is applied.
-  const confirmation = page.getByRole("alertdialog", {
-    name: 'Apply "done" to 1 tasks?',
-  })
-  await expect(confirmation).toBeVisible()
-  await confirmation.getByRole("button", { name: "Apply" }).click()
+  await sheet.getByLabel("Status", { exact: true }).click()
+  await page.getByRole("option", { name: "done", exact: true }).click()
+  await sheet.getByRole("button", { name: "Apply changes" }).click()
 
   await expect(page.getByText("Updated 1 tasks")).toBeVisible()
+  await expect(bulkBar).toHaveCount(0)
 })
 
-test("applies a Due datetime through the bulk action", async ({ page }) => {
+test("applies a Due datetime through the bulk edit sheet", async ({ page }) => {
   await login(page, "admin@example.com", "adminpass")
   await openTasks(page)
 
   const row = page.getByRole("row").filter({ hasText: "Build the MSW mock" })
   await row.getByRole("checkbox").click()
-  await expect(page.getByText("1 selected")).toBeVisible()
 
-  // The DatePicker lives inside the bulk-actions popup.
-  await page.getByRole("combobox", { name: "Bulk actions" }).click()
-  const trigger = page.getByLabel("Set due date")
-  await trigger.click()
-  // Picking a date keeps the picker open and drafts the value; Done routes it
-  // through the same confirmation as the other bulk actions.
+  const bulkBar = page.getByRole("region", { name: "Bulk actions" })
+  await bulkBar.getByRole("button", { name: "Edit", exact: true }).click()
+  const sheet = page.getByRole("dialog")
+  await expect(sheet).toBeVisible()
+
+  // The Due date row starts as "Leave unchanged"; picking a date makes it dirty.
+  await sheet.getByLabel("Due date").click()
   await page.getByRole("button", { name: /^Today,/ }).click()
   await page.getByLabel("Time", { exact: true }).fill("14:30")
   await page.getByRole("button", { name: "Done" }).click()
-
-  const confirmation = page.getByRole("alertdialog", {
-    name: 'Apply "Set due date" to 1 tasks?',
-  })
-  await expect(confirmation).toBeVisible()
-  await confirmation.getByRole("button", { name: "Apply" }).click()
+  await sheet.getByRole("button", { name: "Apply changes" }).click()
 
   await expect(page.getByText("Updated 1 tasks").first()).toBeVisible()
   await expect(row.getByText(/2:30 PM/)).toBeVisible()

@@ -5,55 +5,52 @@ import {
   useInvalidate,
   type HttpError,
 } from "@refinedev/core"
-import type { TaskPriority, TaskStatus } from "@/features/tasks/utils"
+import type { components } from "@workspace/api/contract"
 import { track } from "@/observability"
 import { apiUrl } from "@/utils/api-url"
 import { describeError } from "@/utils/http-error"
 
-type BulkPatch = {
-  status?: TaskStatus
-  priority?: TaskPriority | null
-  assigneeId?: string | null
-  dueDate?: string | null
-}
+type BulkUpdateRequest = components["schemas"]["TaskBulkUpdateRequest"]
+type BulkUpdateResponse = components["schemas"]["TaskBulkUpdateResponse"]
+type TaskBulkFailure = components["schemas"]["BulkFailure"]
 
-type BulkUpdateRequest = { ids: string[] } & BulkPatch
+/** The fields a bulk edit may change. Ids are added by the hook. */
+export type TaskBulkPatch = Omit<BulkUpdateRequest, "ids">
 
-type BulkUpdateResponse = {
-  updated: number
-  failed: { id: string; reason: string }[]
-}
+type SelectedTask = { id: string; title: string }
 
-type ApplyBulkOptions = {
+type ApplyOptions = {
   /** Runs once the mutation finishes, whether it succeeds or fails. */
   onSettled?: () => void
 }
 
-type BulkActionName = "status" | "priority" | "assignee" | "due_date"
-
 /**
- * The bulk action an event reports: the single field the patch changes.
- * An empty patch names no action, so it emits no event.
+ * Analytics names for the patch keys. The event reports which fields the sheet
+ * changed instead of the old one-action-per-event shape.
  */
-function bulkActionName(patch: BulkPatch): BulkActionName | undefined {
-  if ("status" in patch) return "status"
-  if ("priority" in patch) return "priority"
-  if ("assigneeId" in patch) return "assignee"
-  if ("dueDate" in patch) return "due_date"
-  return undefined
+const FIELD_NAMES = {
+  status: "status",
+  priority: "priority",
+  assigneeId: "assignee",
+  dueDate: "due_date",
+} as const
+
+function patchFields(patch: TaskBulkPatch): string[] {
+  return (Object.keys(patch) as Array<keyof typeof FIELD_NAMES>).map(
+    (key) => FIELD_NAMES[key]
+  )
 }
 
 /**
- * Write path for bulk task updates: apply a Status/Priority/Assignee patch to
- * the selected tasks via the tasks bulk endpoint, then invalidate the task
- * list. `onDone` runs after a successful update so the caller can clear the
- * selection; every confirmed action, including a Due-date set, completes here.
+ * Write path for the Tasks bulk-edit sheet: apply every dirty field in one
+ * PATCH to `/tasks/bulk`, report per-row failures by task title, then
+ * invalidate the list. `onDone` clears the selection after success.
  */
 export function useTaskBulkActions({
-  selectedIds,
+  selected,
   onDone,
 }: {
-  selectedIds: string[]
+  selected: SelectedTask[]
   onDone: () => void
 }) {
   const { t } = useTranslation()
@@ -64,10 +61,29 @@ export function useTaskBulkActions({
     BulkUpdateRequest
   >({})
 
-  const applyBulk = useCallback(
-    (patch: BulkPatch, options?: ApplyBulkOptions) => {
-      if (selectedIds.length === 0) return
-      const action = bulkActionName(patch)
+  const selectedIds = selected.map((task) => task.id)
+  const selectedCount = selected.length
+
+  const failuresDescription = useCallback(
+    (failed: TaskBulkFailure[]) => {
+      const titles = new Map(selected.map((task) => [task.id, task.title]))
+      return failed
+        .map((failure) =>
+          t("tasks.bulk.failureRow", {
+            title: titles.get(failure.id) ?? failure.id,
+            reason: t(`tasks.bulk.reasons.${failure.reason}`),
+          })
+        )
+        .join("; ")
+    },
+    [selected, t]
+  )
+
+  const bulkUpdate = useCallback(
+    (patch: TaskBulkPatch, options?: ApplyOptions) => {
+      if (selectedCount === 0) return
+      const fields = patchFields(patch)
+
       bulkMutation.mutate(
         {
           url: `${apiUrl}/tasks/bulk`,
@@ -75,38 +91,40 @@ export function useTaskBulkActions({
           values: { ids: selectedIds, ...patch },
           successNotification: (data) => {
             const result = data?.data
-            const failed = result?.failed?.length ?? 0
-            if (failed > 0) {
+            const failed = result?.failed ?? []
+            if (failed.length > 0) {
               return {
                 message: t("tasks.bulk.updatedWithFailures", {
                   updated: result?.updated ?? 0,
-                  failed,
+                  failed: failed.length,
                 }),
+                description: failuresDescription(failed),
                 type: "error" as const,
               }
             }
             return {
-              message: t("tasks.bulk.updated", { count: result?.updated ?? 0 }),
+              message: t("tasks.bulk.updated", {
+                count: result?.updated ?? 0,
+              }),
               type: "success" as const,
             }
           },
           errorNotification: (error) => ({
             message: t("tasks.bulk.failed"),
-            type: "error" as const,
             description: describeError(error),
+            type: "error" as const,
           }),
         },
         {
           onSuccess: (data) => {
             const result = data?.data
-            if (action !== undefined) {
-              track("task.bulk_action", {
-                action,
-                selected: selectedIds.length,
-                updated: result?.updated ?? 0,
-                failed: result?.failed?.length ?? 0,
-              })
-            }
+            track("task.bulk_action", {
+              action: "update",
+              fields,
+              selected: selectedCount,
+              updated: result?.updated ?? 0,
+              failed: result?.failed?.length ?? 0,
+            })
             onDone()
             void invalidate({ resource: "tasks", invalidates: ["list"] })
           },
@@ -114,8 +132,16 @@ export function useTaskBulkActions({
         }
       )
     },
-    [selectedIds, bulkMutation, invalidate, onDone, t]
+    [
+      selectedCount,
+      selectedIds,
+      bulkMutation,
+      t,
+      failuresDescription,
+      onDone,
+      invalidate,
+    ]
   )
 
-  return { applyBulk, isApplying: bulkMutation.mutation.isPending }
+  return { bulkUpdate, isApplying: bulkMutation.mutation.isPending }
 }

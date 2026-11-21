@@ -40,7 +40,7 @@ export function RolesBulkBar({
       <div
         role="region"
         aria-label={t("roles.bulk.actions")}
-        className="flex flex-wrap items-center gap-2 border border-border bg-muted/40 px-3 py-2"
+        className="flex animate-fade-in flex-wrap items-center gap-2 border border-border bg-muted/40 px-3 py-2"
       >
         <span className="font-medium">
           {t("roles.bulk.selected", { count: selectedRoles.length })}
@@ -81,9 +81,8 @@ export function RolesBulkBar({
         confirmLabel={t("roles.bulk.deleteConfirm")}
         cancelLabel={t("common.cancel")}
         loading={isApplying}
-        onConfirm={() =>
-          bulkDelete({ onSettled: () => setDeleteOpen(false) })
-        }
+        onConfirm={() => bulkDelete({ onSettled: () => setDeleteOpen(false) })}
+        tone="destructive"
       />
 
       <RolesBulkEditSheet

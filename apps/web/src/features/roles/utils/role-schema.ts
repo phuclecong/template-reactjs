@@ -63,6 +63,10 @@ export function createRoleBulkFormSchema(messages: RoleFormMessages) {
   })
 }
 
+export type RoleBulkFormValues = z.infer<
+  ReturnType<typeof createRoleBulkFormSchema>
+>
+
 /** A create or partial edit payload sent to the Roles data provider. */
 export type RoleWritePayload = {
   title?: string

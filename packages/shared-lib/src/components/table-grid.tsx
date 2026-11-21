@@ -13,11 +13,6 @@ import {
 export type TableGridProps<T> = {
   /** TanStack table instance, from `useReactTable` or Refine's `useTable`. */
   table: TanStackTable<T>
-  /**
-   * Called before a sortable header toggles. Use it to reset state keyed to the
-   * current row order, such as the Roles table's selection.
-   */
-  onSort?: () => void
 }
 
 /**
@@ -26,7 +21,7 @@ export type TableGridProps<T> = {
  * one set of header semantics (a real sort button per sortable column and
  * `aria-sort`) and one set of selected-row styles.
  */
-export function TableGrid<T>({ table, onSort }: TableGridProps<T>) {
+export function TableGrid<T>({ table }: TableGridProps<T>) {
   return (
     <div className="overflow-x-auto border border-border">
       <Table>
@@ -53,7 +48,7 @@ export function TableGrid<T>({ table, onSort }: TableGridProps<T>) {
                       <button
                         type="button"
                         onClick={(event) => {
-                          onSort?.()
+                          table.resetRowSelection()
                           header.column.getToggleSortingHandler()?.(event)
                         }}
                         className="inline-flex items-center gap-1 text-left"

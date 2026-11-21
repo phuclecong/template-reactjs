@@ -42,7 +42,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       >
         {children}
       </Refine>
-      <Toaster position="bottom-right" richColors />
+      <Toaster position="top-right" richColors />
     </QueryClientProvider>
   )
 }

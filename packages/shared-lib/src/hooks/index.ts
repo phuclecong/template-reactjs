@@ -1,4 +1,14 @@
 export { DEFAULT_PAGE_SIZE } from "./table-defaults"
+export { createTableUrlAdapter } from "./url-table-state"
+export type {
+  TableUrlAdapter,
+  TableUrlAdapterConfig,
+  TableUrlDateRangeFilter,
+  TableUrlEnumMultiFilter,
+  TableUrlFilterDescriptor,
+  TableUrlState,
+  TableUrlTextFilter,
+} from "./url-table-state"
 export { useTableState } from "./use-table-state"
 export type {
   TableStateOptions,
