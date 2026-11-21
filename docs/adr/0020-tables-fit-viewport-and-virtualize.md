@@ -42,7 +42,7 @@ rather than by editing the primitive.
   would mis-size at least one table. Rejected in favour of dynamic
   measurement with a 36px estimate.
 - **Infinite scroll with window virtualization**: contradicts the pagination
-  and URL contract, and `task-table.md` already removed infinite scroll.
+  and URL contract, and the Tasks table contract already removed infinite scroll.
   Rejected.
 - **Fitted, body-scrolling, paginated tables with a virtualized body**:
   chosen.
@@ -118,7 +118,7 @@ rendering concern inside the fitted body, not a paging strategy.
   which is where `TableGrid` imports it. Route byte budgets are re-measured;
   if `/tasks` exceeds its explicit ceiling, that is a documented target
   renegotiation with the before/after measurement, never a silent ratchet
-  relaxation (`docs/features/performance.md` §5).
+  relaxation (ADR-0010).
 - The virtualized DOM is smaller than the logical page. Tests assert logical
   counts through `data-row-count`/`aria-rowcount`, scroll the body to mount
   late rows, and unit tests add a narrow jsdom measurement shim (the

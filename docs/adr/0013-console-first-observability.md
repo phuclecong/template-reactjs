@@ -15,7 +15,7 @@ The app ships structured logging, field Web Vitals, and business events with no 
 ## Consequences
 
 - The default sink is the console in every environment. There is no buffer, batch, or flush; a future vendor implements `LogSink` and calls `setSink`.
-- Field LCP/CLS/INP now exist, so `performance.md` §4's "stays lab-only" non-goal is amended rather than silently contradicted. The lab harness remains the measurement contract.
+- Field LCP/CLS/INP now exist, so the earlier "stays lab-only" non-goal is amended rather than silently contradicted. The lab harness remains the measurement contract.
 - Caught render errors route through `onCaughtError → reportError`, superseding ADR-0012's "leave React's default" behaviour; the root boundary still has no `onError`, so an error is reported once.
 - Business events are product telemetry, distinct from Refine's audit log (a durable who-changed-what record). The audit provider stays a stub.
 - Entries stay anonymous, but they still carry task ids and enum values. Call sites must keep names, emails, titles, and free text out of `data`.

@@ -28,7 +28,7 @@ justifies extraction.
 - **`useTable` with a custom URL adapter instead of `syncWithLocation`**: would
   encode filter values correctly and keep clean keys, but loses a Refine
   feature and adds a two-way URL mapping. The built-in sync was preferred; its
-  encoding limitation is documented in `docs/features/table-user-role.md`.
+  encoding limitation is recorded in ADR-0016.
 
 ## Consequences
 
