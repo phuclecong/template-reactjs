@@ -274,8 +274,11 @@ function printSummary(summaries) {
   process.stdout.write("\n")
 }
 
-function printBudgets(comparisons) {
-  process.stdout.write("Byte budgets (transferSize, median of runs)\n\n")
+export function printBudgets(
+  comparisons,
+  title = "Byte budgets (transferSize, median of runs)"
+) {
+  process.stdout.write(`${title}\n\n`)
   process.stdout.write(
     `${"Route".padEnd(22)}${"Metric".padEnd(8)}${"Measured".padStart(12)}${"Ceiling".padStart(12)}   Result\n`
   )
