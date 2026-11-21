@@ -42,7 +42,7 @@ export function UsersFilterBar({
         className="h-7 w-56"
       />
       <Button type="button" variant="ghost" size="sm" onClick={onClear}>
-        {t("tasks.filters.clear")}
+        {t("common.clear")}
       </Button>
     </div>
   )
