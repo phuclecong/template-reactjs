@@ -19,3 +19,8 @@ export { useDialog } from "./use-dialog"
 export type { DialogState } from "./use-dialog"
 export { useEnums } from "./use-enums"
 export type { EnumOption, EnumOptionMap } from "./use-enums"
+export { useClearIntent } from "./use-clear-intent"
+export type {
+  ClearIntent,
+  ClearIntentOptions,
+} from "./use-clear-intent"
