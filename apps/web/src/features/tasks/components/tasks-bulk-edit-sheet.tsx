@@ -14,7 +14,7 @@ import {
   ComboboxFilter,
   type FilterOption,
 } from "@workspace/shared-lib/components"
-import { useEnums } from "@workspace/shared-lib/hooks"
+import { useClearIntent, useEnums } from "@workspace/shared-lib/hooks"
 import { Button } from "@workspace/ui/components/button"
 import { DatePicker } from "@workspace/ui/components/date-picker"
 import { Field, FieldError, FieldLabel } from "@workspace/ui/components/field"
@@ -93,12 +93,9 @@ export function TasksBulkEditSheet({
     warnWhenUnsavedChanges: false,
   })
 
-  // The empty string is both the initial value and the clear instruction, so
-  // RHF cannot flag Clear on its own (it unsets dirty when a value matches the
-  // default). This flag records that explicit intent.
-  const [dueDateCleared, setDueDateCleared] = useState(false)
-  const dueDateDirty = Boolean(dirtyFields.dueDate) || dueDateCleared
-  const hasChanges = isDirty || dueDateCleared
+  const { isFieldDirty, hasChanges, markCleared, resetCleared } =
+    useClearIntent<"dueDate">({ dirtyFields, isDirty })
+  const dueDateDirty = isFieldDirty("dueDate")
 
   const statusChoices = useMemo<FilterOption[]>(
     () => [
@@ -250,7 +247,7 @@ export function TasksBulkEditSheet({
                     size="xs"
                     onClick={() => {
                       setValue("dueDate", "", { shouldValidate: true })
-                      setDueDateCleared(true)
+                      markCleared("dueDate")
                     }}
                   >
                     {t("tasks.bulk.clearDueDate")}
@@ -262,7 +259,7 @@ export function TasksBulkEditSheet({
                   name={field.name}
                   value={field.value}
                   onChange={(value) => {
-                    setDueDateCleared(false)
+                    resetCleared("dueDate")
                     field.onChange(value)
                   }}
                   onBlur={field.onBlur}
