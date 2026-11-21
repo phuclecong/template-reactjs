@@ -1,10 +1,5 @@
-/** Seeded System Roles; their ids are immutable and deletion is forbidden. */
-export const SYSTEM_ROLE_IDS = ["rol_admin", "rol_member"] as const
-
-/** A System Role cannot be deleted or deactivated by the client. */
-export function isSystemRole(roleId: string): boolean {
-  return (SYSTEM_ROLE_IDS as readonly string[]).includes(roleId)
-}
+/** Adapter: the shared Role policy owns System Role knowledge. */
+export { SYSTEM_ROLE_IDS, isSystemRole } from "@workspace/api/policy"
 
 /**
  * Formats a server instant in the runtime's local timezone as
