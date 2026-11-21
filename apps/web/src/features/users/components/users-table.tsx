@@ -19,8 +19,7 @@ import type { ColumnDef } from "@tanstack/react-table"
 import { isAdministratorRole } from "@workspace/api/policy"
 import type { RoleRecord } from "@workspace/api/schemas"
 import { TableShellView } from "@workspace/shared-lib/components"
-import { useDialog } from "@workspace/shared-lib/hooks"
-import { useTableShell } from "@workspace/shared-lib/hooks/use-table-shell"
+import { useDialog, useTableShell } from "@workspace/shared-lib/hooks"
 import { Button } from "@workspace/ui/components/button"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import {
@@ -375,12 +374,14 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
               ? t("users.emptyNoMatch")
               : t("users.empty"),
           }}
-          page={page}
-          pageSize={pageSize}
-          pageCount={pageCount}
-          summary={t("users.total", { total })}
-          onPageChange={goToPage}
-          onPageSizeChange={changePageSize}
+          pagination={{
+            page,
+            pageSize,
+            pageCount,
+            summary: t("users.total", { total }),
+            onPageChange: goToPage,
+            onPageSizeChange: changePageSize,
+          }}
         />
 
         <ConfirmDialog

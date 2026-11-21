@@ -8,7 +8,7 @@ import {
   createSelectionColumn,
   TableShellView,
 } from "@workspace/shared-lib/components"
-import { useTableShell } from "@workspace/shared-lib/hooks/use-table-shell"
+import { useTableShell } from "@workspace/shared-lib/hooks"
 import { Button } from "@workspace/ui/components/button"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import { StatusBadge } from "@workspace/ui/components/status-badge"
@@ -308,12 +308,14 @@ export function RolesTable() {
               }
             : undefined,
         }}
-        page={page}
-        pageSize={pageSize}
-        pageCount={pageCount}
-        summary={t("roles.total", { total })}
-        onPageChange={goToPage}
-        onPageSizeChange={changePageSize}
+        pagination={{
+          page,
+          pageSize,
+          pageCount,
+          summary: t("roles.total", { total }),
+          onPageChange: goToPage,
+          onPageSizeChange: changePageSize,
+        }}
       />
 
       <RoleFormDrawer ref={drawerRef} />

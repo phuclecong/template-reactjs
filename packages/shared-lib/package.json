@@ -37,7 +37,6 @@
     "./components/table-skeleton": "./src/components/table-skeleton.tsx",
     "./hooks": "./src/hooks/index.ts",
     "./hooks/table-defaults": "./src/hooks/table-defaults.ts",
-    "./hooks/use-table-shell": "./src/hooks/use-table-shell.ts",
     "./utils": "./src/utils/index.ts"
   }
 }

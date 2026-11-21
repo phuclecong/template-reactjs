@@ -1,5 +1,5 @@
 import type { BaseRecord } from "@refinedev/core"
-import type { ColumnDef, Row } from "@tanstack/react-table"
+import type { ColumnDef } from "@tanstack/react-table"
 import { Checkbox } from "@workspace/ui/components/checkbox"
 
 export type SelectionColumnOptions<TData> = {
@@ -9,33 +9,19 @@ export type SelectionColumnOptions<TData> = {
   selectAllLabel: string
   /** Translated accessible label for a row's checkbox. */
   selectRowLabel: (row: TData) => string
-  /**
-   * Optional additional gate. TanStack's `enableRowSelection` predicate
-   * already reaches `row.getCanSelect()`; this lets a feature combine that
-   * with a non-table rule without building its own checkbox cells.
-   */
-  getCanSelect?: (row: TData) => boolean
-}
-
-function canSelectRow<TData>(
-  row: Row<TData>,
-  getCanSelect?: (row: TData) => boolean
-): boolean {
-  return row.getCanSelect() && (getCanSelect?.(row.original) ?? true)
 }
 
 /**
  * The page-scoped selection column shared by Roles and Tasks. It renders the
- * select-all header and per-row checkbox, disables rows the table or feature
- * says cannot be selected, and leaves labels to the caller so the shell stays
- * free of translation keys. Pair it with `useTableShell`'s `enableRowSelection`;
- * TanStack owns the selection state.
+ * select-all header and per-row checkbox, disables rows the table says cannot
+ * be selected, and leaves labels to the caller so the shell stays free of
+ * translation keys. Pair it with `useTableShell`'s `enableRowSelection`;
+ * TanStack owns the selection state and `row.getCanSelect()` owns the gate.
  */
 export function createSelectionColumn<TData extends BaseRecord>({
   width,
   selectAllLabel,
   selectRowLabel,
-  getCanSelect,
 }: SelectionColumnOptions<TData>): ColumnDef<TData> {
   return {
     id: "select",
@@ -44,7 +30,7 @@ export function createSelectionColumn<TData extends BaseRecord>({
     header: ({ table }) => {
       const selectable = table
         .getRowModel()
-        .rows.some((row) => canSelectRow(row, getCanSelect))
+        .rows.some((row) => row.getCanSelect())
       return (
         <Checkbox
           checked={table.getIsAllPageRowsSelected()}
@@ -63,7 +49,7 @@ export function createSelectionColumn<TData extends BaseRecord>({
     cell: ({ row }) => (
       <Checkbox
         checked={row.getIsSelected()}
-        disabled={!canSelectRow(row, getCanSelect)}
+        disabled={!row.getCanSelect()}
         onCheckedChange={(checked) => row.toggleSelected(!!checked)}
         aria-label={selectRowLabel(row.original)}
       />

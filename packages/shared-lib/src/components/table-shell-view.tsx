@@ -3,7 +3,7 @@ import type { Table as TanStackTable } from "@tanstack/react-table"
 import { EmptyList, type EmptyListProps } from "./empty-list"
 import { ErrorPanel } from "./error-panel"
 import { TableGrid } from "./table-grid"
-import { TablePagination } from "./table-pagination"
+import { TablePagination, type TablePaginationProps } from "./table-pagination"
 import { TableSkeleton } from "./table-skeleton"
 
 export type TableShellViewProps<T> = {
@@ -34,13 +34,11 @@ export type TableShellViewProps<T> = {
    * action. Switch to a no-match title/description when filters are active.
    */
   empty: EmptyListProps
-  page: number
-  pageSize: number
-  pageCount: number
-  /** Translated total summary, for example "60 roles". */
-  summary?: string
-  onPageChange: (page: number) => void
-  onPageSizeChange: (pageSize: number) => void
+  /**
+   * Pagination state and handlers, passed through to `TablePagination`. The
+   * summary is translated by the feature, for example "60 roles".
+   */
+  pagination: TablePaginationProps
 }
 
 /**
@@ -62,12 +60,7 @@ export function TableShellView<T>({
   errorDescription,
   retryLabel,
   empty,
-  page,
-  pageSize,
-  pageCount,
-  summary,
-  onPageChange,
-  onPageSizeChange,
+  pagination,
 }: TableShellViewProps<T>) {
   if (isLoading) {
     return (
@@ -98,14 +91,7 @@ export function TableShellView<T>({
   return (
     <>
       <TableGrid table={table} />
-      <TablePagination
-        page={page}
-        pageSize={pageSize}
-        pageCount={pageCount}
-        summary={summary}
-        onPageChange={onPageChange}
-        onPageSizeChange={onPageSizeChange}
-      />
+      <TablePagination {...pagination} />
     </>
   )
 }
