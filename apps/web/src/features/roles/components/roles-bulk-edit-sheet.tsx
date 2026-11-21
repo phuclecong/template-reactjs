@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
 import { useTranslation } from "react-i18next"
 import type { HttpError } from "@refinedev/core"
 import { useForm } from "@refinedev/react-hook-form"
@@ -21,7 +21,7 @@ import {
   ComboboxFilter,
   type FilterOption,
 } from "@workspace/shared-lib/components"
-import { useEnums } from "@workspace/shared-lib/hooks"
+import { useClearIntent, useEnums } from "@workspace/shared-lib/hooks"
 
 import type { RoleBulkPatch } from "@/features/roles/hooks/use-roles-bulk-actions"
 import {
@@ -75,13 +75,9 @@ export function RolesBulkEditSheet({
     warnWhenUnsavedChanges: false,
   })
 
-  // The empty string is both the initial value and the "clear" instruction, so
-  // RHF cannot flag Clear as a change on its own (it unsets dirty when a value
-  // matches the default). This flag records that explicit intent.
-  const [descriptionCleared, setDescriptionCleared] = useState(false)
-  const descriptionDirty =
-    Boolean(dirtyFields.description) || descriptionCleared
-  const hasChanges = isDirty || descriptionCleared
+  const { isFieldDirty, hasChanges, markCleared } =
+    useClearIntent<"description">({ dirtyFields, isDirty })
+  const descriptionDirty = isFieldDirty("description")
 
   // Empty string is the "unchanged" sentinel, so it doubles as the option that
   // lets the Administrator revert a touched status field.
@@ -132,7 +128,7 @@ export function RolesBulkEditSheet({
                     size="xs"
                     onClick={() => {
                       setValue("description", "", { shouldValidate: true })
-                      setDescriptionCleared(true)
+                      markCleared("description")
                     }}
                   >
                     {t("roles.bulk.clearDescription")}
