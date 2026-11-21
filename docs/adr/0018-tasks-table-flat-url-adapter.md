@@ -57,10 +57,10 @@ trio, including an inline retry Tasks did not have.
 
 - `createTableUrlAdapter` is shared and unit-tested; both Roles and Tasks keep
   their feature-local key configuration.
-- Users remains the only consumer of `useTableState` + `DataTable`; the
-  two-paradigm consequence of ADR-0015 now applies to Users alone.
+- Users remained the only consumer of `useTableState` + `DataTable` at this
+  point; the 2026-11-21 follow-through later removed both (see Amendments).
 - The Tasks bulk event is `{ action: "update", fields: [...], selected,
-  updated, failed }`, replacing the one-event-per-field payload.
+updated, failed }`, replacing the one-event-per-field payload.
 - Bulk-edit failures report per-task reasons (`not_found`, `forbidden`).
 - Tasks URLs still round-trip reserved characters because values are
   percent-encoded by `URLSearchParams`.
@@ -77,3 +77,7 @@ trio, including an inline retry Tasks did not have.
   rather than throwing, matching the URL adapter's deep-link behaviour and
   replacing Roles' regex-only check; the detailed signatures live in the
   follow-up issue.
+- The same follow-through (#78) migrates Users onto `useTable` and the shared
+  URL adapter. No table uses `useTableState` + `DataTable` any more, and both
+  modules are deleted; the Consequences bullet naming Users as their remaining
+  consumer is superseded.
