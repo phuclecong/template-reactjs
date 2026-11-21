@@ -1,19 +1,20 @@
 import type { AccessControlProvider } from "@refinedev/core"
+import { isAdministratorRole } from "@workspace/api/policy"
 import { ensureAuthUser } from "./auth-provider"
 
 /**
- * Refine accessControlProvider (ADR-0002): holding the `rol_admin` System Role
- * grants full access; every other Role is member-equivalent. A member may list
- * users but cannot change roles or delete users, and otherwise acts on their
- * own tasks. Finer-grained ownership (a member editing only their own task) is
- * enforced by the API, not re-implemented here — this provider gates whole
- * actions per resource.
+ * Refine accessControlProvider (ADR-0002): holding the Administrator System
+ * Role grants full access; every other Role is member-equivalent. A member may
+ * list users but cannot change roles or delete users, and otherwise acts on
+ * their own tasks. Finer-grained ownership (a member editing only their own
+ * task) is enforced by the API, not re-implemented here — this provider gates
+ * whole actions per resource.
  */
 export const accessControlProvider: AccessControlProvider = {
   can: async ({ resource, action }) => {
     const user = await ensureAuthUser()
     if (!user) return { can: false }
-    if (user.roleId === "rol_admin") return { can: true }
+    if (isAdministratorRole(user.roleId)) return { can: true }
     if (resource === "users" || resource === "roles") {
       return { can: action === "list" }
     }

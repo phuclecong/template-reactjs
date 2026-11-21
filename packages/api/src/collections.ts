@@ -1,6 +1,7 @@
 import { Collection } from "@msw/data"
 import { persist } from "@msw/data/extensions/persist"
 
+import { ADMIN_ROLE_ID, MEMBER_ROLE_ID } from "./policy"
 import {
   roleRecordSchema,
   taskRecordSchema,
@@ -75,7 +76,7 @@ export async function ensureSeedUsers(): Promise<void> {
       id: "usr_admin",
       name: "Ada Admin",
       email: "admin@example.com",
-      roleId: "rol_admin",
+      roleId: ADMIN_ROLE_ID,
       password: "adminpass",
       createdAt: nowIso(),
     })
@@ -85,7 +86,7 @@ export async function ensureSeedUsers(): Promise<void> {
       id: "usr_member",
       name: "Mia Member",
       email: "member@example.com",
-      roleId: "rol_member",
+      roleId: MEMBER_ROLE_ID,
       password: "memberpass",
       createdAt: nowIso(),
     })
@@ -100,7 +101,7 @@ export async function ensureSeedUsers(): Promise<void> {
 export function roleSeeds(): RoleRecord[] {
   const systemRoles: RoleRecord[] = [
     {
-      id: "rol_admin",
+      id: ADMIN_ROLE_ID,
       title: "Administrator",
       description: "Full access to every resource.",
       status: "active",
@@ -108,7 +109,7 @@ export function roleSeeds(): RoleRecord[] {
       updatedAt: "2026-06-01T00:00:00.000Z",
     },
     {
-      id: "rol_member",
+      id: MEMBER_ROLE_ID,
       title: "Member",
       description: "Read-only access to the dashboard.",
       status: "active",

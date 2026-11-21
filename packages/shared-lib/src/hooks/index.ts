@@ -3,18 +3,16 @@ export { createTableUrlAdapter } from "./url-table-state"
 export type {
   TableUrlAdapter,
   TableUrlAdapterConfig,
+  TableUrlState,
+} from "./url-table-state"
+// Descriptor types live in the utils layer; re-exporting them here keeps the
+// hooks barrel's public surface unchanged.
+export type {
   TableUrlDateRangeFilter,
   TableUrlEnumMultiFilter,
   TableUrlFilterDescriptor,
-  TableUrlState,
   TableUrlTextFilter,
-} from "./url-table-state"
-export { useTableState } from "./use-table-state"
-export type {
-  TableStateOptions,
-  TableState,
-  TableRowSelection,
-} from "./use-table-state"
+} from "../utils/table-url-descriptors"
 export { useDialog } from "./use-dialog"
 export type { DialogState } from "./use-dialog"
 export { useEnums } from "./use-enums"

@@ -1,17 +1,34 @@
-import { useCallback, useMemo } from "react"
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import { useTranslation } from "react-i18next"
 import {
   useCustomMutation,
   useDelete,
   useInvalidate,
-  useList,
   useSelect,
+  type CrudFilter,
   type HttpError,
 } from "@refinedev/core"
+import { useTable } from "@refinedev/react-table"
 import type { ColumnDef } from "@tanstack/react-table"
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
+import { isAdministratorRole } from "@workspace/api/policy"
 import type { RoleRecord } from "@workspace/api/schemas"
-import { DataTable } from "@workspace/shared-lib/components"
-import { useDialog, useTableState } from "@workspace/shared-lib/hooks"
+import {
+  EmptyList,
+  ErrorPanel,
+  TableGrid,
+  TablePagination,
+} from "@workspace/shared-lib/components"
+import { TableSkeleton } from "@workspace/shared-lib/components/table-skeleton"
+import { useDialog } from "@workspace/shared-lib/hooks"
 import { Button } from "@workspace/ui/components/button"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import {
@@ -21,39 +38,105 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select"
+
 import { UsersFilterBar } from "@/features/users/components/users-filter-bar"
-import { toUserCrudFilters } from "@/features/users/utils"
-import { USER_COLUMN_WIDTHS } from "@/features/users/utils/column-widths"
+import {
+  USER_COLUMN_WIDTHS,
+  USER_SKELETON_COLUMN_WIDTHS,
+} from "@/features/users/utils/column-widths"
 import type { CurrentUser, UserRow } from "@/features/users/utils"
+import {
+  buildUsersSearchParams,
+  parseUsersUrlState,
+  userFiltersFromCrud,
+  userFiltersToCrud,
+} from "@/features/users/utils/url-state"
 import { apiUrl } from "@/utils/api-url"
 import { describeError } from "@/utils/http-error"
 
-const FILTER_KEYS = ["roleId"] as const
+/** The search box commits after the user pauses for this long. */
+const SEARCH_DEBOUNCE_MS = 300
 
 /** Fetch every Role so the assignment control can offer the whole catalogue. */
 const ROLE_PAGE_SIZE = 100
 
+/**
+ * The fetched Role catalogue the assignment cell reads. It is supplied through
+ * context rather than captured by the `columns` memo: rebuilding the columns
+ * when Roles resolve would re-run Refine's filter effect and reset a page
+ * restored from the URL.
+ */
+type RoleCatalogue = {
+  records: readonly RoleRecord[]
+  byId: ReadonlyMap<string, RoleRecord>
+}
+
+const EMPTY_ROLE_CATALOGUE: RoleCatalogue = { records: [], byId: new Map() }
+
+const RoleCatalogueContext = createContext<RoleCatalogue>(EMPTY_ROLE_CATALOGUE)
+
+/**
+ * The Role assignment control. It reads the fetched catalogue from context, so
+ * the columns stay stable while the Roles list loads, and Members keep the
+ * read-only Role title.
+ */
+function RoleCell({
+  user,
+  isAdmin,
+  onChangeRole,
+}: {
+  user: UserRow
+  isAdmin: boolean
+  onChangeRole: (user: UserRow, roleId: string) => void
+}) {
+  const { t } = useTranslation()
+  const roleCatalogue = useContext(RoleCatalogueContext)
+
+  if (!isAdmin) return user.role.title
+
+  return (
+    <Select
+      value={user.roleId}
+      onValueChange={(value) => {
+        if (typeof value === "string") onChangeRole(user, value)
+      }}
+    >
+      <SelectTrigger aria-label={t("users.roleLabel", { name: user.name })}>
+        <SelectValue>
+          {(value: string | null) =>
+            (value ? roleCatalogue.byId.get(value)?.title : null) ??
+            user.role.title
+          }
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {roleCatalogue.records.map((role) => (
+          <SelectItem
+            key={role.id}
+            value={role.id}
+            // Inactive Roles stay visible for the User who already holds one
+            // but are unavailable for a new assignment.
+            disabled={role.status === "inactive" && role.id !== user.roleId}
+          >
+            {role.title}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
+/**
+ * Reference Refine table (ADR-0015) for Users: `useTable` owns server
+ * pagination, sorting, and filtering, seeded and mirrored through the flat URL
+ * adapter (ADR-0016). The filter bar keeps its scalar props; the table
+ * translates them to and from Refine's `CrudFilter[]` internally.
+ */
 export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
   const { t } = useTranslation()
-
-  const {
-    q,
-    searchValue,
-    onSearchChange,
-    filterValues,
-    sorters,
-    sorting,
-    onSortingChange,
-    page,
-    pageSize,
-    rowSelection,
-    setRowSelection,
-    updateParams,
-  } = useTableState({ defaultSortField: "name", filterKeys: FILTER_KEYS })
-
-  const roleId = filterValues.roleId
-  const hasActiveFilters = Boolean(q || roleId)
-  const filters = useMemo(() => toUserCrudFilters(q, { roleId }), [q, roleId])
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const { pathname, hash } = useLocation()
 
   // Role options come from the Roles resource, not a hard-coded enum.
   const roleSelect = useSelect<RoleRecord>({
@@ -77,16 +160,10 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
     () => new Map(roleRecords.map((role) => [role.id, role])),
     [roleRecords]
   )
-
-  const usersQuery = useList<UserRow>({
-    resource: "users",
-    pagination: { currentPage: page, pageSize },
-    sorters,
-    filters,
-  })
-  const users = usersQuery.result.data ?? []
-  const total = usersQuery.result.total ?? 0
-  const pageCount = Math.max(1, Math.ceil(total / pageSize))
+  const roleCatalogue = useMemo<RoleCatalogue>(
+    () => ({ records: roleRecords, byId: roleById }),
+    [roleRecords, roleById]
+  )
 
   const invalidate = useInvalidate()
   const roleMutation = useCustomMutation<
@@ -94,6 +171,9 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
     HttpError,
     { roleId: string }
   >({})
+  // Bind the stable mutation function so `changeRole` (and therefore the
+  // `columns` memo) keeps its identity across renders.
+  const mutateRole = roleMutation.mutate
   const deleteMutation = useDelete<UserRow>({})
 
   const deleteDialog = useDialog<UserRow>()
@@ -101,12 +181,12 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
   // (a `useCallback`) rather than on the fresh `deleteDialog` object.
   const openDelete = deleteDialog.open
 
-  const isAdmin = currentUser.roleId === "rol_admin"
+  const isAdmin = isAdministratorRole(currentUser.roleId)
 
   const changeRole = useCallback(
     (user: UserRow, nextRoleId: string) => {
       if (nextRoleId === user.roleId) return
-      roleMutation.mutate(
+      mutateRole(
         {
           url: `${apiUrl}/users/${user.id}/role`,
           method: "patch",
@@ -128,7 +208,7 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
         }
       )
     },
-    [roleMutation, invalidate, t]
+    [mutateRole, invalidate, t]
   )
 
   const confirmDelete = useCallback(() => {
@@ -164,44 +244,13 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
         accessorKey: "roleId",
         header: t("users.columns.role"),
         size: USER_COLUMN_WIDTHS.role,
-        cell: ({ row }) => {
-          const user = row.original
-          if (!isAdmin) return user.role.title
-          return (
-            <Select
-              value={user.roleId}
-              onValueChange={(value) => {
-                if (typeof value === "string") changeRole(user, value)
-              }}
-            >
-              <SelectTrigger
-                aria-label={t("users.roleLabel", { name: user.name })}
-              >
-                <SelectValue>
-                  {(value: string | null) =>
-                    (value ? roleById.get(value)?.title : null) ??
-                    user.role.title
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {roleRecords.map((role) => (
-                  <SelectItem
-                    key={role.id}
-                    value={role.id}
-                    // Inactive Roles stay visible for the User who already
-                    // holds one but are unavailable for a new assignment.
-                    disabled={
-                      role.status === "inactive" && role.id !== user.roleId
-                    }
-                  >
-                    {role.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )
-        },
+        cell: ({ row }) => (
+          <RoleCell
+            user={row.original}
+            isAdmin={isAdmin}
+            onChangeRole={changeRole}
+          />
+        ),
       },
     ]
 
@@ -225,60 +274,224 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
     }
 
     return cols
-  }, [t, isAdmin, changeRole, openDelete, roleRecords, roleById])
+  }, [t, isAdmin, changeRole, openDelete])
+
+  // The URL seeds `useTable` on mount. It is re-parsed whenever the query
+  // string changes so Refine's "empty search" reset sees the current defaults;
+  // after that, table state is the source of truth and the effect below mirrors
+  // it back into the URL.
+  const urlState = useMemo(
+    () => parseUsersUrlState(searchParams),
+    [searchParams]
+  )
+
+  const { reactTable, refineCore } = useTable<UserRow>({
+    refineCoreProps: {
+      resource: "users",
+      // Refine's sync serializes `filters[0][value]` without encoding values.
+      // The table owns its URL format instead (see `url-state.ts`).
+      syncWithLocation: false,
+      pagination: {
+        currentPage: urlState.currentPage,
+        pageSize: urlState.pageSize,
+        mode: "server",
+      },
+      sorters: { initial: urlState.sorters, mode: "server" },
+      filters: { initial: urlState.filters, mode: "server" },
+    },
+    columns,
+    getRowId: (row) => row.id,
+    enableSortingRemoval: false,
+  })
+
+  const {
+    tableQuery,
+    pageCount,
+    result,
+    filters,
+    sorters,
+    currentPage: refineCurrentPage,
+    pageSize: refinePageSize,
+    setFilters,
+    setCurrentPage,
+  } = refineCore
+
+  // Table state is the source of truth while mounted. Mirror it into the URL
+  // with flat, encoded keys, skipping the write when the URL already matches.
+  useEffect(() => {
+    const next = buildUsersSearchParams(
+      {
+        filters,
+        sorters,
+        currentPage: refineCurrentPage,
+        pageSize: refinePageSize,
+      },
+      searchParams
+    )
+    const nextSearch = next.toString()
+    if (nextSearch === searchParams.toString()) return
+    navigate(
+      { pathname, hash, search: nextSearch ? `?${nextSearch}` : "" },
+      { replace: true }
+    )
+  }, [
+    filters,
+    sorters,
+    refineCurrentPage,
+    refinePageSize,
+    searchParams,
+    navigate,
+    pathname,
+    hash,
+  ])
+
+  const rows = reactTable.getRowModel().rows
+  const { pageIndex, pageSize } = reactTable.getState().pagination
+  const page = pageIndex + 1
+  const total = result.total ?? 0
+  const totalPages = Math.max(1, pageCount)
+
+  const filterValues = useMemo(() => userFiltersFromCrud(filters), [filters])
+  const hasActiveFilters = Boolean(filterValues.q || filterValues.roleId)
+
+  // The search box is locally controlled for typing feel. An external change
+  // (Clear, browser back/forward) is applied during render from the previous
+  // committed value, so the input tracks the URL without an extra effect.
+  const [searchValue, setSearchValue] = useState(filterValues.q)
+  const [lastCommittedQuery, setLastCommittedQuery] = useState(filterValues.q)
+  if (filterValues.q !== lastCommittedQuery) {
+    setLastCommittedQuery(filterValues.q)
+    setSearchValue(filterValues.q)
+  }
+
+  // Any filter change replaces the state and returns to page 1; both
+  // pagination layers are updated because Refine does not reset the page for
+  // `setFilters` on its own.
+  const changeFilters = useCallback(
+    (nextFilters: CrudFilter[]) => {
+      setFilters(nextFilters, "replace")
+      setCurrentPage(1)
+      reactTable.setPageIndex(0)
+    },
+    [reactTable, setFilters, setCurrentPage]
+  )
+
+  // The search commits from inside the change handler, not an effect: the
+  // timer is state the handler owns, and it is cleared on unmount and whenever
+  // the committed query changes from outside the input (Clear, back/forward).
+  const searchTimerRef = useRef<number | null>(null)
+  const cancelPendingSearch = useCallback(() => {
+    if (searchTimerRef.current === null) return
+    window.clearTimeout(searchTimerRef.current)
+    searchTimerRef.current = null
+  }, [])
+  useEffect(() => cancelPendingSearch, [cancelPendingSearch])
+  useEffect(() => {
+    cancelPendingSearch()
+  }, [filterValues.q, cancelPendingSearch])
+
+  const changeSearch = useCallback(
+    (value: string) => {
+      setSearchValue(value)
+      cancelPendingSearch()
+      if (value === filterValues.q) return
+      searchTimerRef.current = window.setTimeout(() => {
+        searchTimerRef.current = null
+        changeFilters(
+          userFiltersToCrud({ q: value, roleId: filterValues.roleId })
+        )
+      }, SEARCH_DEBOUNCE_MS)
+    },
+    [cancelPendingSearch, changeFilters, filterValues.q, filterValues.roleId]
+  )
+
+  // Selecting a Role commits any pending search text too, so a keystroke whose
+  // debounce has not fired is never dropped.
+  const changeRoleFilter = useCallback(
+    (roleId: string) => {
+      cancelPendingSearch()
+      changeFilters(userFiltersToCrud({ q: searchValue, roleId }))
+    },
+    [cancelPendingSearch, changeFilters, searchValue]
+  )
+
+  const clearFilters = useCallback(() => {
+    cancelPendingSearch()
+    setSearchValue("")
+    changeFilters([])
+  }, [cancelPendingSearch, changeFilters])
+
+  const goToPage = (nextPage: number) => {
+    reactTable.setPageIndex(Math.max(0, nextPage - 1))
+  }
+
+  const changePageSize = (nextPageSize: number) => {
+    reactTable.setPageSize(nextPageSize)
+    reactTable.setPageIndex(0)
+  }
 
   return (
-    <div className="flex flex-col gap-4 p-6 text-sm">
-      <UsersFilterBar
-        searchValue={searchValue}
-        onSearchChange={onSearchChange}
-        roleId={roleId}
-        roleOptions={roleOptions}
-        onRoleChange={(value) => updateParams({ roleId: value, page: "" })}
-        onClear={() =>
-          updateParams({
-            q: "",
-            roleId: "",
-          })
-        }
-      />
+    <RoleCatalogueContext.Provider value={roleCatalogue}>
+      <div className="flex flex-col gap-4 p-6 text-sm">
+        <UsersFilterBar
+          searchValue={searchValue}
+          onSearchChange={changeSearch}
+          roleId={filterValues.roleId}
+          roleOptions={roleOptions}
+          onRoleChange={changeRoleFilter}
+          onClear={clearFilters}
+        />
 
-      <DataTable
-        data={users}
-        columns={columns}
-        getRowId={(row) => row.id}
-        sorting={sorting}
-        onSortingChange={onSortingChange}
-        rowSelection={rowSelection}
-        onRowSelectionChange={setRowSelection}
-        enableRowSelection={() => false}
-        isLoading={usersQuery.query.isLoading}
-        loadingLabel={t("users.loading")}
-        emptyLabel={
-          hasActiveFilters ? t("users.emptyNoMatch") : t("users.empty")
-        }
-        pagination={{
-          page,
-          pageSize,
-          pageCount,
-          onPageChange: (next) => updateParams({ page: String(next) }),
-          onPageSizeChange: (next) =>
-            updateParams({ pageSize: String(next), page: "" }),
-        }}
-      />
+        {tableQuery.isLoading ? (
+          <TableSkeleton
+            columnWidths={USER_SKELETON_COLUMN_WIDTHS}
+            rowCount={pageSize}
+            label={t("users.loading")}
+          />
+        ) : tableQuery.isError ? (
+          <ErrorPanel
+            title={t("users.error")}
+            description={describeError(tableQuery.error)}
+            retryLabel={t("users.retry")}
+            isRetrying={tableQuery.isFetching}
+            onRetry={() => {
+              void tableQuery.refetch()
+            }}
+          />
+        ) : rows.length === 0 ? (
+          <EmptyList
+            title={
+              hasActiveFilters ? t("users.emptyNoMatch") : t("users.empty")
+            }
+          />
+        ) : (
+          <>
+            <TableGrid table={reactTable} />
 
-      <ConfirmDialog
-        open={deleteDialog.isOpen}
-        onClose={deleteDialog.close}
-        title={t("users.deleteTitle")}
-        description={t("users.deleteBody", {
-          name: deleteDialog.data?.name ?? "",
-        })}
-        confirmLabel={t("common.delete")}
-        cancelLabel={t("common.cancel")}
-        loading={deleteMutation.mutation.isPending}
-        onConfirm={confirmDelete}
-      />
-    </div>
+            <TablePagination
+              page={page}
+              pageSize={pageSize}
+              pageCount={totalPages}
+              summary={t("users.total", { total })}
+              onPageChange={goToPage}
+              onPageSizeChange={changePageSize}
+            />
+          </>
+        )}
+
+        <ConfirmDialog
+          open={deleteDialog.isOpen}
+          onClose={deleteDialog.close}
+          title={t("users.deleteTitle")}
+          description={t("users.deleteBody", {
+            name: deleteDialog.data?.name ?? "",
+          })}
+          confirmLabel={t("common.delete")}
+          cancelLabel={t("common.cancel")}
+          loading={deleteMutation.mutation.isPending}
+          onConfirm={confirmDelete}
+        />
+      </div>
+    </RoleCatalogueContext.Provider>
   )
 }

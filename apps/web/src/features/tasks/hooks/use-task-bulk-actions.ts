@@ -41,6 +41,17 @@ function patchFields(patch: TaskBulkPatch): string[] {
   )
 }
 
+/** The API types `BulkFailure.reason` as a string; only these are emitted. */
+const TASK_BULK_FAILURE_REASONS = ["not_found", "forbidden"] as const
+
+type TaskBulkFailureReason = (typeof TASK_BULK_FAILURE_REASONS)[number]
+
+function isTaskBulkFailureReason(
+  reason: string
+): reason is TaskBulkFailureReason {
+  return TASK_BULK_FAILURE_REASONS.includes(reason as TaskBulkFailureReason)
+}
+
 /**
  * Write path for the Tasks bulk-edit sheet: apply every dirty field in one
  * PATCH to `/tasks/bulk`, report per-row failures by task title, then
@@ -71,7 +82,9 @@ export function useTaskBulkActions({
         .map((failure) =>
           t("tasks.bulk.failureRow", {
             title: titles.get(failure.id) ?? failure.id,
-            reason: t(`tasks.bulk.reasons.${failure.reason}`),
+            reason: isTaskBulkFailureReason(failure.reason)
+              ? t(`tasks.bulk.reasons.${failure.reason}`)
+              : failure.reason,
           })
         )
         .join("; ")

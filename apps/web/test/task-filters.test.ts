@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   clearTaskFilter,
   EMPTY_TASK_FILTERS,
+  taskFilterChips,
   taskFiltersFromCrud,
   taskFiltersToCrud,
 } from "@/features/tasks/utils/filters"
@@ -187,10 +188,41 @@ describe("clearTaskFilter", () => {
 
   it("clears one logical filter and leaves the others", () => {
     expect(
-      clearTaskFilter(
-        { ...EMPTY_TASK_FILTERS, q: "fix", status: "done" },
-        "q"
-      )
+      clearTaskFilter({ ...EMPTY_TASK_FILTERS, q: "fix", status: "done" }, "q")
     ).toEqual({ ...EMPTY_TASK_FILTERS, status: "done" })
+  })
+})
+
+describe("taskFilterChips", () => {
+  const t = (key: string, options?: Record<string, unknown>) =>
+    String(options?.value ?? options?.date ?? key)
+  const statusOptions = [
+    { value: "todo", label: "To do" },
+    { value: "done", label: "Done" },
+  ]
+  const priorityOptions = [{ value: "high", label: "High" }]
+  const assigneeOptions = [
+    { value: "usr_admin", label: "Ada Admin" },
+    { value: "unassigned", label: "Unassigned" },
+  ]
+
+  it("derives chips in descriptor order using option labels", () => {
+    expect(
+      taskFilterChips(
+        {
+          ...EMPTY_TASK_FILTERS,
+          q: "release",
+          status: "todo,done",
+          assignee: "usr_admin,unassigned",
+          dueFrom: "2026-01-01",
+        },
+        { t, statusOptions, priorityOptions, assigneeOptions }
+      )
+    ).toEqual([
+      { key: "q", label: "release" },
+      { key: "status", label: "To do, Done" },
+      { key: "assignee", label: "Ada Admin, Unassigned" },
+      { key: "dueDate", label: "2026-01-01" },
+    ])
   })
 })

@@ -59,6 +59,9 @@ importers:
       '@workspace/api':
         specifier: workspace:*
         version: link:../../packages/api
+      '@workspace/date-utils':
+        specifier: workspace:*
+        version: link:../../packages/date-utils
       '@workspace/shared-lib':
         specifier: workspace:*
         version: link:../../packages/shared-lib
@@ -289,6 +292,9 @@ importers:
       '@workspace/api':
         specifier: workspace:*
         version: link:../api
+      '@workspace/date-utils':
+        specifier: workspace:*
+        version: link:../date-utils
       '@workspace/ui':
         specifier: workspace:*
         version: link:../ui

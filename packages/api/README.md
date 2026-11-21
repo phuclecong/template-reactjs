@@ -21,6 +21,8 @@ packages/api/
 │   ├── handlers.ts            # Spec-derived + data-backed handlers (Node)
 │   ├── data-handlers.ts       # Stateful, hand-written MSW handlers (browser-safe)
 │   ├── collections.ts         # Zod schemas + @msw/data collections + seeding
+│   ├── policy.ts              # Browser-safe System Role ids and predicates
+│   ├── system-roles.json      # System Role ids shared with non-TS tooling
 │   ├── auth.ts                # Mock bearer token sign/verify
 │   └── generated/api.d.ts     # Generated client types (from openapi.yaml)
 ├── test/
@@ -75,11 +77,34 @@ const result = await loginUser("member@example.com", "memberpass")
 // { status: 200, body: { accessToken, refreshToken, user } }
 ```
 
+### Role policy
+
+`policy` is browser-safe and dependency-free, so the API guards and the client
+gate on the same System Role rules:
+
+```ts
+import {
+  ADMIN_ROLE_ID,
+  SYSTEM_ROLE_IDS,
+  isAdministratorRole,
+  isSystemRole,
+} from "@workspace/api/policy"
+
+isAdministratorRole(ADMIN_ROLE_ID) // true
+isSystemRole("rol_demo_01") // false
+```
+
+The role ids live in `src/system-roles.json` so non-TypeScript tooling (for
+example the Lighthouse login script) reads the same values.
+
 ### Shared types and schemas
 
 ```ts
 import type { Role } from "@workspace/api/collections"
-import { taskPrioritySchema, taskStatusSchema } from "@workspace/api/collections"
+import {
+  taskPrioritySchema,
+  taskStatusSchema,
+} from "@workspace/api/collections"
 import type { AuthResponseBody, PublicUser } from "@workspace/api/service"
 ```
 

@@ -18,6 +18,7 @@ import {
   normalizeDueDateInstant,
   normalizeStoredDueDate,
 } from "./dates"
+import { isAdministratorRole, isSystemRole } from "./policy"
 import {
   getUserByAccessToken,
   loginUser,
@@ -534,11 +535,10 @@ function getRole(request: Request, id: string | undefined): Response {
 
 const ROLE_TITLE_MAX = 100
 const ROLE_DESCRIPTION_MAX = 500
-const systemRoleIds = new Set(["rol_admin", "rol_member"])
 
-/** Administrator access is holding the `rol_admin` System Role. */
+/** Administrator access is holding the Administrator System Role. */
 function isAdministrator(user: UserEntity): boolean {
-  return user.roleId === "rol_admin"
+  return isAdministratorRole(user.roleId)
 }
 
 function userHoldsRole(user: UserEntity, roleId: string): boolean {
@@ -547,10 +547,6 @@ function userHoldsRole(user: UserEntity, roleId: string): boolean {
 
 function isRoleReferenced(roleId: string): boolean {
   return users.all().some((user) => userHoldsRole(user, roleId))
-}
-
-function isSystemRole(roleId: string): boolean {
-  return systemRoleIds.has(roleId)
 }
 
 /** Finds a Role whose trimmed title matches case-insensitively. */

@@ -10,10 +10,10 @@ import {
   type FilterOption,
 } from "@workspace/shared-lib/components"
 import { useEnums } from "@workspace/shared-lib/hooks"
-import { parseFilterValues } from "@workspace/shared-lib/utils"
 
 import {
   clearTaskFilter,
+  taskFilterChips,
   taskFiltersFromCrud,
   taskFiltersToCrud,
   type TaskFilterKey,
@@ -23,18 +23,6 @@ import type { UserOption } from "@/features/tasks/utils"
 
 /** The search term commits only after the user pauses for this long. */
 export const TEXT_FILTER_DEBOUNCE_MS = 300
-
-type Chip = { key: TaskFilterKey; label: string }
-
-function dateRangeText(
-  from: string,
-  to: string,
-  t: (key: string, options?: Record<string, unknown>) => string
-): string {
-  if (from && to) return t("tasks.filters.dateRange", { from, to })
-  if (from) return t("tasks.filters.dateFrom", { date: from })
-  return t("tasks.filters.dateUntil", { date: to })
-}
 
 /**
  * The Tasks filter bar and its active-filter chips. It is a controlled view of
@@ -114,64 +102,16 @@ export function TasksFilterBar({
     [users, t]
   )
 
-  const optionLabel = useCallback(
-    (options: readonly FilterOption[], value: string) =>
-      options.find((option) => option.value === value)?.label ?? value,
-    []
+  const chips = useMemo(
+    () =>
+      taskFilterChips(values, {
+        t,
+        statusOptions,
+        priorityOptions,
+        assigneeOptions,
+      }),
+    [values, statusOptions, priorityOptions, assigneeOptions, t]
   )
-
-  const chips = useMemo<Chip[]>(() => {
-    const next: Chip[] = []
-    if (values.q) {
-      next.push({
-        key: "q",
-        label: t("tasks.filters.chipSearch", { value: values.q }),
-      })
-    }
-    if (values.status) {
-      const labels = parseFilterValues(values.status).map((status) =>
-        optionLabel(statusOptions, status)
-      )
-      next.push({
-        key: "status",
-        label: t("tasks.filters.chipStatus", { value: labels.join(", ") }),
-      })
-    }
-    if (values.priority) {
-      const labels = parseFilterValues(values.priority).map((priority) =>
-        optionLabel(priorityOptions, priority)
-      )
-      next.push({
-        key: "priority",
-        label: t("tasks.filters.chipPriority", { value: labels.join(", ") }),
-      })
-    }
-    if (values.assignee) {
-      const labels = parseFilterValues(values.assignee).map((assignee) =>
-        optionLabel(assigneeOptions, assignee)
-      )
-      next.push({
-        key: "assignee",
-        label: t("tasks.filters.chipAssignee", { value: labels.join(", ") }),
-      })
-    }
-    if (values.dueFrom || values.dueTo) {
-      next.push({
-        key: "dueDate",
-        label: t("tasks.filters.chipDueDate", {
-          value: dateRangeText(values.dueFrom, values.dueTo, t),
-        }),
-      })
-    }
-    return next
-  }, [
-    values,
-    statusOptions,
-    priorityOptions,
-    assigneeOptions,
-    optionLabel,
-    t,
-  ])
 
   return (
     <div className="flex flex-col gap-2">

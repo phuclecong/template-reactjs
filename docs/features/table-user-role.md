@@ -36,10 +36,10 @@ code change.
 
 ## Users and permissions
 
-| Persona                   | Access                                                     |
-| ------------------------- | ---------------------------------------------------------- |
+| Persona                     | Access                                                   |
+| --------------------------- | -------------------------------------------------------- |
 | Administrator (`rol_admin`) | Full: view, create, edit, delete, bulk edit, bulk delete |
-| Member (read-only staff)  | View and filter only; action controls hidden               |
+| Member (read-only staff)    | View and filter only; action controls hidden             |
 
 Enforced in two places: `accessControlProvider`/`useCan` hide or deny UI
 actions, and the API returns 403 for write endpoints called by a non-admin.
@@ -48,14 +48,14 @@ actions, and the API returns 403 for write endpoints called by a non-admin.
 
 ### Role
 
-| Field         | Type          | Notes                                                                       |
-| ------------- | ------------- | --------------------------------------------------------------------------- |
-| `id`          | string        | Stable identifier; server-generated `rol_<uuid>`. Seeded: `rol_admin`, `rol_member`. |
-| `title`       | string        | Required, 1–100 characters after trimming, unique case-insensitively.        |
-| `description` | string \| null | Optional, at most 500 characters after trimming; empty input stored as `null`. |
-| `status`      | enum          | `active` \| `inactive`; defaults to `active`.                                |
-| `createdAt`   | ISO date      | Read-only, server set.                                                       |
-| `updatedAt`   | ISO date      | Read-only, server set on every write.                                        |
+| Field         | Type           | Notes                                                                                |
+| ------------- | -------------- | ------------------------------------------------------------------------------------ |
+| `id`          | string         | Stable identifier; server-generated `rol_<uuid>`. Seeded: `rol_admin`, `rol_member`. |
+| `title`       | string         | Required, 1–100 characters after trimming, unique case-insensitively.                |
+| `description` | string \| null | Optional, at most 500 characters after trimming; empty input stored as `null`.       |
+| `status`      | enum           | `active` \| `inactive`; defaults to `active`.                                        |
+| `createdAt`   | ISO date       | Read-only, server set.                                                               |
+| `updatedAt`   | ISO date       | Read-only, server set on every write.                                                |
 
 There is no separate key or slug. `id` is the stable reference auth uses.
 
@@ -170,15 +170,15 @@ Example:
 
 ## API contract
 
-| Method | Path                | Auth          | Purpose                                              |
-| ------ | ------------------- | ------------- | ---------------------------------------------------- |
-| GET    | `/roles`            | authenticated | List with pagination, sorting, and filters           |
-| GET    | `/roles/{id}`       | authenticated | Edit prefill                                         |
-| POST   | `/roles`            | admin         | Create                                               |
-| PATCH  | `/roles/{id}`       | admin         | Partial edit                                         |
-| DELETE | `/roles/{id}`       | admin         | Delete; 409 when referenced                          |
-| PATCH  | `/roles/bulk`        | admin        | `{ ids, description?, status? }` → `{ updated, failed }` |
-| POST   | `/roles/bulk-delete` | admin        | `{ ids }` → `{ deleted, failed }`                    |
+| Method | Path                 | Auth          | Purpose                                                  |
+| ------ | -------------------- | ------------- | -------------------------------------------------------- |
+| GET    | `/roles`             | authenticated | List with pagination, sorting, and filters               |
+| GET    | `/roles/{id}`        | authenticated | Edit prefill                                             |
+| POST   | `/roles`             | admin         | Create                                                   |
+| PATCH  | `/roles/{id}`        | admin         | Partial edit                                             |
+| DELETE | `/roles/{id}`        | admin         | Delete; 409 when referenced                              |
+| PATCH  | `/roles/bulk`        | admin         | `{ ids, description?, status? }` → `{ updated, failed }` |
+| POST   | `/roles/bulk-delete` | admin         | `{ ids }` → `{ deleted, failed }`                        |
 
 - List filters: `title`/`description` contains, `createdAt`/`updatedAt`
   `gte`/`lte`, `status` eq or repeated `status` params for `in`.
@@ -243,8 +243,7 @@ delete, and bulk actions. The API enforces the same rules.
 
 ### Seeds and observability
 
-Seed `rol_admin`, `rol_member`, and 58 demo Roles (60 total, two pages at size
-30) with varied statuses and timestamps. Demo Roles have no Users.
+Seed `rol_admin`, `rol_member`, and 58 demo Roles (60 total, two pages at size 30) with varied statuses and timestamps. Demo Roles have no Users.
 
 Emit business events from the existing observability module: `role.created`,
 `role.updated`, `role.deleted`, and `role.bulk_action`.
@@ -263,10 +262,10 @@ Emit business events from the existing observability module: `role.created`,
 
 ### Known consequences
 
-- Users and Tasks keep the existing `useList` + `useTableState` + `DataTable`
-  stack, so two table paradigms coexist. Roles now also uses the scalar
-  `sort`/`order`/`page`/`pageSize` URL convention, through its own feature-local
-  adapter (ADR-0016).
+- Users and Tasks also moved to `useTable` and the shared flat URL adapter
+  (ADR-0018), so one table paradigm remains: `useTableState` + `DataTable` were
+  removed. All tables use the scalar `sort`/`order`/`page`/`pageSize` URL
+  convention (ADR-0016), configured per feature.
 - The Roles list requires `GET /roles/{id}` for edit prefill.
 - Page size is 30 and the seed is 60 Roles, so pagination is exercised.
 
