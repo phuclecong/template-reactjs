@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   ci:
-    name: lint → typecheck → test → build → storybook
+    name: lint → typecheck → test → build → storybook → performance budgets
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -60,7 +60,7 @@ jobs:
       - name: Storybook interaction tests
         run: pnpm --filter @workspace/ui test-storybook:ci
 
-      - name: Performance
+      - name: Performance budgets
         run: pnpm perf
 
   e2e:
