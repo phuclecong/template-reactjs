@@ -123,8 +123,21 @@ async function expectFrameFitted(page: Page) {
 }
 
 async function scrollBody(page: Page, top: number) {
-  await page.locator(TABLE_SCROLL).evaluate((element, value) => {
-    ;(element as HTMLElement).scrollTop = value
+  // Dynamic row measurement can adjust the body's offset for a frame or two
+  // as new rows mount. Re-apply the requested offset until it holds for a few
+  // frames, so the test measures the settled position rather than a transient.
+  await page.locator(TABLE_SCROLL).evaluate(async (element, value) => {
+    const nextFrame = () =>
+      new Promise<number>((resolve) => requestAnimationFrame(resolve))
+    let stableFrames = 0
+    for (let frame = 0; frame < 30 && stableFrames < 3; frame += 1) {
+      ;(element as HTMLElement).scrollTop = value
+      await nextFrame()
+      stableFrames =
+        Math.abs((element as HTMLElement).scrollTop - value) < 1
+          ? stableFrames + 1
+          : 0
+    }
   }, top)
 }
 

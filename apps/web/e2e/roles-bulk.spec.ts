@@ -1,9 +1,4 @@
-import {
-  expect,
-  test,
-  type ConsoleMessage,
-  type Page,
-} from "@playwright/test"
+import { expect, test, type ConsoleMessage, type Page } from "@playwright/test"
 
 import {
   expectLogicalRowCount,
@@ -218,6 +213,7 @@ test("bulk edit reports per-row failures while successful rows update", async ({
 
   // A System Role cannot be set inactive; a demo Role can.
   await rowCheckbox(page, "Administrator").click()
+  await scrollRowIntoView(page, rowByText(page, "Demo Role 33"))
   await rowCheckbox(page, "Demo Role 33").click()
 
   await bulkBar(page).getByRole("button", { name: "Edit", exact: true }).click()
@@ -234,10 +230,15 @@ test("bulk edit reports per-row failures while successful rows update", async ({
   ).toBeVisible()
   await expect(bulkBar(page)).toHaveCount(0)
 
-  const adminRow = rowByText(page, "Administrator")
+  // The body stays where the edit left it (near the late demo Role), so assert
+  // that row first and then scroll back to the first row.
   const demoRow = await scrollRowIntoView(page, rowByText(page, "Demo Role 33"))
-  await expect(adminRow.getByText("Active", { exact: true })).toBeVisible()
   await expect(demoRow.getByText("Inactive", { exact: true })).toBeVisible()
+  const adminRow = await scrollRowIntoView(
+    page,
+    rowByText(page, "Administrator")
+  )
+  await expect(adminRow.getByText("Active", { exact: true })).toBeVisible()
 })
 
 test("bulk delete reports per-row failures while successful rows are removed", async ({
@@ -264,8 +265,11 @@ test("bulk delete reports per-row failures while successful rows are removed", a
   // logical-count proof that the row is genuinely gone.
   await expect(page.getByText("59 roles", { exact: true })).toBeVisible()
   await expectLogicalRowCount(page, 30)
-  await expect(rowByText(page, "Demo Role 33")).toHaveCount(0)
+  // The delete leaves the body where the action ran; scroll back to the top
+  // before asserting the surviving first row.
+  await scrollRowIntoView(page, rowByText(page, "Administrator"))
   await expect(rowByText(page, "Administrator")).toHaveCount(1)
+  await expect(rowByText(page, "Demo Role 33")).toHaveCount(0)
 })
 
 test("selection clears whenever filters, sort, or page size change", async ({
@@ -277,13 +281,11 @@ test("selection clears whenever filters, sort, or page size change", async ({
   await scrollRowIntoView(page, rowByText(page, "Demo Role 31"))
   await rowCheckbox(page, "Demo Role 31").click()
   await expect(bulkBar(page)).toBeVisible()
-  await page.getByRole("textbox", { name: "Title", exact: true }).fill(
-    "demo role 31"
-  )
+  await page
+    .getByRole("textbox", { name: "Title", exact: true })
+    .fill("demo role 31")
   await expect(bulkBar(page)).toHaveCount(0)
-  await expect(
-    page.getByRole("checkbox", { checked: true })
-  ).toHaveCount(0)
+  await expect(page.getByRole("checkbox", { checked: true })).toHaveCount(0)
 
   await page.getByRole("button", { name: "Clear all" }).click()
   await expect(page.getByRole("table")).toBeVisible()
@@ -294,9 +296,7 @@ test("selection clears whenever filters, sort, or page size change", async ({
   await expect(bulkBar(page)).toBeVisible()
   await page.getByRole("button", { name: "Title", exact: true }).click()
   await expect(bulkBar(page)).toHaveCount(0)
-  await expect(
-    page.getByRole("checkbox", { checked: true })
-  ).toHaveCount(0)
+  await expect(page.getByRole("checkbox", { checked: true })).toHaveCount(0)
 
   // A page-size change clears the selection.
   await rowCheckbox(page, "Administrator").click()
@@ -304,9 +304,7 @@ test("selection clears whenever filters, sort, or page size change", async ({
   await page.getByLabel("Rows per page").click()
   await page.getByRole("option", { name: "10", exact: true }).click()
   await expect(bulkBar(page)).toHaveCount(0)
-  await expect(
-    page.getByRole("checkbox", { checked: true })
-  ).toHaveCount(0)
+  await expect(page.getByRole("checkbox", { checked: true })).toHaveCount(0)
 })
 
 test("members see no selection checkboxes or bulk controls", async ({

@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react"
-import { render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Refine, type DataProvider } from "@refinedev/core"
 import { I18nextProvider } from "react-i18next"
@@ -38,6 +38,13 @@ const ROWS: ProbeRow[] = [
   { id: "two", name: "Bravo", canSelect: false },
   { id: "three", name: "Charlie", canSelect: true },
 ]
+
+/** A page large enough that the 600px test viewport cannot mount every row. */
+const BIG_ROWS: ProbeRow[] = Array.from({ length: 80 }, (_, index) => ({
+  id: `row-${index + 1}`,
+  name: `Probe ${String(index + 1).padStart(2, "0")}`,
+  canSelect: true,
+}))
 
 const adapter = createTableUrlAdapter({
   defaultSortField: "name",
@@ -715,6 +722,148 @@ describe("logical row identity", () => {
     expect(scrollElement(container)).toHaveAttribute("data-row-count", "3")
     expect(screen.getByRole("table")).toHaveAttribute("aria-rowcount", "4")
     expectContiguousRowIndexes(container)
+  })
+})
+
+function spacerRows(container: HTMLElement): HTMLElement[] {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'tbody tr[data-slot="table-spacer-row"]'
+    )
+  )
+}
+
+/** Put the fitted body at the offset that reveals the last logical row. */
+function scrollToEnd(scroller: HTMLElement, logicalRows: number) {
+  // The jsdom shim measures every row at 36px, so the body's full height is
+  // predictable without reading the virtualizer's internals.
+  scroller.scrollTop = logicalRows * 36 - scroller.clientHeight
+  fireEvent.scroll(scroller)
+}
+
+describe("virtualized fitted body", () => {
+  async function renderBigPage() {
+    const result = renderHarness({
+      rows: () => Promise.resolve({ data: BIG_ROWS, total: BIG_ROWS.length }),
+    })
+    await screen.findByRole("cell", { name: "Probe 01" })
+    return { ...result, scroller: scrollElement(result.container) }
+  }
+
+  it("mounts only the rows near the viewport and reveals late rows on scroll", async () => {
+    const { container, scroller } = await renderBigPage()
+
+    expect(scroller).toHaveAttribute("data-row-count", "80")
+    // Mounted rows are fewer than the logical page; the last row is not yet
+    // in the DOM.
+    expect(dataRows(container).length).toBeGreaterThan(0)
+    expect(dataRows(container).length).toBeLessThan(80)
+    expect(screen.queryByRole("cell", { name: "Probe 80" })).toBeNull()
+
+    scrollToEnd(scroller, 80)
+
+    expect(await screen.findByRole("cell", { name: "Probe 80" })).toBeVisible()
+    // Scrolling windows the body rather than mounting the whole page.
+    expect(dataRows(container).length).toBeLessThan(80)
+  })
+
+  it("frames the mounted window with hidden, empty spacer rows", async () => {
+    const { container } = await renderBigPage()
+
+    const spacers = spacerRows(container)
+    expect(spacers).toHaveLength(2)
+    for (const spacer of spacers) {
+      expect(spacer).toHaveAttribute("aria-hidden", "true")
+      expect(spacer).toHaveAttribute("role", "none")
+      expect(spacer.textContent).toBe("")
+    }
+
+    // The top spacer sits before the first mounted row and the bottom spacer
+    // after the last, so the body's scroll height covers every logical row.
+    const rowsInBody = Array.from(
+      container.querySelectorAll("tbody > tr")
+    ) as HTMLElement[]
+    expect(rowsInBody[0]).toBe(spacers[0])
+    expect(rowsInBody.at(-1)).toBe(spacers[1])
+  })
+
+  it("keeps aria-rowcount and each mounted row's aria-rowindex correct", async () => {
+    const { container, scroller } = await renderBigPage()
+
+    expect(screen.getByRole("table")).toHaveAttribute("aria-rowcount", "81")
+    dataRows(container).forEach((row) => {
+      const index = Number(row.getAttribute("data-index"))
+      expect(row).toHaveAttribute("aria-rowindex", String(index + 2))
+    })
+
+    scrollToEnd(scroller, 80)
+    await screen.findByRole("cell", { name: "Probe 80" })
+
+    expect(screen.getByRole("table")).toHaveAttribute("aria-rowcount", "81")
+    dataRows(container).forEach((row) => {
+      const index = Number(row.getAttribute("data-index"))
+      expect(row).toHaveAttribute("aria-rowindex", String(index + 2))
+    })
+    expect(
+      dataRows(container).some((row) => row.getAttribute("data-index") === "79")
+    ).toBe(true)
+  })
+
+  it("selects every page row, including unmounted rows, and reflects it on remount", async () => {
+    const user = userEvent.setup()
+    const { scroller } = await renderBigPage()
+
+    await user.click(screen.getByRole("checkbox", { name: "Select all rows" }))
+
+    // Page-scoped selection covers the row model, not the mounted window.
+    await waitFor(() =>
+      expect(shellState()).toMatchObject({
+        selected: BIG_ROWS.map((row) => row.id),
+      })
+    )
+
+    scrollToEnd(scroller, 80)
+    const lateRow = await screen.findByRole("checkbox", {
+      name: "Select Probe 80",
+    })
+    await waitFor(() => expect(lateRow).toBeChecked())
+  })
+
+  it("returns the virtualized body to the top when the list state changes", async () => {
+    const user = userEvent.setup()
+    const { scroller } = await renderBigPage()
+
+    scrollToEnd(scroller, 80)
+    await screen.findByRole("cell", { name: "Probe 80" })
+    expect(scroller.scrollTop).toBeGreaterThan(0)
+
+    await user.click(screen.getByRole("button", { name: "Go to page 2" }))
+    await waitFor(() => expect(scroller.scrollTop).toBe(0))
+
+    scrollToEnd(scroller, 80)
+    await screen.findByRole("cell", { name: "Probe 80" })
+    await user.click(
+      screen.getByRole("button", { name: "Change to 10 per page" })
+    )
+    await waitFor(() => expect(scroller.scrollTop).toBe(0))
+  })
+
+  it("does not reset the virtualized body for selection or a refetch", async () => {
+    const user = userEvent.setup()
+    const { scroller } = await renderBigPage()
+
+    scrollToEnd(scroller, 80)
+    await screen.findByRole("cell", { name: "Probe 80" })
+    const scrolledTo = scroller.scrollTop
+    expect(scrolledTo).toBeGreaterThan(0)
+
+    await user.click(screen.getByRole("checkbox", { name: "Select Probe 79" }))
+    expect(scroller.scrollTop).toBe(scrolledTo)
+
+    await user.click(
+      screen.getByRole("button", { name: "Refetch via refineCore" })
+    )
+    await waitFor(() => expect(scroller.scrollTop).toBe(scrolledTo))
   })
 })
 

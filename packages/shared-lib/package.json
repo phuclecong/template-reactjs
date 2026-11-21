@@ -13,6 +13,7 @@
     "@refinedev/core": "^5.0.12",
     "@refinedev/react-table": "^6.0.1",
     "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.14.26",
     "@workspace/api": "workspace:*",
     "@workspace/date-utils": "workspace:*",
     "@workspace/ui": "workspace:*",
