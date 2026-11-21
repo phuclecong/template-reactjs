@@ -188,6 +188,9 @@ export const en = {
     loading: "Loading users…",
     empty: "No users yet.",
     emptyNoMatch: "No users match your search or filters.",
+    error: "Could not load users.",
+    retry: "Try again",
+    total: "{{total}} users",
     filters: {
       role: "Role",
     },

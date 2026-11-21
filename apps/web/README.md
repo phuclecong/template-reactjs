@@ -4,11 +4,11 @@ The user-facing app: an authenticated dashboard with Tasks, Users, and Settings
 pages. Domain-specific code (Tasks, Users, auth, settings) lives here. It may
 import from the three workspace packages, but never the reverse:
 
-| Package                 | What it owns                                                   |
-| ----------------------- | -------------------------------------------------------------- |
-| `@workspace/ui`         | Presentational primitives (Button, Dialog, Field, Sidebar, …)  |
-| `@workspace/shared-lib` | App-agnostic table infra (`DataTable`, `useTableState`)        |
-| `@workspace/api`        | The OpenAPI contract, zod schemas, and the MSW-backed mock API |
+| Package                 | What it owns                                                    |
+| ----------------------- | --------------------------------------------------------------- |
+| `@workspace/ui`         | Presentational primitives (Button, Dialog, Field, Sidebar, …)   |
+| `@workspace/shared-lib` | App-agnostic table infra (`createTableUrlAdapter`, table parts) |
+| `@workspace/api`        | The OpenAPI contract, zod schemas, and the MSW-backed mock API  |
 
 ## Stack
 
@@ -69,14 +69,14 @@ Refine is the single backbone for cross-cutting concerns (ADR-0002); everything
 is wired once in `src/providers/index.tsx` and pages fetch through Refine hooks
 (`useList`, `useGetIdentity`, `useCustomMutation`, …).
 
-| Provider                  | What it does                                                            |
-| ------------------------- | ----------------------------------------------------------------------- |
+| Provider                  | What it does                                                                                          |
+| ------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `data-provider`           | `simple-rest` pointed at `VITE_API_URL` (or `/api` in mock mode); attaches the in-memory access token |
-| `auth-provider`           | Login/register/logout via the auth transport; in-memory token + user    |
-| `access-control-provider` | Admin/member matrix: admin = all; member = list users, act on own tasks |
-| `notification-provider`   | Refine's notification bus → sonner toasts                               |
-| `i18n-provider`           | Delegates to the shared i18next engine (ADR-0004)                       |
-| `audit-log-provider`      | Stub with a real interface; echoes writes, no persistence yet           |
+| `auth-provider`           | Login/register/logout via the auth transport; in-memory token + user                                  |
+| `access-control-provider` | Admin/member matrix: admin = all; member = list users, act on own tasks                               |
+| `notification-provider`   | Refine's notification bus → sonner toasts                                                             |
+| `i18n-provider`           | Delegates to the shared i18next engine (ADR-0004)                                                     |
+| `audit-log-provider`      | Stub with a real interface; echoes writes, no persistence yet                                         |
 
 **Mock vs. real backend.** With `VITE_API_URL` unset, the app runs fully against
 an in-browser MSW worker (started on the first `/api` request by

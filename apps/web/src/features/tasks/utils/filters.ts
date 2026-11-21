@@ -43,7 +43,7 @@ export const EMPTY_TASK_FILTERS: TaskFilterValues = {
  * bar's controls, chips, and URL always agree.
  */
 export function taskFiltersFromCrud(filters: CrudFilter[]): TaskFilterValues {
-  return fromCrud(TASK_FILTER_DESCRIPTORS, filters)
+  return fromCrud<TaskFilterValues>(TASK_FILTER_DESCRIPTORS, filters)
 }
 
 /** Converts the filter bar's values to Refine filters. */

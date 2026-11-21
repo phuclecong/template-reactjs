@@ -1,4 +1,3 @@
-export { DataTable } from "./data-table"
 export { DateRangeFilter } from "./date-range-filter"
 export type { DateRangeFilterProps } from "./date-range-filter"
 export { EmptyList } from "./empty-list"

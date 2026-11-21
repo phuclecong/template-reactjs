@@ -45,7 +45,7 @@ export const EMPTY_ROLE_FILTERS: RoleFilterValues = {
 
 /** Reads Refine's `CrudFilter[]` into the filter bar's editable values. */
 export function roleFiltersFromCrud(filters: CrudFilter[]): RoleFilterValues {
-  return fromCrud(ROLE_FILTER_DESCRIPTORS, filters)
+  return fromCrud<RoleFilterValues>(ROLE_FILTER_DESCRIPTORS, filters)
 }
 
 /** Converts the filter bar's values to Refine filters. */

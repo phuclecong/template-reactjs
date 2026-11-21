@@ -177,12 +177,8 @@ export function filterValueLabels(
 }
 
 /** Reads Refine's `CrudFilter[]` into the filter bar's editable values. */
-export function fromCrud<
-  TValues extends FilterValues,
-  TKey extends string,
-  TChipContext,
->(
-  descriptors: readonly TableFilterDescriptor<TValues, TKey, TChipContext>[],
+export function fromCrud<TValues extends FilterValues = FilterValues>(
+  descriptors: readonly TableUrlFilterDescriptor[],
   filters: CrudFilter[]
 ): TValues {
   const values: FilterValues = {}
@@ -216,13 +212,9 @@ export function fromCrud<
 }
 
 /** Converts the filter bar's values to Refine filters. */
-export function toCrud<
-  TValues extends FilterValues,
-  TKey extends string,
-  TChipContext,
->(
-  descriptors: readonly TableFilterDescriptor<TValues, TKey, TChipContext>[],
-  values: TValues
+export function toCrud(
+  descriptors: readonly TableUrlFilterDescriptor[],
+  values: FilterValues
 ): CrudFilter[] {
   const filters: CrudFilter[] = []
   for (const descriptor of descriptors) {

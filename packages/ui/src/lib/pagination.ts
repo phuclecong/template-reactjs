@@ -3,8 +3,8 @@
  *
  * The registry-vendored `pagination.tsx` exports only the seven visual parts;
  * it ships no page-window logic. Consumers that render a full page list
- * (`DataTable`) compute it here, so the vendored file stays unedited and the
- * windowing rules are testable in isolation.
+ * (`TablePagination`) compute it here, so the vendored file stays unedited and
+ * the windowing rules are testable in isolation.
  */
 
 /** The page numbers (and `"ellipsis"` placeholders) to render for a page window. */
