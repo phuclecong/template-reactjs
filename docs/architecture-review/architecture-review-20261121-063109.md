@@ -8,6 +8,8 @@
 
 > **Corrections (2026-11-21):** independent verification re-derived the figures below and found several inaccurate. Read [Verification corrections](#verification-corrections) before acting on the rankings.
 
+> **Status (2026-11-21):** every candidate was actioned through #76–#83. Candidates 1, 3, and 5–7 landed; candidate 2 was adopted in #82 (PR #86); candidate 4 is implemented in PR #94. See [`follow-up-issues.md`](./follow-up-issues.md), ADR-0015 (#82), and ADR-0019 (#83).
+
 | #   | Candidate                                                                                     | Strength        | Dependency category |
 | --- | --------------------------------------------------------------------------------------------- | --------------- | ------------------- |
 | 1   | [One seam for filters, both directions](#1-one-seam-for-filters-both-directions)              | Strong          | in-process          |
@@ -199,6 +201,8 @@ deleted: 314 lines · one URL convention · Users gains inline error + retry + `
 ---
 
 ## 4. Collapse the Bulk action lifecycle
+
+**Status (2026-11-21):** implemented in #83 — `useBulkActions` and `useClearIntent` in shared-lib; the third-consumer gate was waived, not met (ADR-0019).
 
 **Strength:** Worth exploring · **in-process**
 

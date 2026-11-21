@@ -7,7 +7,7 @@ import from the three workspace packages, but never the reverse:
 | Package                 | What it owns                                                    |
 | ----------------------- | --------------------------------------------------------------- |
 | `@workspace/ui`         | Presentational primitives (Button, Dialog, Field, Sidebar, …)   |
-| `@workspace/shared-lib` | Shared table infra: React Router-coupled `useTableShell`, `createTableUrlAdapter`, table parts. It has no domain knowledge and never imports `apps/web` |
+| `@workspace/shared-lib` | Shared table and write infra: React Router-coupled `useTableShell`, `createTableUrlAdapter`, the bulk-action lifecycle (`useBulkActions`, `useClearIntent`), table parts. It has no domain knowledge and never imports `apps/web` |
 | `@workspace/api`        | The OpenAPI contract, zod schemas, and the MSW-backed mock API  |
 
 ## Stack

@@ -1,16 +1,18 @@
 # Follow-up issues
 
 > **Status:** filed in `phuclecong/template-reactjs` on 2026-11-21. GitHub is the source of truth; this file is a reference copy of the filed bodies.
+>
+> **Updated 2026-11-21:** all eight issues are closed. The parent body and the deferred sections below are kept as filed; the deferred sections carry a **Resolution** note recording what shipped. #82 landed in PR #86; #83 ships in PR #94.
 
-- Parent: #75
-- #76 — Users clear-button key
-- #77 — Filter conversion seam
-- #78 — Users migration (blocked by #77)
-- #79 — Role policy module
-- #80 — Typed locale dictionary
-- #81 — Due-date boundary module
-- #82 — Deferred: shared table shell
-- #83 — Deferred: shared bulk-action lifecycle
+- Parent: #75 (open; all children closed)
+- #76 — Users clear-button key — **closed**
+- #77 — Filter conversion seam — **closed**
+- #78 — Users migration (blocked by #77) — **closed**
+- #79 — Role policy module — **closed**
+- #80 — Typed locale dictionary — **closed**
+- #81 — Due-date boundary module — **closed**
+- #82 — Shared table shell — **closed; adopted in PR #86 (ADR-0015)**
+- #83 — Shared bulk-action lifecycle — **closed; implemented in PR #94 (ADR-0019)**
 
 ---
 
@@ -42,6 +44,8 @@ Share an abstraction when it removes a duplicated **rule** that can drift. Paral
 Every item pins current behaviour with tests before refactoring, preserves UX, and counts line deletion only after the suite is green.
 
 Sub-issues carry the per-item scope and acceptance criteria.
+
+**Current status (2026-11-21):** all eight items are closed. The order above is the filed plan, kept as history.
 
 ---
 
@@ -281,6 +285,8 @@ Agreed rule (already applied to table filters): calendar-validate; invalid or ov
 
 ## 6. Deferred: shared table shell
 
+**Resolution (2026-11-21):** adopted in #82 / PR #86 once the third consumer existed and all five escape hatches were proven. `useTableShell` owns the URL seed/mirror, `useTable` wiring, server pagination, and page-scoped selection; `TableShellView` owns the loading/error/empty/grid/pagination states; `createSelectionColumn` owns the checkbox cells. `refineCore` and `reactTable` are returned untouched. Recorded in ADR-0015's #82 amendment; the escape-hatch proofs are in `apps/web/test/table-shell.test.tsx`.
+
 **Title:** deferred: shared table shell (review candidate 2)
 **Labels:** `needs-triage`
 **Parent:** tracking issue
@@ -304,6 +310,18 @@ Verification measured 187 contiguous identical lines (40.8%), 249 after normaliz
 ---
 
 ## 7. Deferred: shared bulk-action lifecycle
+
+**Resolution (2026-11-21):** implemented ahead of the third-consumer trigger at the maintainer's direction; the gate was **waived, not met** (ADR-0019). `useBulkActions` composes Refine's `useCustomMutation` and `useInvalidate`; `useClearIntent` owns the sheets' explicit-clear sentinel. Roles and Tasks are thin feature configs.
+
+The parameterization points listed below landed as:
+
+- **Endpoints and payload shape** — `update.url` / `method` / `values`, plus an optional `delete` block. Defaults: `PATCH { ids, ...patch }`, `POST { ids }`.
+- **Failure vocabulary** — `reasons` + `keyPrefix`; known reasons are translated, unknown reasons print raw.
+- **Selection gating** — not duplicated in the lifecycle. `useTableShell`'s `enableRowSelection` keeps the Roles boolean permission and the Tasks per-row `canModifyTask` predicate; the hook consumes the already-gated list.
+- **Analytics payload** — `event` plus update-only `trackData(patch)`; Tasks supplies the changed `fields`.
+- **Delete presence and `isApplying`** — overloads make `bulkDelete` required with a `delete` config and `bulkDelete?: undefined` without one; `isApplying` ORs only the configured mutations.
+
+Tests: `apps/web/test/bulk-actions.test.tsx` (module), `apps/web/test/use-clear-intent.test.tsx` (sentinel), plus the feature pins in `roles-bulk-actions.test.tsx` and `tasks-bulk-actions.test.tsx`. Published for review as PR #94.
 
 **Title:** deferred: shared bulk-action lifecycle (review candidate 4)
 **Labels:** `needs-triage`
