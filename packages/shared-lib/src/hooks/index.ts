@@ -15,6 +15,14 @@ export type {
   TableUrlFilterDescriptor,
   TableUrlTextFilter,
 } from "../utils/table-url-descriptors"
+export { useBulkActions } from "./use-bulk-actions"
+export type {
+  BulkActionConfig,
+  BulkActionOptions,
+  BulkActions,
+  BulkFailure,
+  BulkTarget,
+} from "./use-bulk-actions"
 export { useDialog } from "./use-dialog"
 export type { DialogState } from "./use-dialog"
 export { useEnums } from "./use-enums"
