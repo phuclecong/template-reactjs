@@ -33,6 +33,9 @@ export type TableGridProps<T> = {
  */
 export function TableGrid<T>({ table, scrollResetKey }: TableGridProps<T>) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  // The logical size of the current page, independent of how many rows a
+  // future virtualizer mounts. Tests read it from the scroll element.
+  const rowCount = table.getRowModel().rows.length
 
   useLayoutEffect(() => {
     const element = scrollRef.current
@@ -43,11 +46,12 @@ export function TableGrid<T>({ table, scrollResetKey }: TableGridProps<T>) {
     <div
       ref={scrollRef}
       data-slot="table-scroll"
+      data-row-count={rowCount}
       // `scroll-pt-10` keeps the sticky header from covering a row that the
       // browser scrolls into view for keyboard focus.
       className="h-full min-h-0 scroll-pt-10 overflow-auto [&>[data-slot=table-container]]:overflow-visible"
     >
-      <Table>
+      <Table aria-rowcount={rowCount + 1}>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
@@ -112,9 +116,13 @@ export function TableGrid<T>({ table, scrollResetKey }: TableGridProps<T>) {
           ))}
         </TableHeader>
         <TableBody>
-          {table.getRowModel().rows.map((row) => (
+          {table.getRowModel().rows.map((row, index) => (
             <TableRow
               key={row.id}
+              data-index={index}
+              // One-based, offset by the header row, so assistive technology
+              // and tests share the table's logical row space.
+              aria-rowindex={index + 2}
               data-state={row.getIsSelected() ? "selected" : undefined}
             >
               {row.getVisibleCells().map((cell) => (

@@ -5,7 +5,12 @@ import {
   type Page,
 } from "@playwright/test"
 
-import { login } from "./helpers"
+import {
+  expectLogicalRowCount,
+  login,
+  rowByText,
+  scrollRowIntoView,
+} from "./helpers"
 
 type ConsoleEntry = {
   kind?: string
@@ -65,8 +70,10 @@ test("the header checkbox selects the current page and selection clears on page 
 }) => {
   await loginAsAdmin(page)
 
-  // Administrators get one checkbox per row plus the page-scoped header box.
-  await expect(page.getByRole("checkbox")).toHaveCount(31)
+  // The page's logical row count is independent of how many checkbox cells
+  // are mounted; the header checkbox is present regardless.
+  await expectLogicalRowCount(page, 30)
+  await expect(selectAllCheckbox(page)).toBeVisible()
   await expect(bulkBar(page)).toHaveCount(0)
 
   await selectAllCheckbox(page).click()
@@ -77,6 +84,9 @@ test("the header checkbox selects the current page and selection clears on page 
   // Every row on the current page is selected, not merely the first page worth
   // of ids: page 1 runs from Member through Demo Role 31.
   await expect(rowCheckbox(page, "Member")).toBeChecked()
+  // Demo Role 31 is the last row; bring it into the mounted range before
+  // asserting its checkbox reflects the page-scoped selection.
+  await scrollRowIntoView(page, rowByText(page, "Demo Role 31"))
   await expect(rowCheckbox(page, "Demo Role 31")).toBeChecked()
   await expect(page.getByText("30 selected", { exact: true })).toBeVisible()
 
@@ -89,6 +99,7 @@ test("the header checkbox selects the current page and selection clears on page 
   await selectAllCheckbox(page).click()
   await expect(page.getByText("30 selected", { exact: true })).toBeVisible()
   await expect(rowCheckbox(page, "Demo Role 30")).toBeChecked()
+  await scrollRowIntoView(page, rowByText(page, "Demo Role 01"))
   await expect(rowCheckbox(page, "Demo Role 01")).toBeChecked()
   // Page 1 rows are no longer part of the selection.
   await expect(page.getByText("30 selected", { exact: true })).toBeVisible()
@@ -102,7 +113,9 @@ test("bulk edit changes only the status and leaves untouched descriptions intact
   // Demo Role 31 is active and has a description; Demo Role 32 is inactive and
   // has a description. Changing only the status must not touch either
   // description (the payload carries only dirty fields).
+  await scrollRowIntoView(page, rowByText(page, "Demo Role 31"))
   await rowCheckbox(page, "Demo Role 31").click()
+  await scrollRowIntoView(page, rowByText(page, "Demo Role 32"))
   await rowCheckbox(page, "Demo Role 32").click()
   await expect(page.getByText("2 selected", { exact: true })).toBeVisible()
 
@@ -122,8 +135,8 @@ test("bulk edit changes only the status and leaves untouched descriptions intact
   ).toBeVisible()
   await expect(bulkBar(page)).toHaveCount(0)
 
-  const row31 = page.getByRole("row").filter({ hasText: "Demo Role 31" })
-  const row32 = page.getByRole("row").filter({ hasText: "Demo Role 32" })
+  const row31 = await scrollRowIntoView(page, rowByText(page, "Demo Role 31"))
+  const row32 = await scrollRowIntoView(page, rowByText(page, "Demo Role 32"))
   await expect(row31.getByText("Active", { exact: true })).toBeVisible()
   await expect(row32.getByText("Active", { exact: true })).toBeVisible()
   await expect(
@@ -139,6 +152,7 @@ test("bulk edit changes only the status and leaves untouched descriptions intact
 test("bulk edit can clear a description and sends null", async ({ page }) => {
   await loginAsAdmin(page)
 
+  await scrollRowIntoView(page, rowByText(page, "Demo Role 31"))
   await rowCheckbox(page, "Demo Role 31").click()
   await bulkBar(page).getByRole("button", { name: "Edit", exact: true }).click()
   const dialog = page.getByRole("dialog")
@@ -156,7 +170,7 @@ test("bulk edit can clear a description and sends null", async ({ page }) => {
     page.getByText("Roles updated: 1", { exact: true })
   ).toBeVisible()
 
-  const row = page.getByRole("row").filter({ hasText: "Demo Role 31" })
+  const row = await scrollRowIntoView(page, rowByText(page, "Demo Role 31"))
   await expect(row).toContainText("Demo Role 31")
   await expect(row).not.toContainText("Description for demo role 31")
 })
@@ -166,7 +180,9 @@ test("bulk delete asks for confirmation and removes the selected roles", async (
 }) => {
   await loginAsAdmin(page)
 
+  await scrollRowIntoView(page, rowByText(page, "Demo Role 31"))
   await rowCheckbox(page, "Demo Role 31").click()
+  await scrollRowIntoView(page, rowByText(page, "Demo Role 32"))
   await rowCheckbox(page, "Demo Role 32").click()
   await expect(page.getByText("2 selected", { exact: true })).toBeVisible()
 
@@ -185,15 +201,14 @@ test("bulk delete asks for confirmation and removes the selected roles", async (
     page.getByText("Roles deleted: 2", { exact: true })
   ).toBeVisible()
   await expect(bulkBar(page)).toHaveCount(0)
-  await expect(
-    page.getByRole("row").filter({ hasText: "Demo Role 31" })
-  ).toHaveCount(0)
-  await expect(
-    page.getByRole("row").filter({ hasText: "Demo Role 32" })
-  ).toHaveCount(0)
-  // The page refills from the next page, and the total drops by two.
-  await expect(page.locator("tbody tr")).toHaveCount(30)
+  // The page refills from the next page, so the logical page count stays at
+  // the page size; the total drops by the two deleted records, which is the
+  // proof the absence assertions need once rows can virtualize away. Wait for
+  // the refetched state before asserting absence so a skeleton cannot pass it.
   await expect(page.getByText("58 roles", { exact: true })).toBeVisible()
+  await expectLogicalRowCount(page, 30)
+  await expect(rowByText(page, "Demo Role 31")).toHaveCount(0)
+  await expect(rowByText(page, "Demo Role 32")).toHaveCount(0)
 })
 
 test("bulk edit reports per-row failures while successful rows update", async ({
@@ -219,8 +234,8 @@ test("bulk edit reports per-row failures while successful rows update", async ({
   ).toBeVisible()
   await expect(bulkBar(page)).toHaveCount(0)
 
-  const adminRow = page.getByRole("row").filter({ hasText: "Administrator" })
-  const demoRow = page.getByRole("row").filter({ hasText: "Demo Role 33" })
+  const adminRow = rowByText(page, "Administrator")
+  const demoRow = await scrollRowIntoView(page, rowByText(page, "Demo Role 33"))
   await expect(adminRow.getByText("Active", { exact: true })).toBeVisible()
   await expect(demoRow.getByText("Inactive", { exact: true })).toBeVisible()
 })
@@ -231,6 +246,7 @@ test("bulk delete reports per-row failures while successful rows are removed", a
   await loginAsAdmin(page)
 
   await rowCheckbox(page, "Administrator").click()
+  await scrollRowIntoView(page, rowByText(page, "Demo Role 33"))
   await rowCheckbox(page, "Demo Role 33").click()
   await bulkBar(page)
     .getByRole("button", { name: "Delete", exact: true })
@@ -244,13 +260,12 @@ test("bulk delete reports per-row failures while successful rows are removed", a
   await expect(
     page.getByText("Administrator: system role", { exact: true })
   ).toBeVisible()
-  await expect(
-    page.getByRole("row").filter({ hasText: "Demo Role 33" })
-  ).toHaveCount(0)
-  await expect(
-    page.getByRole("row").filter({ hasText: "Administrator" })
-  ).toHaveCount(1)
+  // The page refilled; the total dropping by the one deleted record is the
+  // logical-count proof that the row is genuinely gone.
   await expect(page.getByText("59 roles", { exact: true })).toBeVisible()
+  await expectLogicalRowCount(page, 30)
+  await expect(rowByText(page, "Demo Role 33")).toHaveCount(0)
+  await expect(rowByText(page, "Administrator")).toHaveCount(1)
 })
 
 test("selection clears whenever filters, sort, or page size change", async ({
@@ -259,6 +274,7 @@ test("selection clears whenever filters, sort, or page size change", async ({
   await loginAsAdmin(page)
 
   // A filter change clears the selection.
+  await scrollRowIntoView(page, rowByText(page, "Demo Role 31"))
   await rowCheckbox(page, "Demo Role 31").click()
   await expect(bulkBar(page)).toBeVisible()
   await page.getByRole("textbox", { name: "Title", exact: true }).fill(
@@ -273,6 +289,7 @@ test("selection clears whenever filters, sort, or page size change", async ({
   await expect(page.getByRole("table")).toBeVisible()
 
   // A sort change clears the selection.
+  await scrollRowIntoView(page, rowByText(page, "Demo Role 31"))
   await rowCheckbox(page, "Demo Role 31").click()
   await expect(bulkBar(page)).toBeVisible()
   await page.getByRole("button", { name: "Title", exact: true }).click()
@@ -317,7 +334,9 @@ test("bulk actions emit counts-only role.bulk_action events", async ({
 
   await loginAsAdmin(page)
 
+  await scrollRowIntoView(page, rowByText(page, "Demo Role 34"))
   await rowCheckbox(page, "Demo Role 34").click()
+  await scrollRowIntoView(page, rowByText(page, "Demo Role 35"))
   await rowCheckbox(page, "Demo Role 35").click()
   await bulkBar(page).getByRole("button", { name: "Edit", exact: true }).click()
   const dialog = page.getByRole("dialog")
@@ -339,7 +358,9 @@ test("bulk actions emit counts-only role.bulk_action events", async ({
   const updateEntry = await findEvent(messages, "role.bulk_action")
   expect(JSON.stringify(updateEntry)).not.toContain("Demo Role")
 
+  await scrollRowIntoView(page, rowByText(page, "Demo Role 34"))
   await rowCheckbox(page, "Demo Role 34").click()
+  await scrollRowIntoView(page, rowByText(page, "Demo Role 35"))
   await rowCheckbox(page, "Demo Role 35").click()
   await bulkBar(page)
     .getByRole("button", { name: "Delete", exact: true })
