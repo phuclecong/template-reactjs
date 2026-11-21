@@ -67,7 +67,7 @@ async function request(
   config: RequestConfig = {}
 ): Promise<HttpResponse> {
   // The mock backend is started on the first request, never at startup
-  // (ADR-0005, performance.md §5). This is a no-op against a real backend.
+  // (ADR-0005, ADR-0010). This is a no-op against a real backend.
   await ensureMockWorker()
 
   const headers: Record<string, string> = { ...config.headers }

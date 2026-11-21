@@ -44,8 +44,7 @@ export default defineConfig({
     rolldownOptions: {
       output: {
         // Family vendor chunks, `$initial` only. Group definitions are shared
-        // with the verifier so the split and its gate cannot drift. See
-        // `docs/features/improve-performance.md` and ADR-0017.
+        // with the verifier so the split and its gate cannot drift. See ADR-0017.
         codeSplitting: VENDOR_CODE_SPLITTING,
       },
     },

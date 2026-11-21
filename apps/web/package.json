@@ -29,7 +29,6 @@
     "@refinedev/simple-rest": "^6.0.1",
     "@tanstack/react-query": "^5.105.3",
     "@tanstack/react-table": "^8.21.3",
-    "@tanstack/react-virtual": "^3.14.26",
     "@workspace/api": "workspace:*",
     "@workspace/date-utils": "workspace:*",
     "@workspace/shared-lib": "workspace:*",

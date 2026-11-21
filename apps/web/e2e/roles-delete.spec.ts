@@ -1,6 +1,6 @@
 import { expect, test, type ConsoleMessage, type Page } from "@playwright/test"
 
-import { login } from "./helpers"
+import { expectLogicalRowCount, login, rowByText } from "./helpers"
 
 type ConsoleEntry = {
   kind?: string
@@ -41,7 +41,7 @@ async function openRoles(page: Page) {
 /** The list is server-filtered; narrow it before asserting on one row. */
 async function filterByTitle(page: Page, title: string) {
   await page.getByRole("textbox", { name: "Title", exact: true }).fill(title)
-  const row = page.getByRole("row").filter({ hasText: title })
+  const row = rowByText(page, title).first()
   await expect(row).toBeVisible()
   return row
 }
@@ -76,9 +76,12 @@ test("admin deletes a role after confirming its title, refreshes, and emits role
   // Success feedback and a refreshed list without the deleted row.
   await expect(page.getByText("Role deleted")).toBeVisible()
   await expect(dialog).toHaveCount(0)
-  await expect(
-    page.getByRole("row").filter({ hasText: "Demo Role 07" })
-  ).toHaveCount(0)
+  await expect(rowByText(page, "Demo Role 07")).toHaveCount(0)
+  // The filtered result is now empty: the logical page count is zero, so the
+  // shell shows the empty state instead of a table. A missing mounted row
+  // alone would not prove deletion once rows can virtualize away.
+  await expect(page.getByRole("table")).toHaveCount(0)
+  await expect(page.getByText("No roles found.")).toBeVisible()
 
   // The event carries only the Role id, never the Role title.
   await expect
@@ -115,9 +118,9 @@ test("a role held by a user cannot be deleted: clear error, row remains", async 
     page.getByText("This role is assigned to a user and cannot be deleted.")
   ).toBeVisible()
   await expect(dialog).toHaveCount(0)
-  await expect(
-    page.getByRole("row").filter({ hasText: "Demo Role 57" })
-  ).toBeVisible()
+  await expect(rowByText(page, "Demo Role 57")).toBeVisible()
+  // The failed delete leaves the logical row model unchanged.
+  await expectLogicalRowCount(page, 1)
 })
 
 test("System Roles keep Edit but hide Delete; demo roles offer it", async ({
@@ -127,14 +130,14 @@ test("System Roles keep Edit but hide Delete; demo roles offer it", async ({
   await openRoles(page)
 
   for (const title of ["Administrator", "Member"]) {
-    const row = page.getByRole("row").filter({ hasText: title }).first()
+    const row = rowByText(page, title).first()
     await expect(row.getByText(title, { exact: true })).toBeVisible()
     await expect(row.getByRole("button", { name: "Edit" })).toBeVisible()
     await expect(row.getByRole("button", { name: "Delete" })).toHaveCount(0)
   }
 
   // Demo Roles are deletable from the same actions column.
-  const demoRow = page.getByRole("row").filter({ hasText: "Demo Role 58" })
+  const demoRow = rowByText(page, "Demo Role 58")
   await expect(demoRow.getByRole("button", { name: "Edit" })).toBeVisible()
   await expect(demoRow.getByRole("button", { name: "Delete" })).toBeVisible()
 })

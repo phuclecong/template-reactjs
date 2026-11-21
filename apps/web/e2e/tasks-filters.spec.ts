@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
 
+import { rowByText, scrollRowIntoView } from "./helpers"
+
 // The Due date filter maps date-only URL bounds to local-day UTC instants. Pin
 // the browser to UTC so the seeded noon-UTC Due dates and the test's expected
 // date strings line up deterministically.
@@ -36,8 +38,14 @@ test("filters the table by several statuses", async ({ page }) => {
   await login(page, "admin@example.com", "adminpass")
   await openTasks(page)
 
-  await expect(page.getByText("Author the OpenAPI contract")).toBeVisible()
-  await expect(page.getByText("Build the MSW mock")).toBeVisible()
+  // Both are late in the title-sorted page, so scroll them into the mounted
+  // range before asserting they exist.
+  await expect(
+    await scrollRowIntoView(page, rowByText(page, "Author the OpenAPI contract"))
+  ).toBeVisible()
+  await expect(
+    await scrollRowIntoView(page, rowByText(page, "Build the MSW mock"))
+  ).toBeVisible()
 
   await page.getByLabel("Status").click()
   await page.getByRole("option", { name: "todo", exact: true }).click()
@@ -45,8 +53,12 @@ test("filters the table by several statuses", async ({ page }) => {
 
   // The URL keeps the selection comma-joined (URLSearchParams encodes it).
   await expect(page).toHaveURL(/status=todo(?:%2C|,)in-progress/)
-  await expect(page.getByText("Draft the release notes #3")).toBeVisible()
-  await expect(page.getByText("Build the MSW mock")).toBeVisible()
+  await expect(
+    await scrollRowIntoView(page, rowByText(page, "Draft the release notes #3"))
+  ).toBeVisible()
+  await expect(
+    await scrollRowIntoView(page, rowByText(page, "Build the MSW mock"))
+  ).toBeVisible()
   await expect(page.getByText("Author the OpenAPI contract")).toHaveCount(0)
   await expect(page.getByText("Refactor the auth provider #6")).toHaveCount(0)
 
@@ -55,7 +67,9 @@ test("filters the table by several statuses", async ({ page }) => {
 
   await expect(page).toHaveURL(/status=in-progress/)
   await expect(page).not.toHaveURL(/status=.*todo/)
-  await expect(page.getByText("Build the MSW mock")).toBeVisible()
+  await expect(
+    await scrollRowIntoView(page, rowByText(page, "Build the MSW mock"))
+  ).toBeVisible()
   await expect(page.getByText("Draft the release notes #3")).toHaveCount(0)
 })
 
@@ -71,10 +85,13 @@ test("filters the table by several priorities", async ({ page }) => {
   await expect(page).toHaveURL(/priority=low(?:%2C|,)high/)
   // low and high rows remain; medium and no-priority rows disappear.
   await expect(
-    page.getByText("Draft the release notes #3", { exact: true })
+    await scrollRowIntoView(
+      page,
+      rowByText(page, "Draft the release notes #3")
+    )
   ).toBeVisible()
   await expect(
-    page.getByText("Author the OpenAPI contract", { exact: true })
+    await scrollRowIntoView(page, rowByText(page, "Author the OpenAPI contract"))
   ).toBeVisible()
   await expect(
     page.getByText("Build the MSW mock", { exact: true })
@@ -89,7 +106,7 @@ test("filters the table by several priorities", async ({ page }) => {
   await expect(page).toHaveURL(/priority=high/)
   await expect(page).not.toHaveURL(/priority=.*low/)
   await expect(
-    page.getByText("Author the OpenAPI contract", { exact: true })
+    await scrollRowIntoView(page, rowByText(page, "Author the OpenAPI contract"))
   ).toBeVisible()
   await expect(
     page.getByText("Draft the release notes #3", { exact: true })
@@ -110,10 +127,10 @@ test("filters the table by several assignees including Unassigned", async ({
   await expect(page).toHaveURL(/assignee=usr_admin(?:%2C|,)unassigned/)
   // Admin-owned and unassigned rows remain; member-owned rows disappear.
   await expect(
-    page.getByText("Author the OpenAPI contract", { exact: true })
+    await scrollRowIntoView(page, rowByText(page, "Author the OpenAPI contract"))
   ).toBeVisible()
   await expect(
-    page.getByText("Document the API contract #8", { exact: true })
+    await scrollRowIntoView(page, rowByText(page, "Document the API contract #8"))
   ).toBeVisible()
   await expect(
     page.getByText("Build the MSW mock", { exact: true })
@@ -128,7 +145,7 @@ test("filters the table by several assignees including Unassigned", async ({
   await expect(page).toHaveURL(/assignee=usr_admin/)
   await expect(page).not.toHaveURL(/assignee=.*unassigned/)
   await expect(
-    page.getByText("Author the OpenAPI contract", { exact: true })
+    await scrollRowIntoView(page, rowByText(page, "Author the OpenAPI contract"))
   ).toBeVisible()
   await expect(
     page.getByText("Document the API contract #8", { exact: true })
@@ -142,7 +159,10 @@ test("selects a row and applies a bulk status update", async ({ page }) => {
   const bulkBar = page.getByRole("region", { name: "Bulk actions" })
   await expect(bulkBar).toHaveCount(0)
 
-  const row = page.getByRole("row").filter({ hasText: "Build the MSW mock" })
+  const row = await scrollRowIntoView(
+    page,
+    rowByText(page, "Build the MSW mock")
+  )
   await row.getByRole("checkbox").click()
   await expect(bulkBar).toBeVisible()
   await expect(bulkBar.getByText("1 selected", { exact: true })).toBeVisible()
@@ -166,7 +186,10 @@ test("applies a Due datetime through the bulk edit sheet", async ({ page }) => {
   await login(page, "admin@example.com", "adminpass")
   await openTasks(page)
 
-  const row = page.getByRole("row").filter({ hasText: "Build the MSW mock" })
+  const row = await scrollRowIntoView(
+    page,
+    rowByText(page, "Build the MSW mock")
+  )
   await row.getByRole("checkbox").click()
 
   const bulkBar = page.getByRole("region", { name: "Bulk actions" })

@@ -111,6 +111,21 @@ export function findVendorModules(modules) {
   return modules.filter(isNodeModule).sort()
 }
 
+/**
+ * The shared package's components barrel. Entry-chunk code (the route
+ * skeletons) must import its modules through dedicated subpaths; importing
+ * the barrel pulls every shared component into the initial closure (ADR-0017).
+ */
+export const SHARED_COMPONENTS_INDEX_SUFFIX =
+  "/packages/shared-lib/src/components/index.ts"
+
+/** True when `moduleId` is the `@workspace/shared-lib/components` barrel. */
+export function isSharedComponentsIndex(moduleId) {
+  return moduleId
+    .replaceAll("\\", "/")
+    .endsWith(SHARED_COMPONENTS_INDEX_SUFFIX)
+}
+
 /** Chunk files reachable through static `imports` from `index.html`. */
 export function initialClosure(manifest) {
   const visited = new Set()
@@ -150,6 +165,11 @@ export function assertInitialClosure({ manifest, html, report }) {
 
   for (const file of [...closure].sort()) {
     for (const moduleId of report[file] ?? []) {
+      if (isSharedComponentsIndex(moduleId)) {
+        problems.push(
+          `${file} in the initial closure carries the shared components index; import the page frame through its dedicated subpath`
+        )
+      }
       const name = packageNameOf(moduleId)
       if (name && FORBIDDEN_IN_INITIAL.includes(name)) {
         problems.push(`${file} in the initial closure carries ${name}`)

@@ -96,10 +96,13 @@ export function AppShell({
 
   return (
     <TooltipProvider>
-      <SidebarProvider defaultOpen={defaultOpen}>
+      <SidebarProvider
+        defaultOpen={defaultOpen}
+        className="h-svh overflow-hidden"
+      >
         <AppSidebar user={user} collapsible="icon" />
-        <SidebarInset>
-          <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-2 border-b border-muted/90 bg-background px-4">
+        <SidebarInset className="min-h-0">
+          <header className="flex h-12 shrink-0 items-center gap-2 border-b border-muted/90 bg-background px-4">
             <SidebarTrigger
               aria-label={t("shell.toggleSidebar")}
               className="-ml-1"
@@ -123,7 +126,12 @@ export function AppShell({
               </BreadcrumbList>
             </Breadcrumb>
           </header>
-          {children}
+          <div
+            data-slot="shell-content"
+            className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+          >
+            {children}
+          </div>
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

@@ -4,8 +4,7 @@
 // Every group carries the `$initial` tag: only modules reachable through
 // static imports from `index.html` are captured. Route-only vendor code
 // (`date-fns`, `react-day-picker`, `@tanstack/react-table`, zod) stays in the
-// route/overlay chunks that already defer it. See
-// `docs/features/improve-performance.md` and ADR-0017.
+// route/overlay chunks that already defer it. See ADR-0017.
 
 export const INITIAL_TAG = "$initial"
 

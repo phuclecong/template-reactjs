@@ -16,5 +16,5 @@ Render-time failures are contained by one dependency-free `ErrorBoundary` class 
 - Async and event-handler failures stay on Refine's notification/toast path. `reportError` plus a `unhandledrejection` listener remains the single seam for uncaught and unhandled failures; since ADR-0013, `reportError` emits a structured `error` entry through the shared logger, and `createRoot` routes both `onUncaughtError` and caught render errors from `onCaughtError` through it. The root boundary gets no `onError`, so a caught error is reported once.
 - ADR-0013 supersedes the earlier "leave `onCaughtError` at React's default" behaviour: caught render errors become structured entries. The boundary contract itself (`onError`, `onReset`, render-only scope) is unchanged.
 - The root boundary sits in `main.tsx` outside every provider, so it catches provider failures but its fallback must remain provider-free.
-- `ChunkErrorBoundary` is now a preset over the shared boundary; the chunk retry contract and measurements in `performance.md` are unchanged.
+- `ChunkErrorBoundary` is now a preset over the shared boundary; the chunk retry contract and the production measurements are unchanged.
 - Adding `resetKeys` or a boundary-aware async hook requires revisiting this ADR.

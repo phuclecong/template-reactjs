@@ -1,6 +1,12 @@
 import { expect, test, type Page } from "@playwright/test"
 
-import { login } from "./helpers"
+import {
+  expectLogicalRowCount,
+  login,
+  rowByText,
+  scrollRowIntoView,
+  tableRows,
+} from "./helpers"
 
 async function openRoles(page: Page) {
   await page.getByRole("link", { name: "Roles" }).click()
@@ -88,12 +94,12 @@ test.describe("administrator", () => {
     await page.keyboard.press("Enter")
     await expect(titleHeader).toHaveAttribute("aria-sort", "ascending")
     await expect(page).toHaveURL(/[?&]order=asc\b/)
-    await expect(page.locator("tbody tr").nth(0)).toContainText("Administrator")
+    await expect(tableRows(page).nth(0)).toContainText("Administrator")
 
     await page.keyboard.press("Enter")
     await expect(titleHeader).toHaveAttribute("aria-sort", "descending")
     await expect(page).toHaveURL(/[?&]order=desc\b/)
-    await expect(page.locator("tbody tr").nth(0)).toContainText("Member")
+    await expect(tableRows(page).nth(0)).toContainText("Member")
   })
 
   test("filters, selection, row actions, and pagination have accessible names", async ({
@@ -125,7 +131,7 @@ test.describe("administrator", () => {
     await expect(rowCheckbox(page, "Demo Role 58")).toBeVisible()
 
     // Row actions: System Roles expose Edit only; demo Roles expose both.
-    const memberRow = page.getByRole("row").filter({ hasText: "Member" }).first()
+    const memberRow = rowByText(page, "Member").first()
     await expect(
       memberRow.getByRole("button", { name: "Edit" })
     ).toBeVisible()
@@ -133,10 +139,7 @@ test.describe("administrator", () => {
       memberRow.getByRole("button", { name: "Delete" })
     ).toHaveCount(0)
 
-    const demoRow = page
-      .getByRole("row")
-      .filter({ hasText: "Demo Role 58" })
-      .first()
+    const demoRow = rowByText(page, "Demo Role 58").first()
     await expect(demoRow.getByRole("button", { name: "Edit" })).toBeVisible()
     await expect(demoRow.getByRole("button", { name: "Delete" })).toBeVisible()
 
@@ -198,7 +201,7 @@ test.describe("administrator", () => {
   test("row Edit opens the form drawer from the keyboard", async ({ page }) => {
     await loginAsAdmin(page)
 
-    const row = page.getByRole("row").filter({ hasText: "Member" }).first()
+    const row = rowByText(page, "Member").first()
     const edit = row.getByRole("button", { name: "Edit" })
     await edit.focus()
     await expectFocusedName(page, "Edit")
@@ -217,11 +220,9 @@ test.describe("administrator", () => {
   }) => {
     await loginAsAdmin(page)
 
-    // Demo Role 31 is a non-System Role, so it exposes Delete.
-    const row = page
-      .getByRole("row")
-      .filter({ hasText: "Demo Role 31" })
-      .first()
+    // Demo Role 31 is a non-System Role, so it exposes Delete. It is the last
+    // row on the default page, so bring it into the mounted range first.
+    const row = await scrollRowIntoView(page, rowByText(page, "Demo Role 31"))
     const destroy = row.getByRole("button", { name: "Delete" })
     await destroy.focus()
     await expectFocusedName(page, "Delete")
@@ -239,9 +240,12 @@ test.describe("administrator", () => {
 
     await expect(page.getByText("Role deleted")).toBeVisible()
     await expect(dialog).toHaveCount(0)
-    await expect(
-      page.getByRole("row").filter({ hasText: "Demo Role 31" })
-    ).toHaveCount(0)
+    // The page refills from the next page, so the logical total is what proves
+    // the record is gone once rows can virtualize away. Wait for the refetched
+    // state before asserting absence so a loading skeleton cannot pass it.
+    await expect(page.getByText("59 roles", { exact: true })).toBeVisible()
+    await expectLogicalRowCount(page, 30)
+    await expect(rowByText(page, "Demo Role 31")).toHaveCount(0)
   })
 
   test("bulk edit and bulk delete are operable end to end from the keyboard", async ({
@@ -249,7 +253,9 @@ test.describe("administrator", () => {
   }) => {
     await loginAsAdmin(page)
 
-    // Select a row with Space; the page-scoped bar appears.
+    // Select a row with Space; the page-scoped bar appears. Demo Role 31 is
+    // the last row on the page, so mount it before focusing.
+    await scrollRowIntoView(page, rowByText(page, "Demo Role 31"))
     const select = rowCheckbox(page, "Demo Role 31")
     await select.focus()
     await page.keyboard.press("Space")
@@ -289,7 +295,9 @@ test.describe("administrator", () => {
     ).toBeVisible()
     await expect(bulkBar(page)).toHaveCount(0)
 
-    // Bulk delete is confirmed and executed with the keyboard.
+    // Bulk delete is confirmed and executed with the keyboard. The edit
+    // refetched and reset the body, so mount the late row again first.
+    await scrollRowIntoView(page, rowByText(page, "Demo Role 31"))
     await select.focus()
     await page.keyboard.press("Space")
     await expect(bulkBar(page)).toBeVisible()
@@ -313,6 +321,9 @@ test.describe("administrator", () => {
       page.getByText("Roles deleted: 1", { exact: true })
     ).toBeVisible()
     await expect(bulkBar(page)).toHaveCount(0)
+    await expect(page.getByText("59 roles", { exact: true })).toBeVisible()
+    await expectLogicalRowCount(page, 30)
+    await expect(rowByText(page, "Demo Role 31")).toHaveCount(0)
   })
 
   test("keyboard order runs bulk bar, filters, headers, row actions, pagination", async ({
@@ -380,7 +391,7 @@ test.describe("member", () => {
     await titleHeader.getByRole("button").focus()
     await page.keyboard.press("Enter")
     await expect(titleHeader).toHaveAttribute("aria-sort", "ascending")
-    await expect(page.locator("tbody tr").nth(0)).toContainText("Administrator")
+    await expect(tableRows(page).nth(0)).toContainText("Administrator")
 
     // The same labelled filter controls and pagination are present.
     await expect(page.getByRole("group", { name: "Filters" })).toBeVisible()
@@ -438,8 +449,8 @@ test.describe("member", () => {
     await expect
       .poll(() => new URL(page.url()).searchParams.get("title"))
       .toBe("demo role 42")
-    await expect(page.locator("tbody tr")).toHaveCount(1)
-    await expect(page.locator("tbody tr").nth(0)).toContainText("Demo Role 42")
+    await expectLogicalRowCount(page, 1)
+    await expect(tableRows(page).nth(0)).toContainText("Demo Role 42")
 
     // Filtering never reveals a write or bulk control to a Member.
     await expect(page.getByRole("checkbox")).toHaveCount(0)

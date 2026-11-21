@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test"
 
-import { login } from "./helpers"
+import { expectLogicalRowCount, login, rowByText } from "./helpers"
 
 async function openUsers(page: Page) {
   await page.getByRole("link", { name: "Users" }).click()
@@ -47,7 +47,7 @@ test("admin assigns a Role by identity and deletes a user", async ({
   )
 
   // Delete Mia Member.
-  const miaRow = page.getByRole("row").filter({ hasText: "Mia Member" })
+  const miaRow = rowByText(page, "Mia Member")
   await miaRow.getByRole("button", { name: "Delete" }).click()
   const dialog = page.getByRole("alertdialog")
   await expect(dialog).toBeVisible()
@@ -55,6 +55,9 @@ test("admin assigns a Role by identity and deletes a user", async ({
 
   await expect(page.getByText("User deleted")).toBeVisible()
   await expect(page.getByRole("cell", { name: "Mia Member" })).toHaveCount(0)
+  // The page was smaller than the page size, so the row model itself shrinks;
+  // a missing mounted row alone is not proof once rows can virtualize away.
+  await expectLogicalRowCount(page, 1)
 })
 
 test("filters users by Role identity and clears the filter", async ({

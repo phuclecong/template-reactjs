@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
 
+import { rowByText, scrollRowIntoView } from "./helpers"
+
 async function login(page: Page, email: string, password: string) {
   await page.goto("/login")
   await page.getByLabel("Email").fill(email)
@@ -44,8 +46,12 @@ test("selection checkboxes, filters, and pagination are labelled", async ({
   const selectAll = page.getByRole("checkbox", { name: "Select all tasks" })
   await expect(selectAll).toBeVisible()
 
-  // Row checkboxes are labelled with the task title.
-  const row = page.getByRole("row").filter({ hasText: "Build the MSW mock" })
+  // Row checkboxes are labelled with the task title. The default title sort
+  // places this row below the first viewport once the body virtualizes.
+  const row = await scrollRowIntoView(
+    page,
+    rowByText(page, "Build the MSW mock")
+  )
   await expect(
     row.getByRole("checkbox", { name: "Select Build the MSW mock" })
   ).toBeVisible()

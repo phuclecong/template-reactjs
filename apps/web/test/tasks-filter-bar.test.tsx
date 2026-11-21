@@ -54,6 +54,33 @@ afterEach(async () => {
   await i18n.changeLanguage("en")
 })
 
+describe("TasksFilterBar collapsing", () => {
+  it("collapses the controls while keeping the active chips visible", async () => {
+    const user = userEvent.setup()
+    render(
+      <Harness initial={filtersFor({ status: "todo" })} onChange={vi.fn()} />
+    )
+
+    const toggle = screen.getByRole("button", { name: /^Filters/ })
+    expect(toggle).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByRole("combobox", { name: "Status" })).toBeVisible()
+
+    await user.click(toggle)
+
+    expect(toggle).toHaveAttribute("aria-expanded", "false")
+    expect(
+      screen.queryByRole("combobox", { name: "Status" })
+    ).not.toBeInTheDocument()
+    expect(screen.getByText("Status: todo")).toBeVisible()
+    expect(screen.getByRole("button", { name: "Clear all" })).toBeVisible()
+
+    await user.click(toggle)
+
+    expect(toggle).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByRole("combobox", { name: "Status" })).toBeVisible()
+  })
+})
+
 describe("TasksFilterBar controls", () => {
   it("renders the labelled search and filter controls", () => {
     render(<Harness onChange={vi.fn()} />)
@@ -144,7 +171,10 @@ describe("TasksFilterBar search and chips", () => {
     const onChange = vi.fn()
     render(<Harness onChange={onChange} />)
 
-    await user.type(screen.getByRole("textbox", { name: "Search tasks" }), "release")
+    await user.type(
+      screen.getByRole("textbox", { name: "Search tasks" }),
+      "release"
+    )
 
     await waitFor(() =>
       expect(onChange).toHaveBeenLastCalledWith(filtersFor({ q: "release" }))
