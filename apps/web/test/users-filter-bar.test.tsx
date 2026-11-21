@@ -111,3 +111,19 @@ describe("UsersFilterBar role filter", () => {
     ).toBeVisible()
   })
 })
+
+describe("UsersFilterBar clear action", () => {
+  it("renders the English clear label instead of a raw translation key", async () => {
+    await renderFilter()
+
+    expect(screen.getByRole("button", { name: "Clear" })).toHaveTextContent(
+      "Clear"
+    )
+  })
+
+  it("renders the Vietnamese clear label instead of a raw translation key", async () => {
+    await renderFilter({}, "vi")
+
+    expect(screen.getByRole("button", { name: "Xóa" })).toHaveTextContent("Xóa")
+  })
+})
