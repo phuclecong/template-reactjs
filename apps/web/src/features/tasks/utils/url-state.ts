@@ -11,7 +11,9 @@ import {
   type TableUrlState,
 } from "@workspace/shared-lib/hooks"
 import {
+  dateRangeText,
   filterValueLabels,
+  type DateRangeTextCopy,
   type TableFilterDescriptor,
 } from "@workspace/shared-lib/utils"
 
@@ -29,14 +31,12 @@ export type TaskChipContext = {
   assigneeOptions: readonly { value: string; label: string }[]
 }
 
-function dateRangeText(
-  from: string,
-  to: string,
-  t: TaskChipContext["t"]
-): string {
-  if (from && to) return t("tasks.filters.dateRange", { from, to })
-  if (from) return t("tasks.filters.dateFrom", { date: from })
-  return t("tasks.filters.dateUntil", { date: to })
+function taskDateRangeCopy(t: TaskChipContext["t"]): DateRangeTextCopy {
+  return {
+    range: (from, to) => t("tasks.filters.dateRange", { from, to }),
+    from: (date) => t("tasks.filters.dateFrom", { date }),
+    until: (date) => t("tasks.filters.dateUntil", { date }),
+  }
 }
 
 /**
@@ -97,7 +97,11 @@ export const TASK_FILTER_DESCRIPTORS: readonly TableFilterDescriptor<
     key: "dueDate",
     chip: (values, { t }) =>
       t("tasks.filters.chipDueDate", {
-        value: dateRangeText(values.dueFrom, values.dueTo, t),
+        value: dateRangeText(
+          values.dueFrom,
+          values.dueTo,
+          taskDateRangeCopy(t)
+        ),
       }),
   },
 ]

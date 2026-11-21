@@ -4,6 +4,8 @@ import { DEFAULT_PAGE_SIZE } from "@workspace/shared-lib/hooks/table-defaults"
 import {
   buildUsersSearchParams,
   parseUsersUrlState,
+  userFiltersFromCrud,
+  userFiltersToCrud,
   USERS_DEFAULT_SORT_FIELD,
   USERS_DEFAULT_SORT_ORDER,
 } from "@/features/users/utils/url-state"
@@ -51,6 +53,23 @@ describe("parseUsersUrlState", () => {
     expect(state.sorters).toEqual(defaultSorters)
     expect(state.currentPage).toBe(1)
     expect(state.pageSize).toBe(DEFAULT_PAGE_SIZE)
+  })
+})
+
+describe("userFilters conversion", () => {
+  it("round-trips the bar's values through the declared descriptor keys", () => {
+    const values = { q: "ada", roleId: "rol_member" }
+
+    expect(userFiltersToCrud(values)).toEqual([
+      { field: "q", operator: "contains", value: "ada" },
+      { field: "roleId", operator: "eq", value: "rol_member" },
+    ])
+    expect(userFiltersFromCrud(userFiltersToCrud(values))).toEqual(values)
+  })
+
+  it("omits empty values", () => {
+    expect(userFiltersToCrud({ q: "", roleId: "" })).toEqual([])
+    expect(userFiltersFromCrud([])).toEqual({ q: "", roleId: "" })
   })
 })
 

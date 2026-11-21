@@ -53,3 +53,6 @@ justifies extraction.
   URL adapter into `shared-lib`. The "two table paradigms" consequence now
   applies to Users alone, and "a shared wrapper around `useTable` would hide the
   options" still holds — only the URL layer is shared.
+- The 2026-11-21 follow-through (#78) then migrates Users too. Users, Roles,
+  and Tasks all use `useTable`; `useTableState` and `DataTable` are removed, so
+  the two-paradigm consequence above is fully superseded.

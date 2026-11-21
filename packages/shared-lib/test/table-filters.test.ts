@@ -6,12 +6,14 @@ import {
 
 import {
   clear,
+  dateRangeText,
   deriveChips,
   filterValueLabels,
   fromCrud,
   toCrud,
   type TableFilterDescriptor,
 } from "../src/utils/table-filters"
+import type { TableUrlFilterDescriptor } from "../src/utils/table-url-descriptors"
 
 const STATUSES = ["todo", "in-progress", "done"] as const
 
@@ -289,5 +291,40 @@ describe("filterValueLabels", () => {
       "To do, unknown"
     )
     expect(filterValueLabels("", STATUS_OPTIONS)).toBe("")
+  })
+})
+
+describe("dateRangeText", () => {
+  const copy = {
+    range: (from: string, to: string) => `${from}–${to}`,
+    from: (date: string) => `from ${date}`,
+    until: (date: string) => `until ${date}`,
+  }
+
+  it("uses the range copy when both bounds are present", () => {
+    expect(dateRangeText("2026-01-01", "2026-01-31", copy)).toBe(
+      "2026-01-01–2026-01-31"
+    )
+  })
+
+  it("uses the open-ended copy when one bound is missing", () => {
+    expect(dateRangeText("2026-01-01", "", copy)).toBe("from 2026-01-01")
+    expect(dateRangeText("", "2026-01-31", copy)).toBe("until 2026-01-31")
+  })
+})
+
+describe("descriptor value-key link", () => {
+  it("rejects a descriptor value key missing from the value shape", () => {
+    type Values = { q: string }
+    const valid: readonly TableUrlFilterDescriptor<Values>[] = [
+      { kind: "text", param: "q", field: "q" },
+    ]
+    const invalid: readonly TableUrlFilterDescriptor<Values>[] = [
+      // @ts-expect-error `query` is not a key of Values
+      { kind: "text", param: "query", field: "q" },
+    ]
+
+    expect(valid).toHaveLength(1)
+    expect(invalid).toHaveLength(1)
   })
 })

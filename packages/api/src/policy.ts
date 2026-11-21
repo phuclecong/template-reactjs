@@ -5,12 +5,13 @@
  * gating import the same rule (ADR-0002). This module owns no access matrix,
  * task ownership, or route gating — those stay with their callers.
  */
+import systemRoleIds from "./system-roles.json"
 
 /** The Administrator System Role grants full access. */
-export const ADMIN_ROLE_ID = "rol_admin"
+export const ADMIN_ROLE_ID: string = systemRoleIds.adminRoleId
 
 /** The default Role for a self-registered User. */
-export const MEMBER_ROLE_ID = "rol_member"
+export const MEMBER_ROLE_ID: string = systemRoleIds.memberRoleId
 
 /** Seeded System Roles; their ids are immutable and deletion is forbidden. */
 export const SYSTEM_ROLE_IDS = [ADMIN_ROLE_ID, MEMBER_ROLE_ID] as const

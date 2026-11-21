@@ -7,8 +7,8 @@ import {
   localStartOfDayUtcInstant,
 } from "@workspace/date-utils"
 
-import type { TableUrlFilterDescriptor } from "../hooks/url-table-state"
 import { parseFilterValues } from "./filter-values"
+import type { TableUrlFilterDescriptor } from "./table-url-descriptors"
 
 /** The editable values a filter bar holds, keyed by each filter's value key. */
 export type FilterValues = Record<string, string>
@@ -24,7 +24,7 @@ export type TableFilterDescriptor<
   TValues extends FilterValues,
   TKey extends string = string,
   TChipContext = void,
-> = TableUrlFilterDescriptor & {
+> = TableUrlFilterDescriptor<TValues> & {
   /** Logical key used by `clear` and chip removal. */
   key: TKey
   /**
@@ -176,9 +176,31 @@ export function filterValueLabels(
     .join(", ")
 }
 
+/** Feature-supplied copy for each shape a date-range phrase can take. */
+export type DateRangeTextCopy = {
+  range: (from: string, to: string) => string
+  from: (date: string) => string
+  until: (date: string) => string
+}
+
+/**
+ * Formats a date-range phrase from feature-supplied copy. The bound selection
+ * lives here once; the words and locale stay with the feature, so this module
+ * remains i18n-free.
+ */
+export function dateRangeText(
+  from: string,
+  to: string,
+  copy: DateRangeTextCopy
+): string {
+  if (from && to) return copy.range(from, to)
+  if (from) return copy.from(from)
+  return copy.until(to)
+}
+
 /** Reads Refine's `CrudFilter[]` into the filter bar's editable values. */
-export function fromCrud<TValues extends FilterValues = FilterValues>(
-  descriptors: readonly TableUrlFilterDescriptor[],
+export function fromCrud<TValues extends FilterValues>(
+  descriptors: readonly TableUrlFilterDescriptor<TValues>[],
   filters: CrudFilter[]
 ): TValues {
   const values: FilterValues = {}
@@ -212,9 +234,9 @@ export function fromCrud<TValues extends FilterValues = FilterValues>(
 }
 
 /** Converts the filter bar's values to Refine filters. */
-export function toCrud(
-  descriptors: readonly TableUrlFilterDescriptor[],
-  values: FilterValues
+export function toCrud<TValues extends FilterValues>(
+  descriptors: readonly TableUrlFilterDescriptor<TValues>[],
+  values: TValues
 ): CrudFilter[] {
   const filters: CrudFilter[] = []
   for (const descriptor of descriptors) {
