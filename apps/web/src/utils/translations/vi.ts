@@ -8,6 +8,7 @@ export const vi: Translation = {
     delete: "Xóa",
     clear: "Xóa",
     done: "Xong",
+    filters: "Bộ lọc",
   },
   combobox: {
     noResults: "Không tìm thấy kết quả.",
@@ -192,6 +193,7 @@ export const vi: Translation = {
     retry: "Thử lại",
     total: "{{total}} người dùng",
     filters: {
+      label: "Bộ lọc người dùng",
       role: "Vai trò",
     },
     columns: {

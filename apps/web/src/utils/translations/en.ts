@@ -9,6 +9,7 @@ export const en = {
     delete: "Delete",
     clear: "Clear",
     done: "Done",
+    filters: "Filters",
   },
   combobox: {
     noResults: "No results found.",
@@ -192,6 +193,7 @@ export const en = {
     retry: "Try again",
     total: "{{total}} users",
     filters: {
+      label: "User filters",
       role: "Role",
     },
     columns: {

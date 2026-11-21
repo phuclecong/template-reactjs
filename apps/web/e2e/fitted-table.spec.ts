@@ -34,7 +34,9 @@ const SCREENS: Screen[] = [
   },
   {
     path: "/users",
-    ready: (page) => page.getByRole("textbox", { name: "Search users" }),
+    // Narrow viewports collapse the filter controls, so the toggle is the
+    // non-table surface that proves the screen mounted at every width.
+    ready: (page) => page.getByRole("button", { name: "Filters", exact: true }),
     filters: (page) => page.getByRole("textbox", { name: "Search users" }),
     header: "Name",
   },
@@ -315,6 +317,39 @@ test("horizontal overflow stays inside the table at a narrow width", async ({
     })
     expect(documentOverflowAfterScroll).toBeLessThanOrEqual(1)
     await expectWindowLocked(page)
+  }
+})
+
+test("narrow viewports start with the filter controls collapsed", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 480, height: 800 })
+  await login(page, "admin@example.com", "adminpass")
+
+  const screens = [
+    {
+      path: "/roles",
+      control: page.getByRole("textbox", { name: "Title", exact: true }),
+    },
+    {
+      path: "/tasks",
+      control: page.getByRole("combobox", { name: "Status", exact: true }),
+    },
+    {
+      path: "/users",
+      control: page.getByRole("textbox", { name: "Search users" }),
+    },
+  ]
+
+  for (const screen of screens) {
+    await page.goto(screen.path)
+    await expect(page.getByRole("table")).toBeVisible()
+
+    // Compact by default: the controls stay out of the way until requested.
+    await expect(screen.control).toHaveCount(0)
+
+    await page.getByRole("button", { name: "Filters", exact: true }).click()
+    await expect(screen.control).toBeVisible()
   }
 })
 
