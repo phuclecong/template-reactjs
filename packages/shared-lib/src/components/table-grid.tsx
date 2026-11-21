@@ -108,8 +108,11 @@ export function TableGrid<T>({ table, scrollResetKey }: TableGridProps<T>) {
       data-slot="table-scroll"
       data-row-count={rowCount}
       // `scroll-pt-10` keeps the sticky header from covering a row that the
-      // browser scrolls into view for keyboard focus.
-      className="h-full min-h-0 scroll-pt-10 overflow-auto [&>[data-slot=table-container]]:overflow-visible"
+      // browser scrolls into view for keyboard focus. `contain:size` stops the
+      // virtual list's content height from inflating the page frame's
+      // intrinsic size: the element is sized by `h-full`, and its rows scroll
+      // inside it.
+      className="h-full min-h-0 scroll-pt-10 overflow-auto [contain:size] [&>[data-slot=table-container]]:overflow-visible"
     >
       <Table aria-rowcount={rowCount + 1}>
         <TableHeader>

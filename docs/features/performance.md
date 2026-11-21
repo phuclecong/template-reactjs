@@ -229,9 +229,9 @@ _Diagnosis of the residual tasks gap._ The cold authenticated route must downloa
 
 The Roles integration branch grew the eager entry and tightened the budget to a `"*"` default of 300,000 B JS / 15,000 B CSS for every audited route. The pre-optimization measurement (three cold runs per route, medians) was over on both routes:
 
-| Route    | JS transfer | CSS transfer | FCP    | LCP      | TBT   | CLS   | Score |
-| -------- | ----------- | ------------ | ------ | -------- | ----- | ----- | ----- |
-| `/login` | 310,638 B   | 15,314 B     | 905 ms | 905 ms   | 2 ms  | 0.000 | 1.00  |
+| Route    | JS transfer | CSS transfer | FCP    | LCP      | TBT    | CLS   | Score |
+| -------- | ----------- | ------------ | ------ | -------- | ------ | ----- | ----- |
+| `/login` | 310,638 B   | 15,314 B     | 905 ms | 905 ms   | 2 ms   | 0.000 | 1.00  |
 | `/tasks` | 549,737 B   | 15,314 B     | 906 ms | 4,645 ms | 159 ms | 0.000 | 0.82  |
 
 Applied changes:
@@ -244,9 +244,9 @@ Applied changes:
 
 Post-optimization measurement (three cold runs per route, medians):
 
-| Route    | JS transfer | CSS transfer | FCP    | LCP      | TBT   | CLS   | Score |
-| -------- | ----------- | ------------ | ------ | -------- | ----- | ----- | ----- |
-| `/login` | 284,728 B   | 14,434 B     | 754 ms | 754 ms   | 0 ms  | 0.000 | 1.00  |
+| Route    | JS transfer | CSS transfer | FCP    | LCP      | TBT    | CLS   | Score |
+| -------- | ----------- | ------------ | ------ | -------- | ------ | ----- | ----- |
+| `/login` | 284,728 B   | 14,434 B     | 754 ms | 754 ms   | 0 ms   | 0.000 | 1.00  |
 | `/tasks` | 392,320 B   | 14,434 B     | 756 ms | 4,013 ms | 142 ms | 0.000 | 0.86  |
 
 A second consecutive `pnpm perf` run after the final cleanups produced the table above; the first post-optimization run measured `/login` 284,696 B and `/tasks` 392,279 B, so the run-to-run spread is tens of bytes. `/login` meets the `"*"` default on both metrics; `/tasks` cut 157,417 B (−28.6%) of JS and 632 ms of LCP but remains 92,320 B above the 300,000 B JS default. The residual is structural: the authenticated closure is the 230,628 B gzip entry (React DOM, the base-ui shell, Refine, router, TanStack Query) plus the table UI and the 50,593 B request-time mock chunk. Closing the remaining gap would require replacing MSW with an in-process mock, removing zod from the mock collections, and replacing the date/table primitives — a set of changes estimated to land around 330–350 kB and to depart from ADR-0002, ADR-0005, and ADR-0009.
@@ -264,6 +264,38 @@ The remaining initial bundle was vendor-heavy: 731,557 B raw / 233.20 kB gzip in
 [`improve-performance.md`](./improve-performance.md) specifies splitting the initial closure into named family vendor chunks with rolldown's `codeSplitting.groups`, restricted to `$initial` modules, while leaving route-only vendor code deferred. This is a cache-stability and chunk-boundary change, not a cold-start byte reduction: the `/tasks` LCP gap in §6.6 is unchanged and stays with [#35](https://github.com/phuclecong/template-reactjs/issues/35).
 
 Measured result: the entry chunk fell to 58,679 B raw / 17.2 kB gzip, with seven vendor chunks of 33.6–189.6 kB raw and no chunk over 500 kB. Cold per-route JS transfer rose 0.99–1.54% against the pre-split medians (within the 2% tolerance), with identical byte medians across two runs. Explicit ceilings were restored for every audited route from the pre-split run and re-ratcheted with `min(current, ceil(post-split × 1.05))`; `/tasks` stays at its previously documented 411,893 B (the fresh `ceil(392,320 × 1.05)` is higher, so the never-loosen rule keeps 411,893), and the `"*"` default returns to 300,000 B. `index.html` still references only the initial closure — no route, overlay, or MSW chunk.
+
+### 6.8 Fitted-table and virtualization re-measurement (2026-11-21)
+
+The spec-96 integration branch (`feat/fit-tables-viewport`, tickets #97–#101)
+made every list screen a viewport-fitted frame and moved
+`@tanstack/react-virtual` into `packages/shared-lib`, so the virtualizer now
+sits in the Roles, Tasks, and Users route closures. The budgets were
+re-measured before accepting the branch.
+
+`pnpm --filter web perf` runs `pnpm run build` (`tsc -b && vite build`) and then
+`scripts/perf/build-budget.mjs`, which reads `dist/.vite/manifest.json`,
+computes each route's gzipped static JS/CSS import closure, and compares it to
+`apps/web/perf-budgets.json`. It is a deterministic byte check (no Lighthouse,
+no preview server). Measured on the `ticket/96-review-fixes` build:
+
+| Route        | JS measured | JS ceiling | CSS measured | CSS ceiling | Verdict |
+| ------------ | ----------- | ---------- | ------------ | ----------- | ------- |
+| `/login`     | 283,958 B   | 298,965 B  | 14,192 B     | 15,000 B    | PASS    |
+| `/register`  | 283,942 B   | 298,946 B  | 14,192 B     | 15,000 B    | PASS    |
+| `/dashboard` | 251,883 B   | 264,600 B  | 14,192 B     | 15,000 B    | PASS    |
+| `/tasks`     | 354,723 B   | 411,893 B  | 14,192 B     | 15,000 B    | PASS    |
+| `/users`     | 354,185 B   | 407,132 B  | 14,192 B     | 15,000 B    | PASS    |
+| `/roles`     | 375,512 B   | 440,221 B  | 14,192 B     | 15,000 B    | PASS    |
+| `/settings`  | 284,294 B   | 299,709 B  | 14,192 B     | 15,000 B    | PASS    |
+
+All seven routes pass both metrics; the harness exits 0. CSS falls to
+14,192 B on every route (from the 14,434 B §6.6 measurement) because the
+fitted layout reuses existing utilities. No ceiling was changed and no target
+renegotiation was needed: the virtualizer stays inside the existing per-route
+budgets, including `/tasks` at its documented 411,893 B override. Under the
+§5 ratchet the tighter ceilings remain in force, so a future regression above
++5% still fails.
 
 ## 7. Done condition
 

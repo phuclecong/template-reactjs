@@ -1,24 +1,12 @@
-import { expect, test, type Page } from "@playwright/test"
+import { expect, test } from "@playwright/test"
 
-import { login } from "./helpers"
-
-/** The page-level scroll region below the fixed header. */
-const CONTENT_REGION = '[data-slot="sidebar-inset"]'
-
-/** The shared frame every list screen renders through. */
-const PAGE_FRAME = '[data-slot="table-page-layout"]'
-
-/** Asserts the browser window itself cannot scroll. */
-async function expectWindowLocked(page: Page) {
-  const overflow = await page.evaluate(() => {
-    const root = document.scrollingElement ?? document.documentElement
-    return root.scrollHeight - root.clientHeight
-  })
-  expect(overflow).toBeLessThanOrEqual(1)
-
-  await page.evaluate(() => window.scrollTo(0, 10_000))
-  expect(await page.evaluate(() => window.scrollY)).toBe(0)
-}
+import {
+  CONTENT_REGION,
+  PAGE_FRAME,
+  TABLE_FOOTER,
+  expectWindowLocked,
+  login,
+} from "./helpers"
 
 test("the browser window does not scroll on any authenticated route", async ({
   page,
@@ -93,13 +81,20 @@ test("list screens render through the shared viewport-fitted page frame", async 
     const frame = page.locator(PAGE_FRAME)
     await expect(frame).toBeVisible()
 
-    const { frameTop, frameBottom, headerBottom, regionBottom } =
-      await page.evaluate(() => {
+    const {
+      frameTop,
+      frameBottom,
+      headerBottom,
+      regionBottom,
+      regionOverflow,
+      regionScrollTop,
+    } = await page.evaluate(
+      ({ regionSelector, frameSelector }) => {
         const frameElement = document.querySelector(
-          '[data-slot="table-page-layout"]'
+          frameSelector
         ) as HTMLElement
         const regionElement = document.querySelector(
-          '[data-slot="sidebar-inset"]'
+          regionSelector
         ) as HTMLElement
         const headerElement = document.querySelector(
           '[data-slot="sidebar-inset"] header'
@@ -109,13 +104,85 @@ test("list screens render through the shared viewport-fitted page frame", async 
           frameBottom: frameElement.getBoundingClientRect().bottom,
           headerBottom: headerElement.getBoundingClientRect().bottom,
           regionBottom: regionElement.getBoundingClientRect().bottom,
+          regionOverflow:
+            regionElement.scrollHeight - regionElement.clientHeight,
+          regionScrollTop: regionElement.scrollTop,
         }
-      })
+      },
+      { regionSelector: CONTENT_REGION, frameSelector: PAGE_FRAME }
+    )
 
     // The frame fills exactly the area below the fixed header, so the title,
     // filters, grid, and pagination fit without the content region scrolling
     // at the default viewport.
     expect(frameTop).toBeGreaterThanOrEqual(headerBottom - 1)
     expect(Math.abs(frameBottom - regionBottom)).toBeLessThanOrEqual(1)
+    expect(regionOverflow).toBeLessThanOrEqual(1)
+    expect(regionScrollTop).toBe(0)
+    await expectWindowLocked(page)
+  }
+})
+
+test("short-viewport list screens grow the frame and scroll the content region", async ({
+  page,
+}) => {
+  // Shorter than the frame's minimum content, so the frame must grow past the
+  // region's client height and the region must own the fallback scroll.
+  await page.setViewportSize({ width: 1280, height: 420 })
+  await login(page, "admin@example.com", "adminpass")
+
+  for (const path of ["/roles", "/tasks", "/users"]) {
+    await page.goto(path)
+    await expect(page.getByRole("table")).toBeVisible()
+
+    const geometry = await page.evaluate(
+      ({ regionSelector, frameSelector }) => {
+        const region = document.querySelector(regionSelector) as HTMLElement
+        const frame = document.querySelector(frameSelector) as HTMLElement
+        return {
+          regionClientHeight: region.clientHeight,
+          regionScrollHeight: region.scrollHeight,
+          regionScrollTop: region.scrollTop,
+          frameHeight: frame.getBoundingClientRect().height,
+        }
+      },
+      { regionSelector: CONTENT_REGION, frameSelector: PAGE_FRAME }
+    )
+
+    // The content region owns the overflow, and the frame grew (it is taller
+    // than the region's client height) rather than merely overflowing.
+    expect(geometry.regionScrollHeight).toBeGreaterThan(
+      geometry.regionClientHeight
+    )
+    expect(geometry.frameHeight).toBeGreaterThan(geometry.regionClientHeight)
+    expect(geometry.regionScrollTop).toBe(0)
+    await expectWindowLocked(page)
+
+    // Nothing is clipped: the region can scroll, and at the end the pinned
+    // pagination and the bottom of the frame are both reachable.
+    const footer = page.locator(TABLE_FOOTER)
+    await page.locator(CONTENT_REGION).evaluate((element) => {
+      element.scrollTo({ top: element.scrollHeight })
+    })
+    await expect
+      .poll(() =>
+        page.locator(CONTENT_REGION).evaluate((element) => element.scrollTop)
+      )
+      .toBeGreaterThan(0)
+    await expect(footer).toBeInViewport()
+
+    const scrolled = await page.evaluate(
+      ({ regionSelector, frameSelector }) => {
+        const region = document.querySelector(regionSelector) as HTMLElement
+        const frame = document.querySelector(frameSelector) as HTMLElement
+        return {
+          regionBottom: region.getBoundingClientRect().bottom,
+          frameBottom: frame.getBoundingClientRect().bottom,
+        }
+      },
+      { regionSelector: CONTENT_REGION, frameSelector: PAGE_FRAME }
+    )
+    expect(scrolled.frameBottom).toBeLessThanOrEqual(scrolled.regionBottom + 1)
+    await expectWindowLocked(page)
   }
 })

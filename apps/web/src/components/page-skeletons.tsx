@@ -63,8 +63,9 @@ export function AuthPageSkeleton() {
 
 /**
  * Neutral dashboard frame shown while `ProtectedRoute`/`DashboardLayout` run
- * their async checks. It mirrors the shell dimensions (sidebar rail + sticky
- * header) without a User, navigation, or any protected content.
+ * their async checks. It mirrors the shell dimensions (sidebar rail, fixed
+ * header, and scroll region below it) without a User, navigation, or any
+ * protected content.
  */
 export function AppShellSkeleton() {
   const { t } = useTranslation()
@@ -83,21 +84,29 @@ export function AppShellSkeleton() {
           <Skeleton className="h-8 w-full" />
         </div>
       </div>
-      <div className="flex min-w-0 flex-1 flex-col">
+      <main className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-12 shrink-0 items-center gap-2 border-b border-muted/90 bg-background px-4">
           <Skeleton style={{ height: 24, width: 24 }} aria-hidden="true" />
           <Bar height={16} width={160} />
         </header>
-        <main className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6 text-sm">
-          <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
-            <Skeleton className="h-8 w-72" />
-            <Skeleton className="h-8 w-56" />
-            <Skeleton className="h-8 w-56" />
+        <div
+          data-slot="shell-content"
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+        >
+          <div className="flex min-h-full flex-col gap-4 p-6 text-sm">
+            <div
+              className="flex flex-wrap items-center gap-2"
+              aria-hidden="true"
+            >
+              <Skeleton className="h-8 w-72" />
+              <Skeleton className="h-8 w-56" />
+              <Skeleton className="h-8 w-56" />
+            </div>
+            <Skeleton className="h-8 w-full" aria-hidden="true" />
+            <Skeleton style={{ height: 160 }} className="w-full" />
           </div>
-          <Skeleton className="h-8 w-full" aria-hidden="true" />
-          <Skeleton style={{ height: 160 }} className="w-full" />
-        </main>
-      </div>
+        </div>
+      </main>
       <LoadingAnnouncement label={t("common.loading")} />
     </div>
   )

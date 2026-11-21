@@ -6,9 +6,10 @@ export type TablePageLayoutProps = {
 
 /**
  * Children-only page frame for list screens. It owns the page height contract:
- * it fills the shell's scroll region below the fixed header, and when the
- * content cannot fit its content overflows into the region's fallback scroll
- * rather than being clipped. It lays out its children in a column with the
+ * it is at least as tall as the shell's scroll region (`min-h-full`), and when
+ * its content cannot fit it grows so the region takes over scrolling rather
+ * than clipping (`shrink-0` stops the region's flex sizing from compressing it
+ * back to the region height). It lays out its children in a column with the
  * existing page padding and gap; the feature keeps its own title, filters,
  * bulk bar, and overlays.
  *
@@ -20,7 +21,7 @@ export function TablePageLayout({ children }: TablePageLayoutProps) {
   return (
     <div
       data-slot="table-page-layout"
-      className="flex min-h-0 flex-1 flex-col gap-4 p-6 text-sm"
+      className="flex min-h-full shrink-0 flex-col gap-4 p-6 text-sm"
     >
       {children}
     </div>
