@@ -11,6 +11,7 @@ import type { HttpError } from "@refinedev/core"
 import { useModalForm } from "@refinedev/react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller } from "react-hook-form"
+import { isSystemRole } from "@workspace/api/policy"
 import type { RoleRecord } from "@workspace/api/schemas"
 import { ComboboxFilter } from "@workspace/shared-lib/components"
 import { Button } from "@workspace/ui/components/button"
@@ -85,6 +86,18 @@ function RoleFormSheet({
   )
 
   const { ROLE_STATUS_OPTIONS: statusOptions } = useEnums()
+
+  // The API rejects deactivating a System Role (`409 system_role`), so the
+  // edit flow must not offer a choice it cannot honour.
+  const editingSystemRole =
+    isEdit && editingId !== undefined && isSystemRole(editingId)
+  const availableStatusOptions = useMemo(
+    () =>
+      editingSystemRole
+        ? statusOptions.filter((option) => option.value !== "inactive")
+        : statusOptions,
+    [editingSystemRole, statusOptions]
+  )
 
   const {
     control,
@@ -282,7 +295,7 @@ function RoleFormSheet({
                     <ComboboxFilter
                       id={`${fieldId}-status`}
                       multiple={false}
-                      options={statusOptions}
+                      options={availableStatusOptions}
                       value={field.value}
                       onValueChange={(value) => field.onChange(value)}
                       ariaLabel={t("roles.columns.status")}

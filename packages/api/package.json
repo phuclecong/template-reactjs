@@ -10,6 +10,7 @@
     "./data-handlers": "./src/data-handlers.ts",
     "./collections": "./src/collections.ts",
     "./schemas": "./src/schemas.ts",
+    "./policy": "./src/policy.ts",
     "./contract": "./src/generated/api.d.ts",
     "./auth": "./src/auth.ts"
   },

@@ -11,6 +11,7 @@ import {
 import type { ColumnDef } from "@tanstack/react-table"
 import type { RoleRecord } from "@workspace/api/schemas"
 import { DataTable } from "@workspace/shared-lib/components"
+import { isAdministratorRole } from "@workspace/api/policy"
 import { useDialog, useTableState } from "@workspace/shared-lib/hooks"
 import { Button } from "@workspace/ui/components/button"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
@@ -101,7 +102,7 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
   // (a `useCallback`) rather than on the fresh `deleteDialog` object.
   const openDelete = deleteDialog.open
 
-  const isAdmin = currentUser.roleId === "rol_admin"
+  const isAdmin = isAdministratorRole(currentUser.roleId)
 
   const changeRole = useCallback(
     (user: UserRow, nextRoleId: string) => {
