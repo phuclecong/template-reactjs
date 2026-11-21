@@ -1,18 +1,107 @@
-import { taskPrioritySchema, taskStatusSchema } from "@workspace/api/schemas"
+import type { TFunction } from "i18next"
+import {
+  taskPrioritySchema,
+  taskStatusSchema,
+  type TaskPriority,
+  type TaskStatus,
+} from "@workspace/api/schemas"
 import {
   createTableUrlAdapter,
+  type EnumOption,
   type TableUrlState,
 } from "@workspace/shared-lib/hooks"
+import {
+  filterValueLabels,
+  type TableFilterDescriptor,
+} from "@workspace/shared-lib/utils"
+
+import type { TaskFilterKey, TaskFilterValues } from "./filters"
 
 /** Default sort, matching the table's designed order. */
 export const TASKS_DEFAULT_SORT_FIELD = "title"
 export const TASKS_DEFAULT_SORT_ORDER = "asc"
 
+/** Feature-supplied copy and option labels for the Tasks filter chips. */
+export type TaskChipContext = {
+  t: TFunction<"translation">
+  statusOptions: readonly EnumOption<TaskStatus>[]
+  priorityOptions: readonly EnumOption<TaskPriority>[]
+  assigneeOptions: readonly { value: string; label: string }[]
+}
+
+function dateRangeText(
+  from: string,
+  to: string,
+  t: TaskChipContext["t"]
+): string {
+  if (from && to) return t("tasks.filters.dateRange", { from, to })
+  if (from) return t("tasks.filters.dateFrom", { date: from })
+  return t("tasks.filters.dateUntil", { date: to })
+}
+
 /**
- * The flat URL format for the Tasks table. Keys match the pre-Refine table so
- * existing deep links keep working; the encoding rules live in the shared
- * adapter (see `roles/utils/url-state.ts` for the other consumer).
+ * The flat URL format for the Tasks table and the bar-direction conversion,
+ * declared once per filter. Keys match the pre-Refine table so existing deep
+ * links keep working.
  */
+export const TASK_FILTER_DESCRIPTORS: readonly TableFilterDescriptor<
+  TaskFilterValues,
+  TaskFilterKey,
+  TaskChipContext
+>[] = [
+  {
+    kind: "text",
+    param: "q",
+    field: "q",
+    key: "q",
+    chip: (values, { t }) => t("tasks.filters.chipSearch", { value: values.q }),
+  },
+  {
+    kind: "enumMulti",
+    param: "status",
+    field: "status",
+    values: taskStatusSchema.options,
+    key: "status",
+    chip: (values, { t, statusOptions }) =>
+      t("tasks.filters.chipStatus", {
+        value: filterValueLabels(values.status, statusOptions),
+      }),
+  },
+  {
+    kind: "enumMulti",
+    param: "priority",
+    field: "priority",
+    values: taskPrioritySchema.options,
+    key: "priority",
+    chip: (values, { t, priorityOptions }) =>
+      t("tasks.filters.chipPriority", {
+        value: filterValueLabels(values.priority, priorityOptions),
+      }),
+  },
+  {
+    // Assignee ids are open-ended; `unassigned` is a sentinel, not an enum.
+    kind: "enumMulti",
+    param: "assignee",
+    field: "assigneeId",
+    key: "assignee",
+    chip: (values, { t, assigneeOptions }) =>
+      t("tasks.filters.chipAssignee", {
+        value: filterValueLabels(values.assignee, assigneeOptions),
+      }),
+  },
+  {
+    kind: "dateRange",
+    fromParam: "dueFrom",
+    toParam: "dueTo",
+    field: "dueDate",
+    key: "dueDate",
+    chip: (values, { t }) =>
+      t("tasks.filters.chipDueDate", {
+        value: dateRangeText(values.dueFrom, values.dueTo, t),
+      }),
+  },
+]
+
 const adapter = createTableUrlAdapter({
   defaultSortField: TASKS_DEFAULT_SORT_FIELD,
   defaultSortOrder: TASKS_DEFAULT_SORT_ORDER,
@@ -29,29 +118,7 @@ const adapter = createTableUrlAdapter({
     "page",
     "pageSize",
   ],
-  filters: [
-    { kind: "text", param: "q", field: "q" },
-    {
-      kind: "enumMulti",
-      param: "status",
-      field: "status",
-      values: taskStatusSchema.options,
-    },
-    {
-      kind: "enumMulti",
-      param: "priority",
-      field: "priority",
-      values: taskPrioritySchema.options,
-    },
-    // Assignee ids are open-ended; `unassigned` is a sentinel, not an enum.
-    { kind: "enumMulti", param: "assignee", field: "assigneeId" },
-    {
-      kind: "dateRange",
-      fromParam: "dueFrom",
-      toParam: "dueTo",
-      field: "dueDate",
-    },
-  ],
+  filters: TASK_FILTER_DESCRIPTORS,
 })
 
 /** The table state the URL represents: the same shape Refine's `useTable` holds. */

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import type { TFunction } from "i18next"
 import { useTranslation } from "react-i18next"
 import type { CrudFilter } from "@refinedev/core"
 import { XIcon } from "lucide-react"
@@ -10,10 +9,10 @@ import {
   ComboboxFilter,
 } from "@workspace/shared-lib/components"
 import { useEnums } from "@workspace/shared-lib/hooks"
-import { parseFilterValues } from "@workspace/shared-lib/utils"
 
 import {
   clearRoleFilter,
+  roleFilterChips,
   roleFiltersFromCrud,
   roleFiltersToCrud,
   type RoleFilterKey,
@@ -22,18 +21,6 @@ import {
 
 /** Text filters commit only after the user pauses for this long. */
 export const TEXT_FILTER_DEBOUNCE_MS = 300
-
-type Chip = { key: RoleFilterKey; label: string }
-
-function dateRangeText(
-  from: string,
-  to: string,
-  t: TFunction<"translation">
-): string {
-  if (from && to) return t("roles.filters.dateRange", { from, to })
-  if (from) return t("roles.filters.dateFrom", { date: from })
-  return t("roles.filters.dateUntil", { date: to })
-}
 
 /**
  * The Roles filter bar and its active-filter chips. It is a controlled view of
@@ -121,53 +108,10 @@ export function RolesFilterBar({
     onChange([])
   }, [onChange])
 
-  const chips = useMemo<Chip[]>(() => {
-    const next: Chip[] = []
-    if (values.title) {
-      next.push({
-        key: "title",
-        label: t("roles.filters.chipTitle", { value: values.title }),
-      })
-    }
-    if (values.description) {
-      next.push({
-        key: "description",
-        label: t("roles.filters.chipDescription", {
-          value: values.description,
-        }),
-      })
-    }
-    if (values.status) {
-      const statusLabels = parseFilterValues(values.status).map(
-        (status) =>
-          statusOptions.find((option) => option.value === status)?.label ??
-          status
-      )
-      next.push({
-        key: "status",
-        label: t("roles.filters.chipStatus", {
-          value: statusLabels.join(", "),
-        }),
-      })
-    }
-    if (values.createdAtFrom || values.createdAtTo) {
-      next.push({
-        key: "createdAt",
-        label: t("roles.filters.chipCreatedAt", {
-          value: dateRangeText(values.createdAtFrom, values.createdAtTo, t),
-        }),
-      })
-    }
-    if (values.updatedAtFrom || values.updatedAtTo) {
-      next.push({
-        key: "updatedAt",
-        label: t("roles.filters.chipUpdatedAt", {
-          value: dateRangeText(values.updatedAtFrom, values.updatedAtTo, t),
-        }),
-      })
-    }
-    return next
-  }, [values, statusOptions, t])
+  const chips = useMemo(
+    () => roleFilterChips(values, { t, statusOptions }),
+    [values, statusOptions, t]
+  )
 
   return (
     <div className="flex flex-col gap-2">
