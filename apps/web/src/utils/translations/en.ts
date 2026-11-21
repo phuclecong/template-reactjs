@@ -318,6 +318,44 @@ export const en = {
       dateRange: "{{from}} – {{to}}",
     },
   },
+  dashboard: {
+    title: "Dashboard",
+    loading: "Loading dashboard…",
+    error: "Could not load the dashboard.",
+    retry: "Try again",
+    live: {
+      live: "Live",
+      connecting: "Connecting…",
+      reconnecting: "Reconnecting…",
+      offline: "Offline",
+      demo: "Live demo",
+    },
+    kpi: {
+      total: "Total tasks",
+      open: "Open tasks",
+      overdue: "Overdue tasks",
+      completion: "Completion rate",
+    },
+    charts: {
+      byStatus: "Tasks by status",
+      byPriority: "Tasks by priority",
+      byAssignees: "Busiest assignees",
+      empty: "No tasks to chart yet.",
+    },
+    status: {
+      todo: "To do",
+      "in-progress": "In progress",
+      done: "Done",
+      blocked: "Blocked",
+    },
+    priority: {
+      low: "Low",
+      medium: "Medium",
+      high: "High",
+      unassigned: "No priority",
+    },
+    unassigned: "Unassigned",
+  },
   settings: {
     title: "Settings",
     theme: {

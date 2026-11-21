@@ -2089,3 +2089,77 @@ describe("password", () => {
     expect(res.status).toBe(401)
   })
 })
+
+describe("dashboard summary", () => {
+  it("requires authentication (401)", async () => {
+    const res = await api("/api/dashboard/summary")
+    expect(res.status).toBe(401)
+  })
+
+  it("returns the zero-filled Task summary for the seeded store", async () => {
+    const { accessToken } = await login("member@example.com", "memberpass")
+    const res = await api("/api/dashboard/summary", { token: accessToken })
+    expect(res.status).toBe(200)
+
+    const summary = (await res.json()) as {
+      totals: {
+        total: number
+        open: number
+        overdue: number
+        completionRate: number
+      }
+      byStatus: Array<{ status: string; count: number }>
+      byPriority: Array<{ priority: string; count: number }>
+      byAssignee: Array<{ assigneeId: string | null; name: string }>
+      generatedAt: string
+    }
+
+    expect(summary.totals.total).toBe(tasks.all().length)
+    expect(summary.totals.open).toBeLessThanOrEqual(summary.totals.total)
+    expect(summary.totals.completionRate).toBeGreaterThanOrEqual(0)
+    expect(summary.totals.completionRate).toBeLessThanOrEqual(1)
+    expect(summary.byStatus.map((entry) => entry.status)).toEqual([
+      "todo",
+      "in-progress",
+      "done",
+      "blocked",
+    ])
+    expect(summary.byPriority.map((entry) => entry.priority)).toEqual([
+      "low",
+      "medium",
+      "high",
+      "unassigned",
+    ])
+    expect(Number.isNaN(Date.parse(summary.generatedAt))).toBe(false)
+  })
+
+  it("reflects a created Task on the next read", async () => {
+    const { accessToken } = await login("admin@example.com", "adminpass")
+    const before = (await (
+      await api("/api/dashboard/summary", { token: accessToken })
+    ).json()) as {
+      totals: { total: number; open: number; overdue: number }
+    }
+
+    const created = await api("/api/tasks", {
+      method: "POST",
+      token: accessToken,
+      body: {
+        title: "Fresh work",
+        status: "todo",
+        dueDate: "2020-01-01T00:00:00.000Z",
+      },
+    })
+    expect(created.status).toBe(201)
+
+    const after = (await (
+      await api("/api/dashboard/summary", { token: accessToken })
+    ).json()) as {
+      totals: { total: number; open: number; overdue: number }
+    }
+
+    expect(after.totals.total).toBe(before.totals.total + 1)
+    expect(after.totals.open).toBe(before.totals.open + 1)
+    expect(after.totals.overdue).toBe(before.totals.overdue + 1)
+  })
+})

@@ -19,8 +19,8 @@ export interface SessionUser {
   role: RoleSummary
 }
 
-/** The identity subset the dashboard shell and sidebar render in the footer. */
-export type DashboardUser = Pick<SessionUser, "name" | "email" | "role">
+/** The identity subset the app shell and sidebar render in the footer. */
+export type ShellUser = Pick<SessionUser, "name" | "email" | "role">
 
 const SESSION_KEY = "auth.session"
 

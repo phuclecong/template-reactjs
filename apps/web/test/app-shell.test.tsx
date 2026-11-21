@@ -6,10 +6,10 @@ import { Refine, type DataProvider } from "@refinedev/core"
 import { beforeEach, describe, expect, it } from "vitest"
 
 import i18n from "@/utils/i18n"
-import { DashboardShell } from "@/components/dashboard-shell"
-import type { DashboardUser } from "@/providers/auth-provider"
+import { AppShell } from "@/components/app-shell"
+import type { ShellUser } from "@/providers/auth-provider"
 
-const USER: DashboardUser = {
+const USER: ShellUser = {
   name: "Ada Admin",
   email: "admin@example.com",
   role: { id: "rol_admin", title: "Administrator", status: "active" },
@@ -32,9 +32,9 @@ function renderShell() {
           dataProvider={dataProvider}
           options={{ syncWithLocation: false, disableTelemetry: true }}
         >
-          <DashboardShell user={USER}>
+          <AppShell user={USER}>
             <div>Page content</div>
-          </DashboardShell>
+          </AppShell>
         </Refine>
       </I18nextProvider>
     </MemoryRouter>
@@ -45,7 +45,7 @@ beforeEach(async () => {
   await i18n.changeLanguage("en")
 })
 
-describe("DashboardShell viewport frame", () => {
+describe("AppShell viewport frame", () => {
   it("places the scroll region below the fixed header, not around it", () => {
     const { container } = renderShell()
 

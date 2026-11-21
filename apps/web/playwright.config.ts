@@ -13,5 +13,8 @@ export default defineConfig({
     url: "http://localhost:5173",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    // Tests drive Live updates through their own mutation, so the mock
+    // activity simulator must not race them.
+    env: { VITE_MOCK_LIVE_ACTIVITY: "false" },
   },
 })

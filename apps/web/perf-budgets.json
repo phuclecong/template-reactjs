@@ -1,34 +1,34 @@
 {
   "*": {
     "jsBytes": 300000,
-    "cssBytes": 15000
+    "cssBytes": 16000
   },
   "/dashboard": {
-    "jsBytes": 264600,
-    "cssBytes": 15000
+    "jsBytes": 377345,
+    "cssBytes": 16000
   },
   "/login": {
     "jsBytes": 298965,
-    "cssBytes": 15000
+    "cssBytes": 16000
   },
   "/register": {
     "jsBytes": 298946,
-    "cssBytes": 15000
+    "cssBytes": 16000
   },
   "/roles": {
     "jsBytes": 440221,
-    "cssBytes": 15000
+    "cssBytes": 16000
   },
   "/settings": {
     "jsBytes": 299709,
-    "cssBytes": 15000
+    "cssBytes": 16000
   },
   "/tasks": {
     "jsBytes": 411893,
-    "cssBytes": 15000
+    "cssBytes": 16000
   },
   "/users": {
     "jsBytes": 407132,
-    "cssBytes": 15000
+    "cssBytes": 16000
   }
 }

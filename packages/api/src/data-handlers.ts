@@ -18,6 +18,8 @@ import {
   normalizeDueDateInstant,
   normalizeStoredDueDate,
 } from "./dates"
+import { summarizeTasks } from "./dashboard"
+import { publishTaskLiveEvent } from "./live-events"
 import { isAdministratorRole, isSystemRole } from "./policy"
 import {
   getUserByAccessToken,
@@ -350,6 +352,7 @@ async function bulkUpdateTasks(request: Request): Promise<Response> {
   }
 
   let updated = 0
+  const updatedIds: string[] = []
   const failed: Array<{ id: string; reason: string }> = []
 
   for (const id of ids) {
@@ -374,8 +377,10 @@ async function bulkUpdateTasks(request: Request): Promise<Response> {
       strict: true,
     })
     updated += 1
+    updatedIds.push(id)
   }
 
+  publishTaskLiveEvent("updated", updatedIds)
   return ok({ updated, failed })
 }
 
@@ -1001,6 +1006,7 @@ export const dataHandlers = [
       createdAt: timestamp,
       updatedAt: timestamp,
     })
+    publishTaskLiveEvent("created", [task.id])
     return ok(toPublicTask(task), 201)
   }),
 
@@ -1052,6 +1058,7 @@ export const dataHandlers = [
       },
       strict: true,
     })
+    publishTaskLiveEvent("updated", [updated.id])
     return ok(toPublicTask(updated))
   }),
 
@@ -1067,7 +1074,15 @@ export const dataHandlers = [
       return fail("forbidden", "You can only delete your own tasks.", 403)
     }
     tasks.delete(target)
+    publishTaskLiveEvent("deleted", [target.id])
     return new HttpResponse(null, { status: 204 })
+  }),
+
+  // ---- dashboard ----
+  http.get("*/api/dashboard/summary", ({ request }) => {
+    const actor = getAuthUser(request)
+    if (!actor) return fail("unauthorized", "Authentication required.", 401)
+    return ok(summarizeTasks(tasks.all(), users.all()))
   }),
 
   // ---- roles ----
