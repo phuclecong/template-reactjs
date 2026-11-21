@@ -1,6 +1,6 @@
 import { expect, test, type ConsoleMessage, type Page } from "@playwright/test"
 
-import { formatLocalDateTime, login } from "./helpers"
+import { formatLocalDateTime, login, rowByText } from "./helpers"
 
 type ConsoleEntry = {
   kind?: string
@@ -84,9 +84,7 @@ test("admin creates a role with inline validation, a toast, and a refreshed list
   await expect(page.getByText("Role created")).toBeVisible()
   await expect(drawer).toHaveCount(0)
 
-  const createdRow = page
-    .getByRole("row")
-    .filter({ hasText: "Support Engineer" })
+  const createdRow = rowByText(page, "Support Engineer")
   await expect(createdRow).toBeVisible()
   await expect(createdRow.getByText("Active", { exact: true })).toBeVisible()
   await expect(createdRow).toContainText("Handles customer tickets.")
@@ -109,10 +107,7 @@ test("admin edits a role with prefill and submits only dirty fields", async ({
   await login(page, "admin@example.com", "adminpass")
   await openRoles(page)
 
-  const memberRow = page
-    .locator("tbody tr")
-    .filter({ hasText: "Member" })
-    .first()
+  const memberRow = rowByText(page, "Member").first()
   await memberRow.getByRole("button", { name: "Edit" }).click()
 
   const drawer = page.getByRole("dialog")
@@ -143,10 +138,7 @@ test("admin edits a role with prefill and submits only dirty fields", async ({
   await expect(page.getByText("Role updated")).toBeVisible()
   await expect(drawer).toHaveCount(0)
 
-  const renamedRow = page
-    .locator("tbody tr")
-    .filter({ hasText: "Member" })
-    .first()
+  const renamedRow = rowByText(page, "Member").first()
   await expect(renamedRow).toContainText("Read-only catalogue access.")
   // The original createdAt survives the write.
   await expect(renamedRow).toContainText(
@@ -204,9 +196,7 @@ test("dirty cancel asks for confirmation while pristine cancel closes", async ({
   await expect(page.getByRole("alertdialog")).toHaveCount(0)
 
   // Opening create after an edit starts blank, not with the previous record.
-  await page
-    .locator("tbody tr")
-    .filter({ hasText: "Member" })
+  await rowByText(page, "Member")
     .first()
     .getByRole("button", { name: "Edit" })
     .click()

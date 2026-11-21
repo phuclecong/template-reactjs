@@ -14,6 +14,8 @@ export type DateRangeFilterProps = {
   placeholder?: string
   /** Translated clear control label. */
   clearLabel?: string
+  /** Width and layout classes for the trigger, e.g. responsive widths. */
+  className?: string
   value: DateRangeValue
   onChange: (value: DateRangeValue) => void
 }
@@ -29,6 +31,7 @@ export function DateRangeFilter({
   ariaLabel,
   placeholder,
   clearLabel,
+  className,
   value,
   onChange,
 }: DateRangeFilterProps) {
@@ -53,6 +56,7 @@ export function DateRangeFilter({
       locale={resolveLocale(i18n.language)}
       placeholder={placeholder}
       clearLabel={clearLabel}
+      className={className}
       labels={labels}
       value={value}
       onChange={onChange}

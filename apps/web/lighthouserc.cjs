@@ -70,7 +70,7 @@ module.exports = {
         // but the GitHub-hosted runner measures 608-640 ms, so a 200 ms
         // blocking gate is runner noise, not a product regression. LHCI still
         // prints the median and warns. Re-enable blocking ("warn" -> "error")
-        // once the audit runs on a stable host; see performance.md §5/§8.
+        // once the audit runs on a stable host; see ADR-0010.
         "total-blocking-time": [
           "warn",
           { maxNumericValue: 200, aggregationMethod: "median" },
@@ -79,8 +79,7 @@ module.exports = {
         // still prints the measured score/LCP and any warning values, but a
         // warning does not fail the job. Re-enable blocking by changing these
         // two severities from "warn" to "error" once `/tasks` meets
-        // score >= 0.85 and LCP <= 3.5 s (issue #35; see performance.md
-        // §5/§6.5).
+        // score >= 0.85 and LCP <= 3.5 s (issue #35; see ADR-0010).
         "categories:performance": [
           "warn",
           { minScore: 0.85, aggregationMethod: "median" },

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test"
 
-import { login } from "./helpers"
+import { expectLogicalRowCount, login, tableRows } from "./helpers"
 
 // The URL stores picked calendar days, the API request converts them to local
 // start/end-of-day instants, and the seed timestamps are UTC. Pin the browser
@@ -135,8 +135,8 @@ test("filters by title with a debounced contains match", async ({ page }) => {
   // …but lands after the 300 ms debounce with a case-insensitive contains.
   await expectFilter(page, "title", "contains", "demo role 42")
   await expect(page.getByText("Title contains: demo role 42")).toBeVisible()
-  await expect(page.locator("tbody tr")).toHaveCount(1)
-  await expect(page.locator("tbody tr").nth(0)).toContainText("Demo Role 42")
+  await expectLogicalRowCount(page, 1)
+  await expect(tableRows(page).nth(0)).toContainText("Demo Role 42")
   await expect(page.getByText("Demo Role 43")).toHaveCount(0)
 })
 
@@ -150,8 +150,8 @@ test("filters by description with a contains match", async ({ page }) => {
   await expect(
     page.getByText("Description contains: demo role 42")
   ).toBeVisible()
-  await expect(page.locator("tbody tr")).toHaveCount(1)
-  await expect(page.locator("tbody tr").nth(0)).toContainText("Demo Role 42")
+  await expectLogicalRowCount(page, 1)
+  await expect(tableRows(page).nth(0)).toContainText("Demo Role 42")
 })
 
 test("combines title, description, and status filters with AND semantics", async ({
@@ -162,16 +162,16 @@ test("combines title, description, and status filters with AND semantics", async
 
   await titleFilter(page).fill("Demo Role 4")
   await expectFilter(page, "title", "contains", "Demo Role 4")
-  await expect(page.locator("tbody tr")).toHaveCount(10)
+  await expectLogicalRowCount(page, 10)
 
   await selectStatus(page, "Inactive")
   await expectFilter(page, "status", "eq", "inactive")
-  await expect(page.locator("tbody tr")).toHaveCount(5)
+  await expectLogicalRowCount(page, 5)
 
   await descriptionFilter(page).fill("demo role 44")
   await expectFilter(page, "description", "contains", "demo role 44")
-  await expect(page.locator("tbody tr")).toHaveCount(1)
-  await expect(page.locator("tbody tr").nth(0)).toContainText("Demo Role 44")
+  await expectLogicalRowCount(page, 1)
+  await expect(tableRows(page).nth(0)).toContainText("Demo Role 44")
 })
 
 test("status filter selects one or several statuses", async ({ page }) => {
@@ -189,10 +189,12 @@ test("status filter selects one or several statuses", async ({ page }) => {
   await selectStatus(page, "Inactive")
   await expectFilter(page, "status", "eq", "inactive")
   await expect(page.getByText("29 roles")).toBeVisible()
-  await expect(page.locator("tbody tr")).toHaveCount(29)
+  await expectLogicalRowCount(page, 29)
+  // The server filters to inactive records; assert a mounted representative
+  // rather than counting badges, which would depend on virtualization.
   await expect(
-    page.locator("tbody").getByText("Inactive", { exact: true })
-  ).toHaveCount(29)
+    tableRows(page).first().getByText("Inactive", { exact: true })
+  ).toBeVisible()
 
   // Adding a second status widens the match to either value (OR within the
   // field) and stores both in an `in` filter.
@@ -200,7 +202,7 @@ test("status filter selects one or several statuses", async ({ page }) => {
   await expectFilter(page, "status", "in", ["inactive", "active"])
   await expect(page.getByText("60 roles")).toBeVisible()
   await expect(page.getByText("Status: Inactive, Active")).toBeVisible()
-  await expect(page.locator("tbody tr")).toHaveCount(30)
+  await expectLogicalRowCount(page, 30)
 
   // Deselecting one status narrows the filter back to the other.
   await page.getByRole("button", { name: "Remove Active", exact: true }).click()
@@ -229,9 +231,9 @@ test("filters by an inclusive created-date range stored as local days", async ({
   await expectFilter(page, "createdAt", "lte", "2026-01-03")
 
   // Both boundary days are included: their noon-UTC seeds match.
-  await expect(page.locator("tbody tr")).toHaveCount(2)
-  await expect(page.locator("tbody tr").nth(0)).toContainText("Demo Role 03")
-  await expect(page.locator("tbody tr").nth(1)).toContainText("Demo Role 02")
+  await expectLogicalRowCount(page, 2)
+  await expect(tableRows(page).nth(0)).toContainText("Demo Role 03")
+  await expect(tableRows(page).nth(1)).toContainText("Demo Role 02")
   await expect(page.getByText("Created: 2026-01-02 – 2026-01-03")).toBeVisible()
 
   // The picker shows the stored instants back as local calendar days.
@@ -244,7 +246,7 @@ test("filters by an inclusive created-date range stored as local days", async ({
   await expect(page.getByRole("table")).toBeVisible()
   await expectFilter(page, "createdAt", "gte", "2026-01-02")
   await expectFilter(page, "createdAt", "lte", "2026-01-03")
-  await expect(page.locator("tbody tr")).toHaveCount(2)
+  await expectLogicalRowCount(page, 2)
   await expect(page.locator("#roles-created-at-filter")).toContainText(
     "Jan 2 – 3, 2026"
   )
@@ -266,9 +268,9 @@ test("filters by an inclusive updated-date range", async ({ page }) => {
   await expectFilter(page, "updatedAt", "gte", "2026-03-02")
   await expectFilter(page, "updatedAt", "lte", "2026-03-03")
 
-  await expect(page.locator("tbody tr")).toHaveCount(2)
-  await expect(page.locator("tbody tr").nth(0)).toContainText("Demo Role 03")
-  await expect(page.locator("tbody tr").nth(1)).toContainText("Demo Role 02")
+  await expectLogicalRowCount(page, 2)
+  await expect(tableRows(page).nth(0)).toContainText("Demo Role 03")
+  await expect(tableRows(page).nth(1)).toContainText("Demo Role 02")
   await expect(page.getByText("Updated: 2026-03-02 – 2026-03-03")).toBeVisible()
 })
 
@@ -282,7 +284,7 @@ test("removes individual filter chips and clears all filters", async ({
   await expectFilter(page, "title", "contains", "demo role 42")
   await selectStatus(page, "Inactive")
   await expectFilter(page, "status", "eq", "inactive")
-  await expect(page.locator("tbody tr")).toHaveCount(1)
+  await expectLogicalRowCount(page, 1)
 
   await page
     .getByRole("button", { name: "Remove Status: Inactive", exact: true })
@@ -292,7 +294,7 @@ test("removes individual filter chips and clears all filters", async ({
     { field: "title", operator: "contains", value: "demo role 42" },
   ])
   await expect(page.getByText("Status: Inactive")).toHaveCount(0)
-  await expect(page.locator("tbody tr")).toHaveCount(1)
+  await expectLogicalRowCount(page, 1)
 
   await page.getByRole("button", { name: "Clear all", exact: true }).click()
 
@@ -300,7 +302,7 @@ test("removes individual filter chips and clears all filters", async ({
   await expect(page.getByText("Title contains: demo role 42")).toHaveCount(0)
   await expect(titleFilter(page)).toHaveValue("")
   await expect(page.getByText("60 roles")).toBeVisible()
-  await expect(page.locator("tbody tr")).toHaveCount(30)
+  await expectLogicalRowCount(page, 30)
 })
 
 test("changing a filter resets pagination to page 1", async ({ page }) => {
@@ -318,7 +320,7 @@ test("changing a filter resets pagination to page 1", async ({ page }) => {
     .poll(() => new URL(page.url()).searchParams.has("page"))
     .toBe(false)
   await expect(page.getByText("31 roles")).toBeVisible()
-  await expect(page.locator("tbody tr")).toHaveCount(30)
+  await expectLogicalRowCount(page, 30)
 })
 
 test("restores filters, sort, and page from the URL after reload", async ({
@@ -337,8 +339,8 @@ test("restores filters, sort, and page from the URL after reload", async ({
 
   await page.getByLabel("Page 2", { exact: true }).click()
   await expect(page).toHaveURL(/[?&]page=2\b/)
-  await expect(page.locator("tbody tr")).toHaveCount(28)
-  await expect(page.locator("tbody tr").nth(0)).toContainText("Demo Role 31")
+  await expectLogicalRowCount(page, 28)
+  await expect(tableRows(page).nth(0)).toContainText("Demo Role 31")
 
   await page.reload()
   await expect(page.getByRole("table")).toBeVisible()
@@ -349,8 +351,8 @@ test("restores filters, sort, and page from the URL after reload", async ({
 
   await expect(titleFilter(page)).toHaveValue("Demo Role")
   await expect(page.getByText("Title contains: Demo Role")).toBeVisible()
-  await expect(page.locator("tbody tr")).toHaveCount(28)
-  await expect(page.locator("tbody tr").nth(0)).toContainText("Demo Role 31")
+  await expectLogicalRowCount(page, 28)
+  await expect(tableRows(page).nth(0)).toContainText("Demo Role 31")
 })
 
 test("members can filter the read-only catalogue", async ({ page }) => {
@@ -359,8 +361,8 @@ test("members can filter the read-only catalogue", async ({ page }) => {
 
   await titleFilter(page).fill("demo role 42")
   await expectFilter(page, "title", "contains", "demo role 42")
-  await expect(page.locator("tbody tr")).toHaveCount(1)
-  await expect(page.locator("tbody tr").nth(0)).toContainText("Demo Role 42")
+  await expectLogicalRowCount(page, 1)
+  await expect(tableRows(page).nth(0)).toContainText("Demo Role 42")
 
   // Filtering never reveals write controls to a Member.
   await expect(

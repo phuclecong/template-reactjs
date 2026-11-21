@@ -146,6 +146,18 @@ beforeEach(async () => {
   await i18n.changeLanguage("en")
 })
 
+describe("RolesTable page frame", () => {
+  it("renders the table inside the shared viewport-fitted page frame", async () => {
+    const { container } = renderTable({ currentUser: ADMIN })
+
+    const frame = container.querySelector(
+      '[data-slot="table-page-layout"]'
+    ) as HTMLElement | null
+    expect(frame).not.toBeNull()
+    expect(frame).toContainElement(await screen.findByRole("table"))
+  })
+})
+
 describe("RolesTable access gating", () => {
   it("shows the selection and actions columns to an administrator", async () => {
     renderTable({ currentUser: ADMIN })

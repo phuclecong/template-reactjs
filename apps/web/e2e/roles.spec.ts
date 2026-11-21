@@ -1,6 +1,11 @@
 import { expect, test, type Page } from "@playwright/test"
 
-import { formatLocalDateTime, login } from "./helpers"
+import {
+  expectLogicalRowCount,
+  formatLocalDateTime,
+  login,
+  tableRows,
+} from "./helpers"
 
 async function openRoles(page: Page) {
   await page.getByRole("link", { name: "Roles" }).click()
@@ -43,8 +48,8 @@ test("navigates to Roles and renders the server-paged default view", async ({
   await expect.poll(() => new URL(page.url()).searchParams.toString()).toBe("")
 
   // updatedAt descending puts the newest System Role first, then the older one.
-  const rows = page.locator("tbody tr")
-  await expect(rows).toHaveCount(30)
+  const rows = tableRows(page)
+  await expectLogicalRowCount(page, 30)
   await expect(rows.nth(0)).toContainText("Member")
   await expect(rows.nth(1)).toContainText("Administrator")
 
@@ -77,7 +82,7 @@ test("sorting headers cycle direction and write sort parameters to the URL", asy
   await login(page, "admin@example.com", "adminpass")
   await openRoles(page)
 
-  const rows = page.locator("tbody tr")
+  const rows = tableRows(page)
   const titleHeader = page.getByRole("button", { name: "Title", exact: true })
 
   await titleHeader.click()
@@ -107,13 +112,13 @@ test("paginates on the server and changes the page size", async ({ page }) => {
   await login(page, "admin@example.com", "adminpass")
   await openRoles(page)
 
-  const rows = page.locator("tbody tr")
-  await expect(rows).toHaveCount(30)
+  const rows = tableRows(page)
+  await expectLogicalRowCount(page, 30)
 
   // The second page fetches its own 30 records from the list endpoint.
   await page.getByLabel("Page 2", { exact: true }).click()
   await expect(page).toHaveURL(/[?&]page=2\b/)
-  await expect(rows).toHaveCount(30)
+  await expectLogicalRowCount(page, 30)
   await expect(rows.nth(0)).toContainText("Demo Role 30")
 
   // Changing page size resets to page 1 and re-queries with the new size.
@@ -124,7 +129,7 @@ test("paginates on the server and changes the page size", async ({ page }) => {
   await expect
     .poll(() => new URL(page.url()).searchParams.has("page"))
     .toBe(false)
-  await expect(rows).toHaveCount(10)
+  await expectLogicalRowCount(page, 10)
   await expect(rows.nth(0)).toContainText("Member")
 })
 
@@ -134,7 +139,7 @@ test("restores sort, page, and page size from the URL after reload", async ({
   await login(page, "admin@example.com", "adminpass")
   await openRoles(page)
 
-  const rows = page.locator("tbody tr")
+  const rows = tableRows(page)
   const titleHeader = page.getByRole("button", { name: "Title", exact: true })
 
   await titleHeader.click()
@@ -155,7 +160,7 @@ test("restores sort, page, and page size from the URL after reload", async ({
   await expect(page).toHaveURL(/[?&]pageSize=10\b/)
   await expect(page).toHaveURL(/[?&]sort=title\b/)
   await expect(page).toHaveURL(/[?&]order=desc\b/)
-  await expect(rows).toHaveCount(10)
+  await expectLogicalRowCount(page, 10)
   await expect(rows.nth(0)).toContainText("Demo Role 49")
 })
 
@@ -165,9 +170,9 @@ test("member sees the table and pagination without any action controls", async (
   await login(page, "member@example.com", "memberpass")
   await openRoles(page)
 
-  const rows = page.locator("tbody tr")
+  const rows = tableRows(page)
   await expect(page.getByRole("heading", { name: "Roles" })).toBeVisible()
-  await expect(rows).toHaveCount(30)
+  await expectLogicalRowCount(page, 30)
 
   // Members still paginate the catalogue.
   await page.getByLabel("Page 2", { exact: true }).click()

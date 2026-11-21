@@ -55,9 +55,9 @@ function readSidebarCookie(fallback: boolean): boolean {
 
 /**
  * Client shell for every authenticated route: a collapsible sidebar (icon rail
- * on desktop, Sheet drawer on mobile) plus a content inset with a sticky
- * header. The shell is the app-owned seam that restores the persisted sidebar
- * state; the registry provider only writes the cookie.
+ * on desktop, Sheet drawer on mobile) plus a content inset with a fixed header
+ * and a scroll region below it. The shell is the app-owned seam that restores
+ * the persisted sidebar state; the registry provider only writes the cookie.
  */
 export function DashboardShell({
   user,
@@ -96,10 +96,13 @@ export function DashboardShell({
 
   return (
     <TooltipProvider>
-      <SidebarProvider defaultOpen={defaultOpen}>
+      <SidebarProvider
+        defaultOpen={defaultOpen}
+        className="h-svh overflow-hidden"
+      >
         <AppSidebar user={user} collapsible="icon" />
-        <SidebarInset>
-          <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-2 border-b border-muted/90 bg-background px-4">
+        <SidebarInset className="min-h-0">
+          <header className="flex h-12 shrink-0 items-center gap-2 border-b border-muted/90 bg-background px-4">
             <SidebarTrigger
               aria-label={t("shell.toggleSidebar")}
               className="-ml-1"
@@ -123,7 +126,12 @@ export function DashboardShell({
               </BreadcrumbList>
             </Breadcrumb>
           </header>
-          {children}
+          <div
+            data-slot="shell-content"
+            className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+          >
+            {children}
+          </div>
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

@@ -112,6 +112,25 @@ describe("UsersFilterBar role filter", () => {
   })
 })
 
+describe("UsersFilterBar collapsing", () => {
+  it("collapses the controls while keeping Clear available", async () => {
+    const user = userEvent.setup()
+    await renderFilter({ searchValue: "ada", roleId: "rol_member" })
+
+    const toggle = screen.getByRole("button", { name: /^Filters/ })
+    expect(toggle).toHaveAttribute("aria-expanded", "true")
+    expect(screen.getByRole("combobox", { name: "Role" })).toBeVisible()
+
+    await user.click(toggle)
+
+    expect(toggle).toHaveAttribute("aria-expanded", "false")
+    expect(
+      screen.queryByRole("combobox", { name: "Role" })
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Clear" })).toBeVisible()
+  })
+})
+
 describe("UsersFilterBar clear action", () => {
   it("renders the English clear label instead of a raw translation key", async () => {
     await renderFilter()

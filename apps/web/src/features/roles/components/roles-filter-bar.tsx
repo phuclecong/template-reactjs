@@ -7,6 +7,7 @@ import { Input } from "@workspace/ui/components/input"
 import {
   DateRangeFilter,
   ComboboxFilter,
+  FilterBar,
 } from "@workspace/shared-lib/components"
 import { useEnums } from "@workspace/shared-lib/hooks"
 
@@ -114,93 +115,94 @@ export function RolesFilterBar({
   )
 
   return (
-    <div className="flex flex-col gap-2">
-      <div
-        role="group"
-        aria-label={t("roles.filters.label")}
-        className="flex flex-wrap items-center gap-2"
-      >
-        <Input
-          aria-label={t("roles.filters.title")}
-          placeholder={t("roles.filters.titlePlaceholder")}
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          className="w-56"
-        />
-        <Input
-          aria-label={t("roles.filters.description")}
-          placeholder={t("roles.filters.descriptionPlaceholder")}
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          className="w-56"
-        />
-        <ComboboxFilter
-          multiple
-          options={statusOptions}
-          value={values.status}
-          onValueChange={(value) => commit({ status: value })}
-          ariaLabel={t("roles.filters.status")}
-          placeholder={t("roles.filters.status")}
-          className="w-40"
-        />
-        <DateRangeFilter
-          id="roles-created-at-filter"
-          ariaLabel={t("roles.filters.createdAt")}
-          placeholder={t("roles.filters.createdPlaceholder")}
-          clearLabel={t("roles.filters.dateClear")}
-          value={{ from: values.createdAtFrom, to: values.createdAtTo }}
-          onChange={(next) =>
-            commit({
-              createdAtFrom: next.from,
-              createdAtTo: next.to,
-            })
-          }
-        />
-        <DateRangeFilter
-          id="roles-updated-at-filter"
-          ariaLabel={t("roles.filters.updatedAt")}
-          placeholder={t("roles.filters.updatedPlaceholder")}
-          clearLabel={t("roles.filters.dateClear")}
-          value={{ from: values.updatedAtFrom, to: values.updatedAtTo }}
-          onChange={(next) =>
-            commit({
-              updatedAtFrom: next.from,
-              updatedAtTo: next.to,
-            })
-          }
-        />
-      </div>
-
-      {chips.length > 0 && (
-        <div
-          role="group"
-          aria-label={t("roles.filters.activeFilters")}
-          className="flex flex-wrap items-center gap-2"
-        >
-          {chips.map((chip) => (
-            <span
-              key={chip.key}
-              className="inline-flex items-center gap-1 rounded-full border border-border bg-muted py-0.5 pr-1 pl-2.5 text-xs"
-            >
-              <span>{chip.label}</span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                aria-label={t("roles.filters.removeFilter", {
-                  filter: chip.label,
-                })}
-                onClick={() => removeFilter(chip.key)}
+    <FilterBar
+      label={t("roles.filters.label")}
+      toggleLabel={t("common.filters")}
+      activeCount={chips.length}
+      footer={
+        chips.length > 0 ? (
+          <div
+            role="group"
+            aria-label={t("roles.filters.activeFilters")}
+            className="flex flex-wrap items-center gap-2"
+          >
+            {chips.map((chip) => (
+              <span
+                key={chip.key}
+                className="inline-flex items-center gap-1 rounded-full border border-border bg-muted py-0.5 pr-1 pl-2.5 text-xs"
               >
-                <XIcon className="pointer-events-none" />
-              </Button>
-            </span>
-          ))}
-          <Button type="button" variant="ghost" size="sm" onClick={clearAll}>
-            {t("roles.filters.clearAll")}
-          </Button>
-        </div>
-      )}
-    </div>
+                <span>{chip.label}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={t("roles.filters.removeFilter", {
+                    filter: chip.label,
+                  })}
+                  onClick={() => removeFilter(chip.key)}
+                >
+                  <XIcon className="pointer-events-none" />
+                </Button>
+              </span>
+            ))}
+            <Button type="button" variant="ghost" size="sm" onClick={clearAll}>
+              {t("roles.filters.clearAll")}
+            </Button>
+          </div>
+        ) : null
+      }
+    >
+      <Input
+        aria-label={t("roles.filters.title")}
+        placeholder={t("roles.filters.titlePlaceholder")}
+        value={title}
+        onChange={(event) => setTitle(event.target.value)}
+        className="w-full sm:w-56"
+      />
+      <Input
+        aria-label={t("roles.filters.description")}
+        placeholder={t("roles.filters.descriptionPlaceholder")}
+        value={description}
+        onChange={(event) => setDescription(event.target.value)}
+        className="w-full sm:w-56"
+      />
+      <ComboboxFilter
+        multiple
+        options={statusOptions}
+        value={values.status}
+        onValueChange={(value) => commit({ status: value })}
+        ariaLabel={t("roles.filters.status")}
+        placeholder={t("roles.filters.status")}
+        className="w-full sm:w-40"
+      />
+      <DateRangeFilter
+        id="roles-created-at-filter"
+        ariaLabel={t("roles.filters.createdAt")}
+        placeholder={t("roles.filters.createdPlaceholder")}
+        clearLabel={t("roles.filters.dateClear")}
+        className="w-full sm:w-56"
+        value={{ from: values.createdAtFrom, to: values.createdAtTo }}
+        onChange={(next) =>
+          commit({
+            createdAtFrom: next.from,
+            createdAtTo: next.to,
+          })
+        }
+      />
+      <DateRangeFilter
+        id="roles-updated-at-filter"
+        ariaLabel={t("roles.filters.updatedAt")}
+        placeholder={t("roles.filters.updatedPlaceholder")}
+        clearLabel={t("roles.filters.dateClear")}
+        className="w-full sm:w-56"
+        value={{ from: values.updatedAtFrom, to: values.updatedAtTo }}
+        onChange={(next) =>
+          commit({
+            updatedAtFrom: next.from,
+            updatedAtTo: next.to,
+          })
+        }
+      />
+    </FilterBar>
   )
 }

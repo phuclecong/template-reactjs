@@ -5,7 +5,7 @@ import {
   type Page,
 } from "@playwright/test"
 
-import { login } from "./helpers"
+import { login, rowByText, scrollRowIntoView } from "./helpers"
 
 type ConsoleEntry = {
   kind?: string
@@ -63,6 +63,9 @@ test("the bulk bar appears with a selection and clears on page change", async ({
 
   await expect(bulkBar(page)).toHaveCount(0)
 
+  // The default title sort places this row below the first viewport once the
+  // body virtualizes, so mount it before interacting.
+  await scrollRowIntoView(page, rowByText(page, "Build the MSW mock"))
   await rowCheckbox(page, "Build the MSW mock").click()
   await expect(bulkBar(page)).toBeVisible()
   await expect(
@@ -83,7 +86,9 @@ test("bulk edit applies several dirty fields in one update", async ({
 }) => {
   await loginAsAdmin(page)
 
+  await scrollRowIntoView(page, rowByText(page, "Build the MSW mock"))
   await rowCheckbox(page, "Build the MSW mock").click()
+  await scrollRowIntoView(page, rowByText(page, "Audit the access-control matrix #17"))
   await rowCheckbox(page, "Audit the access-control matrix #17").click()
   await expect(
     bulkBar(page).getByText("2 selected", { exact: true })
@@ -105,10 +110,14 @@ test("bulk edit applies several dirty fields in one update", async ({
   await expect(page.getByText("Updated 2 tasks", { exact: true })).toBeVisible()
   await expect(bulkBar(page)).toHaveCount(0)
 
-  const first = page.getByRole("row").filter({ hasText: "Build the MSW mock" })
-  const second = page
-    .getByRole("row")
-    .filter({ hasText: "Audit the access-control matrix #17" })
+  const first = await scrollRowIntoView(
+    page,
+    rowByText(page, "Build the MSW mock")
+  )
+  const second = await scrollRowIntoView(
+    page,
+    rowByText(page, "Audit the access-control matrix #17")
+  )
   await expect(first.getByText("done", { exact: true })).toBeVisible()
   await expect(first.getByText("high", { exact: true })).toBeVisible()
   await expect(second.getByText("done", { exact: true })).toBeVisible()
@@ -123,6 +132,7 @@ test("bulk edit emits an update event naming the changed fields", async ({
 
   await loginAsAdmin(page)
 
+  await scrollRowIntoView(page, rowByText(page, "Build the MSW mock"))
   await rowCheckbox(page, "Build the MSW mock").click()
   await bulkBar(page).getByRole("button", { name: "Edit", exact: true }).click()
   const sheet = page.getByRole("dialog")
@@ -146,6 +156,7 @@ test("bulk edit emits an update event naming the changed fields", async ({
 test("a filter change clears the selection", async ({ page }) => {
   await loginAsAdmin(page)
 
+  await scrollRowIntoView(page, rowByText(page, "Build the MSW mock"))
   await rowCheckbox(page, "Build the MSW mock").click()
   await expect(bulkBar(page)).toBeVisible()
 

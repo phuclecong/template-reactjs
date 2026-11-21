@@ -7,6 +7,7 @@ import { Input } from "@workspace/ui/components/input"
 import {
   ComboboxFilter,
   DateRangeFilter,
+  FilterBar,
   type FilterOption,
 } from "@workspace/shared-lib/components"
 import { useEnums } from "@workspace/shared-lib/hooks"
@@ -114,91 +115,91 @@ export function TasksFilterBar({
   )
 
   return (
-    <div className="flex flex-col gap-2">
-      <div
-        role="group"
-        aria-label={t("tasks.filters.label")}
-        className="flex flex-wrap items-center gap-2"
-      >
-        <Input
-          aria-label={t("tasks.searchLabel")}
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder={t("tasks.searchPlaceholder")}
-          className="w-56"
-        />
-        <ComboboxFilter
-          multiple
-          options={statusOptions}
-          value={values.status}
-          onValueChange={(value) => commit({ status: value })}
-          ariaLabel={t("tasks.filters.status")}
-          placeholder={t("tasks.filters.status")}
-          className="w-56"
-        />
-        <ComboboxFilter
-          multiple
-          options={priorityOptions}
-          value={values.priority}
-          onValueChange={(value) => commit({ priority: value })}
-          ariaLabel={t("tasks.filters.priority")}
-          placeholder={t("tasks.filters.priority")}
-          className="w-56"
-        />
-        <ComboboxFilter
-          multiple
-          options={assigneeOptions}
-          value={values.assignee}
-          onValueChange={(value) => commit({ assignee: value })}
-          ariaLabel={t("tasks.filters.assignee")}
-          placeholder={t("tasks.filters.assignee")}
-          className="w-56"
-        />
-        <DateRangeFilter
-          id="tasks-due-date-filter"
-          ariaLabel={t("tasks.filters.dueDate")}
-          placeholder={t("tasks.filters.dueDatePlaceholder")}
-          clearLabel={t("tasks.filters.dueDateClear")}
-          value={{ from: values.dueFrom, to: values.dueTo }}
-          onChange={(next) =>
-            commit({
-              dueFrom: next.from,
-              dueTo: next.to,
-            })
-          }
-        />
-      </div>
-
-      {chips.length > 0 && (
-        <div
-          role="group"
-          aria-label={t("tasks.filters.activeFilters")}
-          className="flex flex-wrap items-center gap-2"
-        >
-          {chips.map((chip) => (
-            <span
-              key={chip.key}
-              className="inline-flex items-center gap-1 rounded-full border border-border bg-muted py-0.5 pr-1 pl-2.5 text-xs"
-            >
-              <span>{chip.label}</span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                aria-label={t("tasks.filters.removeFilter", {
-                  filter: chip.label,
-                })}
-                onClick={() => removeFilter(chip.key)}
+    <FilterBar
+      label={t("tasks.filters.label")}
+      toggleLabel={t("common.filters")}
+      activeCount={chips.length}
+      footer={
+        chips.length > 0 ? (
+          <div
+            role="group"
+            aria-label={t("tasks.filters.activeFilters")}
+            className="flex flex-wrap items-center gap-2"
+          >
+            {chips.map((chip) => (
+              <span
+                key={chip.key}
+                className="inline-flex items-center gap-1 rounded-full border border-border bg-muted py-0.5 pr-1 pl-2.5 text-xs"
               >
-                <XIcon className="pointer-events-none" />
-              </Button>
-            </span>
-          ))}
-          <Button type="button" variant="ghost" size="sm" onClick={clearAll}>
-            {t("tasks.filters.clearAll")}
-          </Button>
-        </div>
-      )}
-    </div>
+                <span>{chip.label}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={t("tasks.filters.removeFilter", {
+                    filter: chip.label,
+                  })}
+                  onClick={() => removeFilter(chip.key)}
+                >
+                  <XIcon className="pointer-events-none" />
+                </Button>
+              </span>
+            ))}
+            <Button type="button" variant="ghost" size="sm" onClick={clearAll}>
+              {t("tasks.filters.clearAll")}
+            </Button>
+          </div>
+        ) : null
+      }
+    >
+      <Input
+        aria-label={t("tasks.searchLabel")}
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        placeholder={t("tasks.searchPlaceholder")}
+        className="w-full sm:w-56"
+      />
+      <ComboboxFilter
+        multiple
+        options={statusOptions}
+        value={values.status}
+        onValueChange={(value) => commit({ status: value })}
+        ariaLabel={t("tasks.filters.status")}
+        placeholder={t("tasks.filters.status")}
+        className="w-full sm:w-56"
+      />
+      <ComboboxFilter
+        multiple
+        options={priorityOptions}
+        value={values.priority}
+        onValueChange={(value) => commit({ priority: value })}
+        ariaLabel={t("tasks.filters.priority")}
+        placeholder={t("tasks.filters.priority")}
+        className="w-full sm:w-56"
+      />
+      <ComboboxFilter
+        multiple
+        options={assigneeOptions}
+        value={values.assignee}
+        onValueChange={(value) => commit({ assignee: value })}
+        ariaLabel={t("tasks.filters.assignee")}
+        placeholder={t("tasks.filters.assignee")}
+        className="w-full sm:w-56"
+      />
+      <DateRangeFilter
+        id="tasks-due-date-filter"
+        ariaLabel={t("tasks.filters.dueDate")}
+        placeholder={t("tasks.filters.dueDatePlaceholder")}
+        clearLabel={t("tasks.filters.dueDateClear")}
+        className="w-full sm:w-56"
+        value={{ from: values.dueFrom, to: values.dueTo }}
+        onChange={(next) =>
+          commit({
+            dueFrom: next.from,
+            dueTo: next.to,
+          })
+        }
+      />
+    </FilterBar>
   )
 }

@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next"
 import {
   ComboboxFilter,
+  FilterBar,
   type FilterOption,
 } from "@workspace/shared-lib/components"
 import { Input } from "@workspace/ui/components/input"
@@ -24,13 +25,22 @@ export function UsersFilterBar({
   const { t } = useTranslation()
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <FilterBar
+      label={t("users.filters.label")}
+      toggleLabel={t("common.filters")}
+      activeCount={(searchValue ? 1 : 0) + (roleId ? 1 : 0)}
+      actions={
+        <Button type="button" variant="ghost" size="sm" onClick={onClear}>
+          {t("common.clear")}
+        </Button>
+      }
+    >
       <Input
         aria-label={t("users.searchLabel")}
         value={searchValue}
         onChange={(event) => onSearchChange(event.target.value)}
         placeholder={t("users.searchPlaceholder")}
-        className="w-56"
+        className="w-full sm:w-56"
       />
       <ComboboxFilter
         multiple={false}
@@ -39,11 +49,8 @@ export function UsersFilterBar({
         onValueChange={onRoleChange}
         ariaLabel={t("users.filters.role")}
         placeholder={t("users.filters.role")}
-        className="h-7 w-56"
+        className="h-7 w-full sm:w-56"
       />
-      <Button type="button" variant="ghost" size="sm" onClick={onClear}>
-        {t("common.clear")}
-      </Button>
-    </div>
+    </FilterBar>
   )
 }

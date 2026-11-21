@@ -53,9 +53,6 @@ importers:
       '@tanstack/react-table':
         specifier: ^8.21.3
         version: 8.21.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@tanstack/react-virtual':
-        specifier: ^3.14.26
-        version: 3.14.26(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@workspace/api':
         specifier: workspace:*
         version: link:../../packages/api
@@ -292,6 +289,9 @@ importers:
       '@tanstack/react-table':
         specifier: ^8.21.3
         version: 8.21.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@tanstack/react-virtual':
+        specifier: ^3.14.26
+        version: 3.14.26(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@workspace/api':
         specifier: workspace:*
         version: link:../api

@@ -111,6 +111,18 @@ beforeEach(async () => {
   await i18n.changeLanguage("en")
 })
 
+describe("TasksTable page frame", () => {
+  it("renders the table inside the shared viewport-fitted page frame", async () => {
+    const { container } = renderTable({ currentUser: MEMBER })
+
+    const frame = container.querySelector(
+      '[data-slot="table-page-layout"]'
+    ) as HTMLElement | null
+    expect(frame).not.toBeNull()
+    expect(frame).toContainElement(await screen.findByRole("table"))
+  })
+})
+
 describe("TasksTable predicate selection", () => {
   it("disables only the checkbox of a task the current user cannot modify", async () => {
     renderTable({ currentUser: MEMBER })

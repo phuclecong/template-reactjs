@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react"
-import { render, screen, waitFor } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Refine, type DataProvider } from "@refinedev/core"
 import { I18nextProvider } from "react-i18next"
@@ -38,6 +38,13 @@ const ROWS: ProbeRow[] = [
   { id: "two", name: "Bravo", canSelect: false },
   { id: "three", name: "Charlie", canSelect: true },
 ]
+
+/** A page large enough that the 600px test viewport cannot mount every row. */
+const BIG_ROWS: ProbeRow[] = Array.from({ length: 80 }, (_, index) => ({
+  id: `row-${index + 1}`,
+  name: `Probe ${String(index + 1).padStart(2, "0")}`,
+  canSelect: true,
+}))
 
 const adapter = createTableUrlAdapter({
   defaultSortField: "name",
@@ -218,12 +225,19 @@ function ShellHarness({
       </output>
       <button
         type="button"
-        onClick={() => shell.changeFilters([{ field: "q", operator: "contains", value: "release" }])}
+        onClick={() =>
+          shell.changeFilters([
+            { field: "q", operator: "contains", value: "release" },
+          ])
+        }
       >
         Commit search filter
       </button>
       <button type="button" onClick={() => shell.goToPage(2)}>
         Go to page 2
+      </button>
+      <button type="button" onClick={() => shell.changePageSize(10)}>
+        Change to 10 per page
       </button>
       <button
         type="button"
@@ -248,6 +262,7 @@ function ShellHarness({
       </button>
       <TableShellView
         table={reactTable}
+        scrollResetKey={shell.stateKey}
         isLoading={tableQuery.isLoading}
         isError={tableQuery.isError}
         isRetrying={tableQuery.isFetching}
@@ -396,9 +411,7 @@ describe("escape hatch 2: Roles-only column visibility", () => {
     await waitFor(() =>
       expect(screen.getByTestId("location-search")).toHaveTextContent("page=2")
     )
-    expect(
-      screen.queryByRole("columnheader", { name: "Actions" })
-    ).toBeNull()
+    expect(screen.queryByRole("columnheader", { name: "Actions" })).toBeNull()
 
     // A committed filter after mount is the state the toggle must preserve.
     await user.click(
@@ -414,9 +427,7 @@ describe("escape hatch 2: Roles-only column visibility", () => {
       expect(screen.getByTestId("location-search")).toHaveTextContent("page=2")
     )
 
-    await user.click(
-      screen.getByRole("button", { name: "Show gated columns" })
-    )
+    await user.click(screen.getByRole("button", { name: "Show gated columns" }))
 
     // The columns appear without rebuilding the table...
     expect(
@@ -503,6 +514,374 @@ describe("escape hatch 4: feature-supplied skeleton widths", () => {
 
     resolveRows({ data: ROWS, total: ROWS.length })
     expect(await screen.findByRole("cell", { name: "Alpha" })).toBeVisible()
+  })
+})
+
+function scrollElement(container: HTMLElement): HTMLElement {
+  const element = container.querySelector('[data-slot="table-scroll"]')
+  if (!(element instanceof HTMLElement)) {
+    throw new Error("table scroll element was not rendered")
+  }
+  return element
+}
+
+describe("fitted table shell", () => {
+  it("keeps the grid and pagination in one shell", async () => {
+    const { container } = renderHarness({
+      rows: () => Promise.resolve({ data: ROWS, total: 90 }),
+    })
+
+    await screen.findByRole("cell", { name: "Alpha" })
+
+    const shell = container.querySelector<HTMLElement>(
+      '[data-slot="table-shell"]'
+    )
+    expect(shell).not.toBeNull()
+    expect(shell).toHaveAttribute("data-state", "ready")
+
+    const region = shell?.querySelector<HTMLElement>(
+      '[data-slot="table-region"]'
+    )
+    expect(region).not.toBeNull()
+    expect(region?.querySelector('[data-slot="table-scroll"]')).not.toBeNull()
+
+    const footer = shell?.querySelector<HTMLElement>(
+      '[data-slot="table-footer"]'
+    )
+    expect(footer).not.toBeNull()
+    expect(footer).toContainElement(
+      screen.getByRole("navigation", { name: "Pagination" })
+    )
+
+    // The grid region and the footer are sibling branches of the shell, with
+    // the footer after the grid so it stays below the scrolling body.
+    expect(region?.parentElement).toBe(shell)
+    expect(footer?.parentElement).toBe(shell)
+    expect(region?.nextElementSibling).toBe(footer)
+  })
+
+  it("renders the sortable headers in a header section above the body", async () => {
+    const { container } = renderHarness()
+
+    const header = await screen.findByRole("columnheader", { name: "Name" })
+    const headerSection = header.closest('[data-slot="table-header"]')
+    const bodySection = container.querySelector('[data-slot="table-body"]')
+
+    expect(headerSection).not.toBeNull()
+    expect(bodySection).not.toBeNull()
+    expect(headerSection?.contains(header)).toBe(true)
+    expect(bodySection?.contains(header)).toBe(false)
+  })
+
+  it("resets the body scroll only when the list state changes", async () => {
+    const user = userEvent.setup()
+    const { container, listCalls } = renderHarness({
+      rows: () => Promise.resolve({ data: ROWS, total: 90 }),
+    })
+
+    await screen.findByRole("cell", { name: "Alpha" })
+    const scroller = scrollElement(container)
+
+    // Selection, a bulk-bar-clearing clear, gated columns, and a refetch do
+    // not change the page/filter/sort signature, so the body stays put.
+    scroller.scrollTop = 140
+    await user.click(screen.getByRole("checkbox", { name: "Select Alpha" }))
+    await waitFor(() =>
+      expect(shellState()).toMatchObject({ selected: ["one"] })
+    )
+    expect(scroller.scrollTop).toBe(140)
+
+    await user.click(screen.getByRole("button", { name: "Clear selection" }))
+    expect(scroller.scrollTop).toBe(140)
+
+    await user.click(screen.getByRole("button", { name: "Show gated columns" }))
+    expect(scroller.scrollTop).toBe(140)
+
+    const callsBeforeRefetch = listCalls.length
+    await user.click(
+      screen.getByRole("button", { name: "Refetch via refineCore" })
+    )
+    await waitFor(() =>
+      expect(listCalls.length).toBeGreaterThan(callsBeforeRefetch)
+    )
+    expect(scroller.scrollTop).toBe(140)
+
+    // Each of page, page size, filter, and sort is a new list state and
+    // returns the body to the top.
+    const listStateChanges = [
+      () => user.click(screen.getByRole("button", { name: "Go to page 2" })),
+      () =>
+        user.click(
+          screen.getByRole("button", { name: "Change to 10 per page" })
+        ),
+      () =>
+        user.click(
+          screen.getByRole("button", { name: "Commit search filter" })
+        ),
+      () => user.click(screen.getByRole("button", { name: "Name" })),
+    ]
+
+    for (const change of listStateChanges) {
+      scroller.scrollTop = 140
+      expect(scroller.scrollTop).toBe(140)
+      await change()
+      await waitFor(() => expect(scroller.scrollTop).toBe(0))
+    }
+  })
+
+  it("fills the shell with the skeleton while loading", () => {
+    const { container } = renderHarness({ rows: () => new Promise(() => {}) })
+
+    const shell = container.querySelector<HTMLElement>(
+      '[data-slot="table-shell"]'
+    )
+    expect(shell).not.toBeNull()
+    expect(shell).toHaveAttribute("data-state", "loading")
+
+    expect(shell?.querySelector('[data-slot="table-skeleton"]')).not.toBeNull()
+    expect(
+      shell?.querySelector('[data-slot="table-skeleton-footer"]')
+    ).not.toBeNull()
+    expect(screen.queryByRole("navigation", { name: "Pagination" })).toBeNull()
+  })
+
+  it("shows the error state in the grid region without pagination", async () => {
+    const { container } = renderHarness({
+      rows: () => Promise.reject(new Error("probe failed")),
+    })
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not load probes."
+    )
+    const shell = container.querySelector<HTMLElement>(
+      '[data-slot="table-shell"]'
+    )
+    expect(shell).toHaveAttribute("data-state", "error")
+    expect(
+      shell
+        ?.querySelector('[data-slot="table-region"]')
+        ?.querySelector('[role="alert"]')
+    ).not.toBeNull()
+    expect(screen.queryByRole("navigation", { name: "Pagination" })).toBeNull()
+  })
+
+  it("shows the empty state in the grid region without pagination", async () => {
+    const { container } = renderHarness({
+      rows: () => Promise.resolve({ data: [], total: 0 }),
+    })
+
+    expect(await screen.findByText("Nothing here yet.")).toBeVisible()
+    const shell = container.querySelector<HTMLElement>(
+      '[data-slot="table-shell"]'
+    )
+    expect(shell).toHaveAttribute("data-state", "empty")
+    expect(
+      shell?.querySelector('[data-slot="table-region"]')
+    ).toHaveTextContent("Nothing here yet.")
+    expect(screen.queryByRole("navigation", { name: "Pagination" })).toBeNull()
+  })
+})
+
+function dataRows(container: HTMLElement): HTMLElement[] {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>('tbody tr[data-slot="table-row"]')
+  )
+}
+
+/** Data rows form a contiguous zero-based index space below the header row. */
+function expectContiguousRowIndexes(container: HTMLElement) {
+  dataRows(container).forEach((row, index) => {
+    expect(row).toHaveAttribute("data-index", String(index))
+    expect(row).toHaveAttribute("aria-rowindex", String(index + 2))
+  })
+}
+
+describe("logical row identity", () => {
+  it("exposes the page row count and each data row's index", async () => {
+    const { container } = renderHarness()
+
+    await screen.findByRole("cell", { name: "Alpha" })
+
+    // The logical count is independent of what is mounted; the accessible
+    // total adds the header row.
+    expect(scrollElement(container)).toHaveAttribute("data-row-count", "3")
+    expect(container.querySelector('[data-slot="table"]')).toHaveAttribute(
+      "aria-rowcount",
+      "4"
+    )
+    expect(dataRows(container)).toHaveLength(3)
+    expectContiguousRowIndexes(container)
+  })
+
+  it("keeps indexes contiguous across sorting and paging", async () => {
+    const user = userEvent.setup()
+    const { container } = renderHarness({
+      rows: () => Promise.resolve({ data: ROWS, total: 90 }),
+    })
+
+    await screen.findByRole("cell", { name: "Alpha" })
+    expectContiguousRowIndexes(container)
+
+    // Sorting reorders the page row model without changing its index space.
+    await user.click(screen.getByRole("button", { name: "Name" }))
+    await waitFor(() =>
+      expect(screen.getByTestId("location-search")).toHaveTextContent(
+        "order=desc"
+      )
+    )
+    expect(scrollElement(container)).toHaveAttribute("data-row-count", "3")
+    expectContiguousRowIndexes(container)
+
+    // Paging replaces the page's rows; indexes still restart at zero.
+    await user.click(screen.getByRole("button", { name: "Go to page 2" }))
+    await waitFor(() =>
+      expect(screen.getByTestId("location-search")).toHaveTextContent("page=2")
+    )
+    expect(scrollElement(container)).toHaveAttribute("data-row-count", "3")
+    expect(screen.getByRole("table")).toHaveAttribute("aria-rowcount", "4")
+    expectContiguousRowIndexes(container)
+  })
+})
+
+function spacerRows(container: HTMLElement): HTMLElement[] {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'tbody tr[data-slot="table-spacer-row"]'
+    )
+  )
+}
+
+/** Put the fitted body at the offset that reveals the last logical row. */
+function scrollToEnd(scroller: HTMLElement, logicalRows: number) {
+  // The jsdom shim measures every row at 36px, so the body's full height is
+  // predictable without reading the virtualizer's internals.
+  scroller.scrollTop = logicalRows * 36 - scroller.clientHeight
+  fireEvent.scroll(scroller)
+}
+
+describe("virtualized fitted body", () => {
+  async function renderBigPage() {
+    const result = renderHarness({
+      rows: () => Promise.resolve({ data: BIG_ROWS, total: BIG_ROWS.length }),
+    })
+    await screen.findByRole("cell", { name: "Probe 01" })
+    return { ...result, scroller: scrollElement(result.container) }
+  }
+
+  it("mounts only the rows near the viewport and reveals late rows on scroll", async () => {
+    const { container, scroller } = await renderBigPage()
+
+    expect(scroller).toHaveAttribute("data-row-count", "80")
+    // Mounted rows are fewer than the logical page; the last row is not yet
+    // in the DOM.
+    expect(dataRows(container).length).toBeGreaterThan(0)
+    expect(dataRows(container).length).toBeLessThan(80)
+    expect(screen.queryByRole("cell", { name: "Probe 80" })).toBeNull()
+
+    scrollToEnd(scroller, 80)
+
+    expect(await screen.findByRole("cell", { name: "Probe 80" })).toBeVisible()
+    // Scrolling windows the body rather than mounting the whole page.
+    expect(dataRows(container).length).toBeLessThan(80)
+  })
+
+  it("frames the mounted window with hidden, empty spacer rows", async () => {
+    const { container } = await renderBigPage()
+
+    const spacers = spacerRows(container)
+    expect(spacers).toHaveLength(2)
+    for (const spacer of spacers) {
+      expect(spacer).toHaveAttribute("aria-hidden", "true")
+      expect(spacer).toHaveAttribute("role", "none")
+      expect(spacer.textContent).toBe("")
+    }
+
+    // The top spacer sits before the first mounted row and the bottom spacer
+    // after the last, so the body's scroll height covers every logical row.
+    const rowsInBody = Array.from(
+      container.querySelectorAll("tbody > tr")
+    ) as HTMLElement[]
+    expect(rowsInBody[0]).toBe(spacers[0])
+    expect(rowsInBody.at(-1)).toBe(spacers[1])
+  })
+
+  it("keeps aria-rowcount and each mounted row's aria-rowindex correct", async () => {
+    const { container, scroller } = await renderBigPage()
+
+    expect(screen.getByRole("table")).toHaveAttribute("aria-rowcount", "81")
+    dataRows(container).forEach((row) => {
+      const index = Number(row.getAttribute("data-index"))
+      expect(row).toHaveAttribute("aria-rowindex", String(index + 2))
+    })
+
+    scrollToEnd(scroller, 80)
+    await screen.findByRole("cell", { name: "Probe 80" })
+
+    expect(screen.getByRole("table")).toHaveAttribute("aria-rowcount", "81")
+    dataRows(container).forEach((row) => {
+      const index = Number(row.getAttribute("data-index"))
+      expect(row).toHaveAttribute("aria-rowindex", String(index + 2))
+    })
+    expect(
+      dataRows(container).some((row) => row.getAttribute("data-index") === "79")
+    ).toBe(true)
+  })
+
+  it("selects every page row, including unmounted rows, and reflects it on remount", async () => {
+    const user = userEvent.setup()
+    const { scroller } = await renderBigPage()
+
+    await user.click(screen.getByRole("checkbox", { name: "Select all rows" }))
+
+    // Page-scoped selection covers the row model, not the mounted window.
+    await waitFor(() =>
+      expect(shellState()).toMatchObject({
+        selected: BIG_ROWS.map((row) => row.id),
+      })
+    )
+
+    scrollToEnd(scroller, 80)
+    const lateRow = await screen.findByRole("checkbox", {
+      name: "Select Probe 80",
+    })
+    await waitFor(() => expect(lateRow).toBeChecked())
+  })
+
+  it("returns the virtualized body to the top when the list state changes", async () => {
+    const user = userEvent.setup()
+    const { scroller } = await renderBigPage()
+
+    scrollToEnd(scroller, 80)
+    await screen.findByRole("cell", { name: "Probe 80" })
+    expect(scroller.scrollTop).toBeGreaterThan(0)
+
+    await user.click(screen.getByRole("button", { name: "Go to page 2" }))
+    await waitFor(() => expect(scroller.scrollTop).toBe(0))
+
+    scrollToEnd(scroller, 80)
+    await screen.findByRole("cell", { name: "Probe 80" })
+    await user.click(
+      screen.getByRole("button", { name: "Change to 10 per page" })
+    )
+    await waitFor(() => expect(scroller.scrollTop).toBe(0))
+  })
+
+  it("does not reset the virtualized body for selection or a refetch", async () => {
+    const user = userEvent.setup()
+    const { scroller } = await renderBigPage()
+
+    scrollToEnd(scroller, 80)
+    await screen.findByRole("cell", { name: "Probe 80" })
+    const scrolledTo = scroller.scrollTop
+    expect(scrolledTo).toBeGreaterThan(0)
+
+    await user.click(screen.getByRole("checkbox", { name: "Select Probe 79" }))
+    expect(scroller.scrollTop).toBe(scrolledTo)
+
+    await user.click(
+      screen.getByRole("button", { name: "Refetch via refineCore" })
+    )
+    await waitFor(() => expect(scroller.scrollTop).toBe(scrolledTo))
   })
 })
 
