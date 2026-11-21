@@ -264,7 +264,8 @@ export function DatePicker({
     // starts at 00:00 local.
     const hours = selectedDate?.getHours() ?? 0
     const minutes = selectedDate?.getMinutes() ?? 0
-    onChange?.(localDateTimeToUtcInstant(date, hours, minutes))
+    const instant = localDateTimeToUtcInstant(date, hours, minutes)
+    if (instant) onChange?.(instant)
   }
 
   function handleTimeChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -275,7 +276,8 @@ export function DatePicker({
     const minutes = Number(minutesPart)
     if (Number.isNaN(hours) || Number.isNaN(minutes)) return
     resetTypedEntry()
-    onChange?.(localDateTimeToUtcInstant(selectedDate, hours, minutes))
+    const instant = localDateTimeToUtcInstant(selectedDate, hours, minutes)
+    if (instant) onChange?.(instant)
   }
 
   /**

@@ -7,9 +7,9 @@ import {
   type TaskStatus,
 } from "@workspace/api/schemas"
 import {
-  normalizeLegacyDateValue,
-  toUtcInstant,
-} from "@workspace/ui/lib/date"
+  normalizeInstantValue,
+  normalizeStoredDateValue,
+} from "@workspace/date-utils"
 
 export type TaskFormMessages = {
   titleRequired: string
@@ -48,7 +48,7 @@ export type TaskWritePayload = {
  * instant itself, with legacy date-only records normalized to local midnight.
  */
 export function dueDateToFormValue(dueDate: string | null | undefined): string {
-  return normalizeLegacyDateValue(dueDate) ?? ""
+  return normalizeStoredDateValue(dueDate) ?? ""
 }
 
 /**
@@ -58,7 +58,7 @@ export function dueDateToFormValue(dueDate: string | null | undefined): string {
  * the Due date.
  */
 export function formValueToDueDate(value: string): string | null {
-  return toUtcInstant(value)
+  return normalizeInstantValue(value)
 }
 
 /** The edit prefill comes from the table row; the detail request is skipped. */

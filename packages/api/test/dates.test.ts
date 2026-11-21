@@ -43,6 +43,11 @@ describe("normalizeStoredDueDate", () => {
     expect(normalizeStoredDueDate("")).toBeNull()
     expect(normalizeStoredDueDate("not-a-date")).toBeNull()
   })
+
+  it("returns null for an overflowed date-only record", () => {
+    expect(normalizeStoredDueDate("2026-02-31")).toBeNull()
+    expect(dueDateInstant("2026-02-31")).toBeNull()
+  })
 })
 
 describe("normalizeDueDateInstant", () => {
@@ -60,6 +65,10 @@ describe("normalizeDueDateInstant", () => {
 
   it("rejects date-only values so new writes cannot store them", () => {
     expect(normalizeDueDateInstant("2026-01-05")).toBeNull()
+  })
+
+  it("returns null for an overflowed date-only value", () => {
+    expect(normalizeDueDateInstant("2026-02-31")).toBeNull()
   })
 
   it("returns null for empty and invalid values", () => {

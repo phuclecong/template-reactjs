@@ -3,7 +3,7 @@ import {
   dateOnlyToLocalDate,
   localEndOfDayUtcInstant,
   localStartOfDayUtcInstant,
-} from "@workspace/ui/lib/date"
+} from "@workspace/date-utils"
 
 import {
   readEnumFilter,
@@ -127,19 +127,21 @@ function parseFilter(
     case "dateRange": {
       const filters: CrudFilter[] = []
       const from = readDate(params, descriptor.fromParam)
-      if (from) {
+      const start = from ? localStartOfDayUtcInstant(from) : null
+      if (start) {
         filters.push({
           field: descriptor.field,
           operator: "gte",
-          value: localStartOfDayUtcInstant(from),
+          value: start,
         })
       }
       const to = readDate(params, descriptor.toParam)
-      if (to) {
+      const end = to ? localEndOfDayUtcInstant(to) : null
+      if (end) {
         filters.push({
           field: descriptor.field,
           operator: "lte",
-          value: localEndOfDayUtcInstant(to),
+          value: end,
         })
       }
       return filters
