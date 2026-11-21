@@ -7,7 +7,7 @@ import from the three workspace packages, but never the reverse:
 | Package                 | What it owns                                                    |
 | ----------------------- | --------------------------------------------------------------- |
 | `@workspace/ui`         | Presentational primitives (Button, Dialog, Field, Sidebar, …)   |
-| `@workspace/shared-lib` | App-agnostic table infra (`createTableUrlAdapter`, table parts) |
+| `@workspace/shared-lib` | App-agnostic table infra (`useTableShell`, `createTableUrlAdapter`, table parts) |
 | `@workspace/api`        | The OpenAPI contract, zod schemas, and the MSW-backed mock API  |
 
 ## Stack

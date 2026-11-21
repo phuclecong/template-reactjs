@@ -34,8 +34,10 @@ updates and returns `forbidden` per row when it is violated.
 
 ### FR-1 List
 
-- Built with `@refinedev/react-table`'s `useTable`; `syncWithLocation` is off
-  and a flat `URLSearchParams` adapter seeds and mirrors table state.
+- Built with the shared table shell (`useTableShell`, which wraps
+  `@refinedev/react-table`'s `useTable`); `syncWithLocation` is off and a flat
+  `URLSearchParams` adapter seeds and mirrors table state. The feature keeps
+  its columns, predicate selection, filter/bulk bars, and lazy overlays.
 - Server-side pagination, sorting, and filtering; page size defaults to 30.
 - Columns: select, `title`, `status`, `priority`, `assignee`, `dueDate`,
   actions. Sorting is enabled for title, status, priority, and due date.

@@ -56,3 +56,14 @@ justifies extraction.
 - The 2026-11-21 follow-through (#78) then migrates Users too. Users, Roles,
   and Tasks all use `useTable`; `useTableState` and `DataTable` are removed, so
   the two-paradigm consequence above is fully superseded.
+- Ticket #82 resolves the deferral in this ADR. With three consumers on the
+  shared path and all five escape hatches proven, the shared table shell is
+  adopted: `useTableShell` owns the URL seed/mirror, `useTable` wiring, server
+  pagination, and page-scoped selection; `TableShellView` owns the
+  loading/error/empty/grid/pagination states; `createSelectionColumn` owns the
+  duplicated checkbox cells. The shell returns `refineCore` and `reactTable`
+  unchanged, so it does not hide Refine's options — the concern that deferred
+  extraction. Features keep their columns, headers, filter and bulk bars,
+  overlays and delete mutations, access gating, widths, and translated copy.
+  The "shared wrapper would hide the options" sentence above is superseded by
+  this amendment.

@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@refinedev/core": "^5.0.12",
+    "@refinedev/react-table": "^6.0.1",
     "@tanstack/react-table": "^8.21.3",
     "@workspace/api": "workspace:*",
     "@workspace/date-utils": "workspace:*",
@@ -36,6 +37,7 @@
     "./components/table-skeleton": "./src/components/table-skeleton.tsx",
     "./hooks": "./src/hooks/index.ts",
     "./hooks/table-defaults": "./src/hooks/table-defaults.ts",
+    "./hooks/use-table-shell": "./src/hooks/use-table-shell.ts",
     "./utils": "./src/utils/index.ts"
   }
 }
