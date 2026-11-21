@@ -8,11 +8,11 @@ and their app translation key prefixes, so features cannot redeclare either.
 
 ## Modules
 
-| Module       | Import                             | What it is                                                                                                                                                                                                  |
-| ------------ | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `components` | `@workspace/shared-lib/components` | `ComboboxFilter` (with its `FilterOption` type), `DateRangeFilter`, the presentational `EmptyList` and `ErrorPanel` list states, and the shared `TableGrid` / `TablePagination` / `TableSkeleton` rendering |
-| `hooks`      | `@workspace/shared-lib/hooks`      | `createTableUrlAdapter` for flat URL ↔ Refine table state, `useEnums()` translated enum choices derived from the API contract, `useDialog` dialog state                                                     |
-| `utils`      | `@workspace/shared-lib/utils`      | Small shared utilities (`debounce`, `parseFilterValues` / `joinFilterValues`, descriptor-driven `fromCrud` / `toCrud` / `deriveChips`)                                                                      |
+| Module       | Import                             | What it is                                                                                                                                                                                                                                            |
+| ------------ | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `components` | `@workspace/shared-lib/components` | `TableShellView` (the loading/error/empty/grid/pagination states), `createSelectionColumn`, `ComboboxFilter` (with its `FilterOption` type), `DateRangeFilter`, the presentational `EmptyList` and `ErrorPanel` list states, and the shared `TableGrid` / `TablePagination` / `TableSkeleton` rendering |
+| `hooks`      | `@workspace/shared-lib/hooks`      | `useTableShell` (the shared Refine table core), `createTableUrlAdapter` for flat URL ↔ Refine table state, `useEnums()` translated enum choices derived from the API contract, `useDialog` dialog state                                               |
+| `utils`      | `@workspace/shared-lib/utils`      | Small shared utilities (`debounce`, `parseFilterValues` / `joinFilterValues`, descriptor-driven `fromCrud` / `toCrud` / `deriveChips`)                                                                                                              |
 
 ## The boundary rule
 
@@ -23,11 +23,11 @@ lives in `apps/web`; presentational primitives live in `packages/ui`.
 
 ## Layout
 
-| Directory         | What lives there                                                                                                          |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `src/components/` | Reusable React components (`TableGrid`, `TablePagination`, `TableSkeleton`, `DateRangeFilter`, `EmptyList`, `ErrorPanel`) |
-| `src/hooks/`      | Reusable React hooks (`createTableUrlAdapter`, `useEnums`, `useDialog`)                                                   |
-| `src/utils/`      | Framework-agnostic utilities (`debounce`, filter conversion)                                                              |
+| Directory         | What lives there                                                                                                                         |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/components/` | Reusable React components (`TableShellView`, `createSelectionColumn`, `TableGrid`, `TablePagination`, `TableSkeleton`, `DateRangeFilter`, `EmptyList`, `ErrorPanel`) |
+| `src/hooks/`      | Reusable React hooks (`useTableShell`, `createTableUrlAdapter`, `useEnums`, `useDialog`)                                                 |
+| `src/utils/`      | Framework-agnostic utilities (`debounce`, filter conversion)                                                                             |
 
 Each directory exposes its public API through an `index.ts`, paired with a
 matching entry in `package.json` `exports` (e.g.

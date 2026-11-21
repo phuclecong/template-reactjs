@@ -16,7 +16,7 @@ Playwright + Storybook).
 │   └── web/                  # Refine + React Router 7 app (Vite SPA)
 ├── packages/
 │   ├── ui/                   # Shared shadcn/ui components + Storybook
-│   ├── shared-lib/           # App-agnostic table URL/filter helpers + controls
+│   ├── shared-lib/           # App-agnostic table shell, URL/filter helpers + controls
 │   ├── api/                  # OpenAPI 3.0 contract + MSW-backed client
 │   ├── eslint-config/        # Shared ESLint configs (base, react-internal)
 │   └── typescript-config/    # Shared tsconfig presets (base, react-library)

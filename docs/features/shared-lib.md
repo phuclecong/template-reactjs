@@ -38,3 +38,12 @@ Create `packages/shared-lib`, `packages/shared-lib/components`, and `packages/sh
   (from either `useReactTable` or Refine's `useTable`) and an optional `onSort`
   hook; `TablePagination` takes the pagination state and callbacks plus an
   optional translated `summary`. `RolesPagination` was removed.
+- Ticket #82 extracted the duplicated Refine table core once three consumers
+  existed. `useTableShell` owns the URL seed/mirror, `useTable` wiring, server
+  pagination, selection reset, and page totals; `TableShellView` owns the
+  loading/error/empty/grid/pagination states; `createSelectionColumn` owns the
+  checkbox cells shared by Roles and Tasks. The shell exposes `refineCore` and
+  `reactTable` so features keep their own columns, headers, filter/bulk bars,
+  overlays, delete mutations, access gating, widths, and copy. See ADR-0015's
+  #82 amendment and `apps/web/test/table-shell.test.tsx` for the five
+  escape-hatch proofs.
