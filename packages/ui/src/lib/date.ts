@@ -2,10 +2,11 @@
  * Date helpers for the design system.
  *
  * Task Due dates are stored as UTC instants (ISO 8601 with `Z`) and displayed
- * in the viewer's local timezone (ADR 0007). These helpers are the single
- * place where the boundary between a UTC instant and a local calendar day is
- * crossed: form values and filter bounds stay date-only, while payloads and
- * stored records are instants.
+ * in the viewer's local timezone (ADR 0007). The read/write normalizers and
+ * the local start/end-of-day conversion live in `@workspace/date-utils`, the
+ * one place where that boundary rule is implemented. This module re-exports
+ * them so existing call sites keep their imports stable, and keeps the
+ * locale-aware display and typed-entry formatting the design system owns.
  *
  * All "local" operations use the runtime's timezone (`Date`), so day
  * boundaries automatically account for the current offset and DST.
@@ -18,7 +19,16 @@ import { vi as viCalendar } from "react-day-picker/locale/vi"
 
 import { isDateOnly, parseLocalDateOnly } from "@workspace/date-utils"
 
-export { isDateOnly }
+export {
+  dateOnlyToLocalDate,
+  isDateOnly,
+  localDateToDateOnly,
+  localDateTimeToUtcInstant,
+  localEndOfDayUtcInstant,
+  localStartOfDayUtcInstant,
+  normalizeInstantValue as toUtcInstant,
+  normalizeStoredDateValue as normalizeLegacyDateValue,
+} from "@workspace/date-utils"
 
 /** A value accepted by the formatting and boundary helpers. */
 export type DateValue = string | Date | null | undefined
@@ -50,23 +60,6 @@ export function calendarLocale(locale?: string) {
 }
 
 /**
- * Parses a `YYYY-MM-DD` date-only string as a local-midnight Date, or null
- * when the value is not a valid calendar date. Calendar primitives select days
- * as Date objects, so this is the bridge from filter bounds to their model.
- */
-export function dateOnlyToLocalDate(
-  value: string | null | undefined
-): Date | null {
-  if (!isDateOnly(value)) return null
-  return parseLocalDateOnly(value)
-}
-
-/** Serializes a Date as the local calendar date (`YYYY-MM-DD`) it falls on. */
-export function localDateToDateOnly(date: Date): string {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-}
-
-/**
  * Converts a value to a Date. Date-only strings are interpreted as local
  * midnight (a calendar day), while instants keep their absolute moment.
  */
@@ -92,90 +85,10 @@ export function serializeUtcInstant(date: Date): string {
   return date.toISOString()
 }
 
-/**
- * Normalizes a stored value, accepting legacy date-only records. A date-only
- * value becomes local midnight as a UTC instant; an existing instant is kept.
- * Returns null for empty or invalid input.
- */
-export function normalizeLegacyDateValue(
-  value: string | null | undefined
-): string | null {
-  if (isDateOnly(value)) {
-    return localStartOfDayUtcInstant(value)
-  }
-  return parseUtcInstant(value)?.toISOString() ?? null
-}
-
-/** Converts a local calendar day to its start-of-day UTC instant. */
-export function localStartOfDayUtcInstant(value: Date | string): string {
-  const date = toDate(value)
-  if (!date) throw new RangeError("Invalid date value")
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    0,
-    0,
-    0,
-    0
-  ).toISOString()
-}
-
-/** Converts a local calendar day to its end-of-day UTC instant. */
-export function localEndOfDayUtcInstant(value: Date | string): string {
-  const date = toDate(value)
-  if (!date) throw new RangeError("Invalid date value")
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    23,
-    59,
-    59,
-    999
-  ).toISOString()
-}
-
-/**
- * Builds the UTC instant for a local calendar day and wall-clock time.
- * Picking a date preserves the selected time, and changing the time preserves
- * the selected day; both paths cross the same local-to-instant boundary here.
- */
-export function localDateTimeToUtcInstant(
-  value: Date | string,
-  hours: number,
-  minutes: number
-): string {
-  const date = toDate(value)
-  if (!date) throw new RangeError("Invalid date value")
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    hours,
-    minutes,
-    0,
-    0
-  ).toISOString()
-}
-
 /** Formats a local Date as the `HH:mm` value a time input expects. */
 export function formatTimeInputValue(value: Date | null): string {
   if (!value) return ""
   return `${pad(value.getHours())}:${pad(value.getMinutes())}`
-}
-
-/**
- * Serializes a value for a write payload as a UTC instant. Only date-time
- * values are accepted; legacy date-only values return null so new writes
- * cannot silently create date-only records. Read-side compatibility lives in
- * `normalizeLegacyDateValue`.
- */
-export function toUtcInstant(
-  value: string | null | undefined
-): string | null {
-  if (!value || isDateOnly(value)) return null
-  return parseUtcInstant(value)?.toISOString() ?? null
 }
 
 function intlLocale(locale?: string): string {

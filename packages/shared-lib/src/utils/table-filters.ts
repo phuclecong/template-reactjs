@@ -5,7 +5,7 @@ import {
   localDateToDateOnly,
   localEndOfDayUtcInstant,
   localStartOfDayUtcInstant,
-} from "@workspace/ui/lib/date"
+} from "@workspace/date-utils"
 
 import type { TableUrlFilterDescriptor } from "../hooks/url-table-state"
 import { parseFilterValues } from "./filter-values"
@@ -252,19 +252,23 @@ export function toCrud(
         // Calendar-validate the day: an invalid or overflowed date such as
         // `2026-02-31` means no bound, never a throw.
         const from = values[descriptor.fromParam] ?? ""
-        if (dateOnlyToLocalDate(from)) {
+        const start = dateOnlyToLocalDate(from)
+          ? localStartOfDayUtcInstant(from)
+          : null
+        if (start) {
           filters.push({
             field: descriptor.field,
             operator: "gte",
-            value: localStartOfDayUtcInstant(from),
+            value: start,
           })
         }
         const to = values[descriptor.toParam] ?? ""
-        if (dateOnlyToLocalDate(to)) {
+        const end = dateOnlyToLocalDate(to) ? localEndOfDayUtcInstant(to) : null
+        if (end) {
           filters.push({
             field: descriptor.field,
             operator: "lte",
-            value: localEndOfDayUtcInstant(to),
+            value: end,
           })
         }
         break
