@@ -24,7 +24,13 @@ import type { DashboardUser } from "@/providers/auth-provider"
  * Route segment → translation key, used to label breadcrumb crumbs for the
  * known authenticated pages. Unknown segments fall back to the raw slug.
  */
-const SEGMENT_LABELS: Record<string, string> = {
+type SegmentLabelKey =
+  | "shell.nav.tasks"
+  | "shell.nav.users"
+  | "shell.nav.roles"
+  | "shell.nav.settings"
+
+const SEGMENT_LABELS: Record<string, SegmentLabelKey> = {
   tasks: "shell.nav.tasks",
   users: "shell.nav.users",
   roles: "shell.nav.roles",
@@ -78,11 +84,14 @@ export function DashboardShell({
       label: t("shell.title"),
       isCurrent: pathname === "/dashboard",
     },
-    ...routeSegments.map((segment, index) => ({
-      href: `/${routeSegments.slice(0, index + 1).join("/")}`,
-      label: t(SEGMENT_LABELS[segment] ?? segment),
-      isCurrent: index === routeSegments.length - 1,
-    })),
+    ...routeSegments.map((segment, index) => {
+      const labelKey = SEGMENT_LABELS[segment]
+      return {
+        href: `/${routeSegments.slice(0, index + 1).join("/")}`,
+        label: labelKey ? t(labelKey) : segment,
+        isCurrent: index === routeSegments.length - 1,
+      }
+    }),
   ]
 
   return (

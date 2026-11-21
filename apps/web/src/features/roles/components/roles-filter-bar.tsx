@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
+import type { TFunction } from "i18next"
 import { useTranslation } from "react-i18next"
 import type { CrudFilter } from "@refinedev/core"
 import { XIcon } from "lucide-react"
@@ -27,7 +28,7 @@ type Chip = { key: RoleFilterKey; label: string }
 function dateRangeText(
   from: string,
   to: string,
-  t: (key: string, options?: Record<string, unknown>) => string
+  t: TFunction<"translation">
 ): string {
   if (from && to) return t("roles.filters.dateRange", { from, to })
   if (from) return t("roles.filters.dateFrom", { date: from })
