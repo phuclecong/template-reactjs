@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
 
+import { rowByText } from "./helpers"
+
 async function login(page: Page, email: string, password: string) {
   await page.goto("/login")
   await page.getByLabel("Email").fill(email)
@@ -47,7 +49,7 @@ test("admin creates, edits, and deletes a task", async ({ page }) => {
   // Isolate the new row and confirm the fields persisted. The Due date is
   // rendered in the user's locale and timezone, not as a raw ISO instant.
   await page.getByLabel("Search tasks").fill("E2E write task")
-  const createdRow = page.getByRole("row").filter({ hasText: "E2E write task" })
+  const createdRow = rowByText(page, "E2E write task")
   await expect(createdRow).toBeVisible()
   await expect(createdRow.getByText("done", { exact: true })).toBeVisible()
   await expect(createdRow.getByText("high", { exact: true })).toBeVisible()
@@ -67,9 +69,7 @@ test("admin creates, edits, and deletes a task", async ({ page }) => {
   await editDialog.getByRole("button", { name: "Save changes" }).click()
 
   await expect(page.getByText("Task updated")).toBeVisible()
-  const renamedRow = page
-    .getByRole("row")
-    .filter({ hasText: "E2E write task renamed" })
+  const renamedRow = rowByText(page, "E2E write task renamed")
   await expect(renamedRow).toBeVisible()
   await expect(renamedRow.getByText(/4:45 PM/)).toBeVisible()
 
@@ -91,6 +91,13 @@ test("admin creates, edits, and deletes a task", async ({ page }) => {
   await deleteDialog.getByRole("button", { name: "Delete" }).click()
 
   await expect(page.getByText("Task deleted")).toBeVisible()
+  // The search still narrows the list to the deleted task, so the logical
+  // result set is now empty and the shell shows the no-match state. That is
+  // stronger than a missing mounted row, which virtualization can also cause.
+  await expect(
+    page.getByText("No tasks match your search or filters.")
+  ).toBeVisible()
+  await expect(page.getByRole("table")).toHaveCount(0)
   await expect(page.getByText("E2E write task renamed")).toHaveCount(0)
 })
 
@@ -100,16 +107,14 @@ test("member can edit/delete only their own tasks", async ({ page }) => {
 
   // "Build the MSW mock" is seeded to the member; actions are enabled.
   await page.getByLabel("Search tasks").fill("Build the MSW mock")
-  const ownRow = page.getByRole("row").filter({ hasText: "Build the MSW mock" })
+  const ownRow = rowByText(page, "Build the MSW mock")
   await expect(ownRow).toBeVisible()
   await expect(ownRow.getByRole("button", { name: "Edit" })).toBeEnabled()
   await expect(ownRow.getByRole("button", { name: "Delete" })).toBeEnabled()
 
   // "Author the OpenAPI contract" belongs to the admin; actions are disabled.
   await page.getByLabel("Search tasks").fill("Author the OpenAPI contract")
-  const adminRow = page
-    .getByRole("row")
-    .filter({ hasText: "Author the OpenAPI contract" })
+  const adminRow = rowByText(page, "Author the OpenAPI contract")
   await expect(adminRow).toBeVisible()
   await expect(adminRow.getByRole("button", { name: "Edit" })).toBeDisabled()
   await expect(adminRow.getByRole("button", { name: "Delete" })).toBeDisabled()

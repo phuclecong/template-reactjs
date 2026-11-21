@@ -657,6 +657,67 @@ describe("fitted table shell", () => {
   })
 })
 
+function dataRows(container: HTMLElement): HTMLElement[] {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>('tbody tr[data-slot="table-row"]')
+  )
+}
+
+/** Data rows form a contiguous zero-based index space below the header row. */
+function expectContiguousRowIndexes(container: HTMLElement) {
+  dataRows(container).forEach((row, index) => {
+    expect(row).toHaveAttribute("data-index", String(index))
+    expect(row).toHaveAttribute("aria-rowindex", String(index + 2))
+  })
+}
+
+describe("logical row identity", () => {
+  it("exposes the page row count and each data row's index", async () => {
+    const { container } = renderHarness()
+
+    await screen.findByRole("cell", { name: "Alpha" })
+
+    // The logical count is independent of what is mounted; the accessible
+    // total adds the header row.
+    expect(scrollElement(container)).toHaveAttribute("data-row-count", "3")
+    expect(container.querySelector('[data-slot="table"]')).toHaveAttribute(
+      "aria-rowcount",
+      "4"
+    )
+    expect(dataRows(container)).toHaveLength(3)
+    expectContiguousRowIndexes(container)
+  })
+
+  it("keeps indexes contiguous across sorting and paging", async () => {
+    const user = userEvent.setup()
+    const { container } = renderHarness({
+      rows: () => Promise.resolve({ data: ROWS, total: 90 }),
+    })
+
+    await screen.findByRole("cell", { name: "Alpha" })
+    expectContiguousRowIndexes(container)
+
+    // Sorting reorders the page row model without changing its index space.
+    await user.click(screen.getByRole("button", { name: "Name" }))
+    await waitFor(() =>
+      expect(screen.getByTestId("location-search")).toHaveTextContent(
+        "order=desc"
+      )
+    )
+    expect(scrollElement(container)).toHaveAttribute("data-row-count", "3")
+    expectContiguousRowIndexes(container)
+
+    // Paging replaces the page's rows; indexes still restart at zero.
+    await user.click(screen.getByRole("button", { name: "Go to page 2" }))
+    await waitFor(() =>
+      expect(screen.getByTestId("location-search")).toHaveTextContent("page=2")
+    )
+    expect(scrollElement(container)).toHaveAttribute("data-row-count", "3")
+    expect(screen.getByRole("table")).toHaveAttribute("aria-rowcount", "4")
+    expectContiguousRowIndexes(container)
+  })
+})
+
 describe("escape hatch 5: feature-supplied empty state", () => {
   it("renders the title, description, and action the feature supplies", async () => {
     const action = vi.fn()
