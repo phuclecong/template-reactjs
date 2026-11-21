@@ -4,8 +4,9 @@
 
 A back-office screen that lets administrators manage **Roles** — the named,
 described access groupings every User holds. The screen is a Refine-native data
-table built on `useTable` and `useModalForm`: server-side pagination, sorting,
-and filtering; per-row create, edit, and delete; and bulk edit/delete.
+table built on the shared table shell (`useTable` under the hood) and
+`useModalForm`: server-side pagination, sorting, and filtering; per-row create,
+edit, and delete; and bulk edit/delete.
 Administrators have full access; members are read-only staff. The screen does
 not manage the permissions attached to a Role or assign Roles to Users — the
 Users screen owns assignment.
@@ -216,8 +217,12 @@ and react-hook-form 7.
 
 ### Hooks
 
-- `useTable` — list state and the TanStack table instance (`reactTable` +
-  `refineCore`).
+- `useTableShell` — the shared shell around `useTable`: flat URL seed/mirror,
+  server pagination handlers, page-scoped selection, and the
+  page/pageSize/pageCount/total trio. It returns `reactTable` and `refineCore`
+  untouched, so the feature keeps every Refine option and owns its overlays.
+- `useTable` — list state and the TanStack table instance; consumed through
+  the shell.
 - `useModalForm` — create/edit drawer lifecycle and mutations.
 - `useCustomMutation` + `useInvalidate` — bulk update/delete.
 - `useDelete` — single delete.
@@ -227,11 +232,13 @@ and react-hook-form 7.
 ### Table rendering
 
 The Roles table renders with `@workspace/ui` `Table` primitives driven by the
-TanStack instance. It does not use the shared `DataTable` or `useTableState`.
-Presentational controls are reused from `@workspace/shared-lib/components` and
-`@workspace/ui`: `ComboboxFilter`, `DateRangeFilter`, `Input`, `Select`,
-`TableSkeleton`, `TableGrid`, `TablePagination`, `EmptyList`, `ErrorPanel`,
-`Sheet`, and `ConfirmDialog`.
+TanStack instance, through `TableShellView`. It does not use the removed
+`DataTable` or `useTableState`. Presentational controls are reused from
+`@workspace/shared-lib/components` and `@workspace/ui`: `TableShellView`
+(loading, error, empty, grid, and pagination), `createSelectionColumn`,
+`ComboboxFilter`, `DateRangeFilter`, `Input`, `Select`, `Sheet`, and
+`ConfirmDialog`. The feature still supplies every translated label, the
+skeleton widths, the empty/no-match copy, and the retry description.
 
 A vendored shadcn `Badge` is added to `packages/ui` for the status badge.
 
@@ -266,6 +273,11 @@ Emit business events from the existing observability module: `role.created`,
   (ADR-0018), so one table paradigm remains: `useTableState` + `DataTable` were
   removed. All tables use the scalar `sort`/`order`/`page`/`pageSize` URL
   convention (ADR-0016), configured per feature.
+- Ticket #82 then adopted the shared table shell (`useTableShell` +
+  `TableShellView` + `createSelectionColumn`) for Roles, Tasks, and Users once
+  the three consumers existed and all five escape hatches were proven. See
+  ADR-0015's amendment. Columns, headers, filter and bulk bars, overlays,
+  delete mutations, access gating, widths, and copy stay feature-owned.
 - The Roles list requires `GET /roles/{id}` for edit prefill.
 - Page size is 30 and the seed is 60 Roles, so pagination is exercised.
 

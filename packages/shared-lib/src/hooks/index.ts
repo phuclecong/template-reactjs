@@ -1,4 +1,6 @@
 export { DEFAULT_PAGE_SIZE } from "./table-defaults"
+export { useTableShell } from "./use-table-shell"
+export type { TableShell, TableShellConfig } from "./use-table-shell"
 export { createTableUrlAdapter } from "./url-table-state"
 export type {
   TableUrlAdapter,

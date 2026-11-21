@@ -13,22 +13,13 @@ import {
   useDelete,
   useInvalidate,
   useSelect,
-  type CrudFilter,
   type HttpError,
 } from "@refinedev/core"
-import { useTable } from "@refinedev/react-table"
 import type { ColumnDef } from "@tanstack/react-table"
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom"
 import { isAdministratorRole } from "@workspace/api/policy"
 import type { RoleRecord } from "@workspace/api/schemas"
-import {
-  EmptyList,
-  ErrorPanel,
-  TableGrid,
-  TablePagination,
-} from "@workspace/shared-lib/components"
-import { TableSkeleton } from "@workspace/shared-lib/components/table-skeleton"
-import { useDialog } from "@workspace/shared-lib/hooks"
+import { TableShellView } from "@workspace/shared-lib/components"
+import { useDialog, useTableShell } from "@workspace/shared-lib/hooks"
 import { Button } from "@workspace/ui/components/button"
 import { ConfirmDialog } from "@workspace/ui/components/confirm-dialog"
 import {
@@ -59,6 +50,8 @@ const SEARCH_DEBOUNCE_MS = 300
 
 /** Fetch every Role so the assignment control can offer the whole catalogue. */
 const ROLE_PAGE_SIZE = 100
+
+const getUserRowId = (user: UserRow) => user.id
 
 /**
  * The fetched Role catalogue the assignment cell reads. It is supplied through
@@ -127,16 +120,13 @@ function RoleCell({
 }
 
 /**
- * Reference Refine table (ADR-0015) for Users: `useTable` owns server
- * pagination, sorting, and filtering, seeded and mirrored through the flat URL
- * adapter (ADR-0016). The filter bar keeps its scalar props; the table
- * translates them to and from Refine's `CrudFilter[]` internally.
+ * Reference Refine table (ADR-0015) for Users, built on the shared table shell
+ * (ticket #82). The shell owns `useTable`, the flat URL seed/mirror (ADR-0016),
+ * server pagination, and the page/total trio; this feature keeps the Role
+ * catalogue context, debounced search, member read-only rendering, and delete.
  */
 export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
   const { t } = useTranslation()
-  const [searchParams] = useSearchParams()
-  const navigate = useNavigate()
-  const { pathname, hash } = useLocation()
 
   // Role options come from the Roles resource, not a hard-coded enum.
   const roleSelect = useSelect<RoleRecord>({
@@ -276,80 +266,24 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
     return cols
   }, [t, isAdmin, changeRole, openDelete])
 
-  // The URL seeds `useTable` on mount. It is re-parsed whenever the query
-  // string changes so Refine's "empty search" reset sees the current defaults;
-  // after that, table state is the source of truth and the effect below mirrors
-  // it back into the URL.
-  const urlState = useMemo(
-    () => parseUsersUrlState(searchParams),
-    [searchParams]
-  )
-
-  const { reactTable, refineCore } = useTable<UserRow>({
-    refineCoreProps: {
-      resource: "users",
-      // Refine's sync serializes `filters[0][value]` without encoding values.
-      // The table owns its URL format instead (see `url-state.ts`).
-      syncWithLocation: false,
-      pagination: {
-        currentPage: urlState.currentPage,
-        pageSize: urlState.pageSize,
-        mode: "server",
-      },
-      sorters: { initial: urlState.sorters, mode: "server" },
-      filters: { initial: urlState.filters, mode: "server" },
-    },
-    columns,
-    getRowId: (row) => row.id,
-    enableSortingRemoval: false,
-  })
-
   const {
+    reactTable,
+    filters,
     tableQuery,
+    page,
+    pageSize,
     pageCount,
-    result,
-    filters,
-    sorters,
-    currentPage: refineCurrentPage,
-    pageSize: refinePageSize,
-    setFilters,
-    setCurrentPage,
-  } = refineCore
-
-  // Table state is the source of truth while mounted. Mirror it into the URL
-  // with flat, encoded keys, skipping the write when the URL already matches.
-  useEffect(() => {
-    const next = buildUsersSearchParams(
-      {
-        filters,
-        sorters,
-        currentPage: refineCurrentPage,
-        pageSize: refinePageSize,
-      },
-      searchParams
-    )
-    const nextSearch = next.toString()
-    if (nextSearch === searchParams.toString()) return
-    navigate(
-      { pathname, hash, search: nextSearch ? `?${nextSearch}` : "" },
-      { replace: true }
-    )
-  }, [
-    filters,
-    sorters,
-    refineCurrentPage,
-    refinePageSize,
-    searchParams,
-    navigate,
-    pathname,
-    hash,
-  ])
-
-  const rows = reactTable.getRowModel().rows
-  const { pageIndex, pageSize } = reactTable.getState().pagination
-  const page = pageIndex + 1
-  const total = result.total ?? 0
-  const totalPages = Math.max(1, pageCount)
+    total,
+    goToPage,
+    changePageSize,
+    changeFilters,
+  } = useTableShell<UserRow>({
+    resource: "users",
+    parseUrl: parseUsersUrlState,
+    buildUrl: buildUsersSearchParams,
+    columns,
+    getRowId: getUserRowId,
+  })
 
   const filterValues = useMemo(() => userFiltersFromCrud(filters), [filters])
   const hasActiveFilters = Boolean(filterValues.q || filterValues.roleId)
@@ -363,18 +297,6 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
     setLastCommittedQuery(filterValues.q)
     setSearchValue(filterValues.q)
   }
-
-  // Any filter change replaces the state and returns to page 1; both
-  // pagination layers are updated because Refine does not reset the page for
-  // `setFilters` on its own.
-  const changeFilters = useCallback(
-    (nextFilters: CrudFilter[]) => {
-      setFilters(nextFilters, "replace")
-      setCurrentPage(1)
-      reactTable.setPageIndex(0)
-    },
-    [reactTable, setFilters, setCurrentPage]
-  )
 
   // The search commits from inside the change handler, not an effect: the
   // timer is state the handler owns, and it is cleared on unmount and whenever
@@ -421,15 +343,6 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
     changeFilters([])
   }, [cancelPendingSearch, changeFilters])
 
-  const goToPage = (nextPage: number) => {
-    reactTable.setPageIndex(Math.max(0, nextPage - 1))
-  }
-
-  const changePageSize = (nextPageSize: number) => {
-    reactTable.setPageSize(nextPageSize)
-    reactTable.setPageIndex(0)
-  }
-
   return (
     <RoleCatalogueContext.Provider value={roleCatalogue}>
       <div className="flex flex-col gap-4 p-6 text-sm">
@@ -442,42 +355,34 @@ export function UsersTable({ currentUser }: { currentUser: CurrentUser }) {
           onClear={clearFilters}
         />
 
-        {tableQuery.isLoading ? (
-          <TableSkeleton
-            columnWidths={USER_SKELETON_COLUMN_WIDTHS}
-            rowCount={pageSize}
-            label={t("users.loading")}
-          />
-        ) : tableQuery.isError ? (
-          <ErrorPanel
-            title={t("users.error")}
-            description={describeError(tableQuery.error)}
-            retryLabel={t("users.retry")}
-            isRetrying={tableQuery.isFetching}
-            onRetry={() => {
-              void tableQuery.refetch()
-            }}
-          />
-        ) : rows.length === 0 ? (
-          <EmptyList
-            title={
-              hasActiveFilters ? t("users.emptyNoMatch") : t("users.empty")
-            }
-          />
-        ) : (
-          <>
-            <TableGrid table={reactTable} />
-
-            <TablePagination
-              page={page}
-              pageSize={pageSize}
-              pageCount={totalPages}
-              summary={t("users.total", { total })}
-              onPageChange={goToPage}
-              onPageSizeChange={changePageSize}
-            />
-          </>
-        )}
+        <TableShellView
+          table={reactTable}
+          isLoading={tableQuery.isLoading}
+          isError={tableQuery.isError}
+          isRetrying={tableQuery.isFetching}
+          onRetry={() => {
+            void tableQuery.refetch()
+          }}
+          loadingLabel={t("users.loading")}
+          skeletonColumnWidths={USER_SKELETON_COLUMN_WIDTHS}
+          skeletonRowCount={pageSize}
+          errorTitle={t("users.error")}
+          errorDescription={describeError(tableQuery.error)}
+          retryLabel={t("users.retry")}
+          empty={{
+            title: hasActiveFilters
+              ? t("users.emptyNoMatch")
+              : t("users.empty"),
+          }}
+          pagination={{
+            page,
+            pageSize,
+            pageCount,
+            summary: t("users.total", { total }),
+            onPageChange: goToPage,
+            onPageSizeChange: changePageSize,
+          }}
+        />
 
         <ConfirmDialog
           open={deleteDialog.isOpen}
