@@ -91,7 +91,7 @@ const NAV_SECTIONS = [
       },
     ],
   },
-]
+] as const
 
 export function AppSidebar({
   user,

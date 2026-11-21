@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next"
 import {
   taskPrioritySchema,
   taskStatusSchema,
@@ -22,7 +23,7 @@ export const TASKS_DEFAULT_SORT_ORDER = "asc"
 
 /** Feature-supplied copy and option labels for the Tasks filter chips. */
 export type TaskChipContext = {
-  t: (key: string, options?: Record<string, unknown>) => string
+  t: TFunction<"translation">
   statusOptions: readonly EnumOption<TaskStatus>[]
   priorityOptions: readonly EnumOption<TaskPriority>[]
   assigneeOptions: readonly { value: string; label: string }[]

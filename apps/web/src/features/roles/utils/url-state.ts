@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next"
 import { roleStatusSchema, type RoleStatus } from "@workspace/api/schemas"
 import {
   createTableUrlAdapter,
@@ -17,7 +18,7 @@ export const ROLES_DEFAULT_SORT_ORDER = "desc"
 
 /** Feature-supplied copy and option labels for the Roles filter chips. */
 export type RoleChipContext = {
-  t: (key: string, options?: Record<string, unknown>) => string
+  t: TFunction<"translation">
   statusOptions: readonly EnumOption<RoleStatus>[]
 }
 
