@@ -20,7 +20,7 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.546 0.245 262.881);
+  --primary: oklch(54.563% 0.24442 262.845);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.969 0.007 27.325);
   --secondary-foreground: oklch(0.205 0 0);
@@ -35,9 +35,16 @@
   --ring: oklch(0.546 0.245 262.881);
   --chart-1: oklch(0.546 0.245 262.881);
   --chart-2: oklch(0.577 0.245 27.325);
-  --chart-3: oklch(0.705 0.015 286.067);
-  --chart-4: oklch(0.552 0.016 285.938);
-  --chart-5: oklch(0.37 0.013 285.805);
+  /*
+   * Chart slots 3-5 mirror the dark chart hues (amber, violet, rose) instead of
+   * the stock gray steps: the gray values cannot tell categorical series apart,
+   * and the Dashboard charts should carry the same identity colors in both
+   * themes. Light-mode contrast is relieved by the charts' visible labels and
+   * text tables.
+   */
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.546 0.245 262.881);
