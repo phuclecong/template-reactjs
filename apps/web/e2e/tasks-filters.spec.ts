@@ -48,8 +48,8 @@ test("filters the table by several statuses", async ({ page }) => {
   ).toBeVisible()
 
   await page.getByLabel("Status").click()
-  await page.getByRole("option", { name: "todo", exact: true }).click()
-  await page.getByRole("option", { name: "in-progress", exact: true }).click()
+  await page.getByRole("option", { name: "Todo", exact: true }).click()
+  await page.getByRole("option", { name: "In-progress", exact: true }).click()
 
   // The URL keeps the selection comma-joined (URLSearchParams encodes it).
   await expect(page).toHaveURL(/status=todo(?:%2C|,)in-progress/)
@@ -63,7 +63,7 @@ test("filters the table by several statuses", async ({ page }) => {
   await expect(page.getByText("Refactor the auth provider #6")).toHaveCount(0)
 
   // Removing a chip narrows the filter without clearing it entirely.
-  await page.getByRole("button", { name: "Remove todo" }).click()
+  await page.getByRole("button", { name: "Remove Todo" }).click()
 
   await expect(page).toHaveURL(/status=in-progress/)
   await expect(page).not.toHaveURL(/status=.*todo/)
@@ -78,8 +78,8 @@ test("filters the table by several priorities", async ({ page }) => {
   await openTasks(page)
 
   await page.getByLabel("Priority").click()
-  await page.getByRole("option", { name: "low", exact: true }).click()
-  await page.getByRole("option", { name: "high", exact: true }).click()
+  await page.getByRole("option", { name: "Low", exact: true }).click()
+  await page.getByRole("option", { name: "High", exact: true }).click()
 
   // The URL keeps the selection comma-joined.
   await expect(page).toHaveURL(/priority=low(?:%2C|,)high/)
@@ -101,7 +101,7 @@ test("filters the table by several priorities", async ({ page }) => {
   ).toHaveCount(0)
 
   // Removing a chip narrows the filter without clearing it entirely.
-  await page.getByRole("button", { name: "Remove low" }).click()
+  await page.getByRole("button", { name: "Remove Low" }).click()
 
   await expect(page).toHaveURL(/priority=high/)
   await expect(page).not.toHaveURL(/priority=.*low/)
@@ -175,7 +175,7 @@ test("selects a row and applies a bulk status update", async ({ page }) => {
   ).toBeVisible()
 
   await sheet.getByLabel("Status", { exact: true }).click()
-  await page.getByRole("option", { name: "done", exact: true }).click()
+  await page.getByRole("option", { name: "Done", exact: true }).click()
   await sheet.getByRole("button", { name: "Apply changes" }).click()
 
   await expect(page.getByText("Updated 1 tasks")).toBeVisible()

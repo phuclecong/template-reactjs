@@ -23,6 +23,7 @@ async function renderFilter(
       { value: "rol_member", label: "Member" },
     ],
     onRoleChange: vi.fn(),
+    onClear: vi.fn(),
     ...overrides,
   }
 
@@ -33,16 +34,6 @@ async function renderFilter(
   )
 
   return props
-}
-
-/** The registry keeps the clear control internal; its `data-slot` is the
- * contract the theme and consumers can target. */
-function getClearControl() {
-  const clear = document.querySelector<HTMLButtonElement>(
-    '[data-slot="combobox-clear"]'
-  )
-  if (!clear) throw new Error("Combobox clear control not found")
-  return clear
 }
 
 describe("UsersFilterBar role filter", () => {
@@ -84,16 +75,19 @@ describe("UsersFilterBar role filter", () => {
     expect(props.onRoleChange).toHaveBeenCalledWith("rol_member")
   })
 
-  it("shows the selected role and clears it", async () => {
+  it("shows the selected role and clears it from the filter bar", async () => {
     const user = userEvent.setup()
     const props = await renderFilter({ roleId: "rol_member" })
 
     const input = screen.getByRole("combobox", { name: "Role" })
     expect(input).toHaveValue("Member")
+    expect(
+      document.querySelector('[data-slot="combobox-clear"]')
+    ).not.toBeInTheDocument()
 
-    await user.click(getClearControl())
+    await user.click(screen.getByRole("button", { name: "Clear" }))
 
-    expect(props.onRoleChange).toHaveBeenCalledWith("")
+    expect(props.onClear).toHaveBeenCalledTimes(1)
   })
 
   it("localizes the placeholder while Role titles stay data", async () => {

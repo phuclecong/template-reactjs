@@ -31,9 +31,9 @@ test("admin creates, edits, and deletes a task", async ({ page }) => {
     .getByLabel("Description")
     .fill("created by the write-path spec")
   await createDialog.getByLabel("Status").click()
-  await page.getByRole("option", { name: "done" }).click()
+  await page.getByRole("option", { name: "Done" }).click()
   await createDialog.getByLabel("Priority").click()
-  await page.getByRole("option", { name: "high" }).click()
+  await page.getByRole("option", { name: "High" }).click()
   await createDialog.getByLabel("Assignee").click()
   await page.getByRole("option", { name: "Mia Member" }).click()
   await createDialog.getByLabel("Due date").click()
@@ -51,8 +51,8 @@ test("admin creates, edits, and deletes a task", async ({ page }) => {
   await page.getByLabel("Search tasks").fill("E2E write task")
   const createdRow = rowByText(page, "E2E write task")
   await expect(createdRow).toBeVisible()
-  await expect(createdRow.getByText("done", { exact: true })).toBeVisible()
-  await expect(createdRow.getByText("high", { exact: true })).toBeVisible()
+  await expect(createdRow.getByText("Done", { exact: true })).toBeVisible()
+  await expect(createdRow.getByText("High", { exact: true })).toBeVisible()
   await expect(createdRow.getByText(/2:30 PM/)).toBeVisible()
 
   // Edit the title and the Due time; both persist as one datetime.
