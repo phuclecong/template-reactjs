@@ -5,19 +5,16 @@ import { useForm } from "@refinedev/react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller } from "react-hook-form"
 import type { TaskRecord } from "@workspace/api/schemas"
+import {
+  ComboboxFilter,
+  type FilterOption,
+} from "@workspace/shared-lib/components"
 import { useEnums } from "@workspace/shared-lib/hooks"
 import { Button } from "@workspace/ui/components/button"
 import { DatePicker } from "@workspace/ui/components/date-picker"
 import { Field, FieldError, FieldLabel } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
 import { resolveLocale } from "@workspace/ui/lib/date"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select"
 import {
   Sheet,
   SheetContent,
@@ -78,6 +75,19 @@ export function TaskFormDrawer({
   const schema = useMemo(
     () => createTaskFormSchema({ titleRequired: t("validation.required") }),
     [t]
+  )
+
+  const priorityChoices = useMemo<FilterOption[]>(
+    () => [{ value: "", label: t("taskDialog.none") }, ...priorityOptions],
+    [priorityOptions, t]
+  )
+
+  const assigneeChoices = useMemo<FilterOption[]>(
+    () => [
+      { value: "", label: t("taskDialog.unassigned") },
+      ...users.map((user) => ({ value: user.id, label: user.name })),
+    ],
+    [users, t]
   )
 
   const {
@@ -203,25 +213,17 @@ export function TaskFormDrawer({
                   <FieldLabel htmlFor={`${fieldId}-status`}>
                     {t("taskDialog.status")}
                   </FieldLabel>
-                  <Select
+                  <ComboboxFilter
+                    id={`${fieldId}-status`}
+                    options={statusOptions}
                     value={field.value}
                     onValueChange={(value) => field.onChange(value)}
-                  >
-                    <SelectTrigger
-                      id={`${fieldId}-status`}
-                      disabled={isSubmitting}
-                      aria-invalid={fieldState.invalid}
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statusOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    ariaLabel={t("taskDialog.status")}
+                    placeholder={t("taskDialog.status")}
+                    className="w-full"
+                    disabled={isSubmitting}
+                    ariaInvalid={fieldState.invalid}
+                  />
                   <FieldError errors={[fieldState.error]} />
                 </Field>
               )}
@@ -235,26 +237,17 @@ export function TaskFormDrawer({
                   <FieldLabel htmlFor={`${fieldId}-priority`}>
                     {t("taskDialog.priority")}
                   </FieldLabel>
-                  <Select
+                  <ComboboxFilter
+                    id={`${fieldId}-priority`}
+                    options={priorityChoices}
                     value={field.value}
                     onValueChange={(value) => field.onChange(value)}
-                  >
-                    <SelectTrigger
-                      id={`${fieldId}-priority`}
-                      disabled={isSubmitting}
-                      aria-invalid={fieldState.invalid}
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">{t("taskDialog.none")}</SelectItem>
-                      {priorityOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    ariaLabel={t("taskDialog.priority")}
+                    placeholder={t("taskDialog.priority")}
+                    className="w-full"
+                    disabled={isSubmitting}
+                    ariaInvalid={fieldState.invalid}
+                  />
                   <FieldError errors={[fieldState.error]} />
                 </Field>
               )}
@@ -268,28 +261,17 @@ export function TaskFormDrawer({
                   <FieldLabel htmlFor={`${fieldId}-assignee`}>
                     {t("taskDialog.assignee")}
                   </FieldLabel>
-                  <Select
+                  <ComboboxFilter
+                    id={`${fieldId}-assignee`}
+                    options={assigneeChoices}
                     value={field.value}
                     onValueChange={(value) => field.onChange(value)}
-                  >
-                    <SelectTrigger
-                      id={`${fieldId}-assignee`}
-                      disabled={isSubmitting}
-                      aria-invalid={fieldState.invalid}
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">
-                        {t("taskDialog.unassigned")}
-                      </SelectItem>
-                      {users.map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    ariaLabel={t("taskDialog.assignee")}
+                    placeholder={t("taskDialog.assignee")}
+                    className="w-full"
+                    disabled={isSubmitting}
+                    ariaInvalid={fieldState.invalid}
+                  />
                   <FieldError errors={[fieldState.error]} />
                 </Field>
               )}

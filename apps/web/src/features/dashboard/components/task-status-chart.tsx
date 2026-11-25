@@ -12,9 +12,18 @@ import {
   type ChartConfig,
 } from "@workspace/ui/components/chart"
 import { useTranslation } from "react-i18next"
-import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts"
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  LabelList,
+  XAxis,
+  YAxis,
+} from "recharts"
 
 import { useReducedMotion } from "@/hooks/use-reduced-motion"
+import { STATUS_COLORS } from "../utils/chart-colors"
 import { ChartDataTable } from "./chart-data-table"
 
 const LABEL_KEYS = {
@@ -32,11 +41,12 @@ export function TaskStatusChart({ summary }: { summary: DashboardSummary }) {
     status,
     label: t(LABEL_KEYS[status]),
     count,
+    fill: `var(--color-${status})`,
   }))
   const config = Object.fromEntries(
     summary.byStatus.map(({ status }) => [
       status,
-      { label: t(LABEL_KEYS[status]), color: "var(--chart-1)" },
+      { label: t(LABEL_KEYS[status]), color: STATUS_COLORS[status] },
     ])
   ) satisfies ChartConfig
 
@@ -75,20 +85,16 @@ export function TaskStatusChart({ summary }: { summary: DashboardSummary }) {
                 />
                 <ChartTooltip
                   cursor={false}
-                  content={
-                    <ChartTooltipContent
-                      hideLabel
-                      nameKey="status"
-                      color="var(--chart-1)"
-                    />
-                  }
+                  content={<ChartTooltipContent hideLabel nameKey="status" />}
                 />
                 <Bar
                   dataKey="count"
-                  fill="var(--chart-1)"
                   radius={[4, 4, 0, 0]}
                   isAnimationActive={!reducedMotion}
                 >
+                  {data.map((entry) => (
+                    <Cell key={entry.status} fill={entry.fill} />
+                  ))}
                   <LabelList
                     dataKey="count"
                     position="top"

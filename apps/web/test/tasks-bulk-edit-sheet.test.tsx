@@ -67,7 +67,7 @@ describe("TasksBulkEditSheet", () => {
     const onApply = await renderSheet(vi.fn())
 
     await user.click(screen.getByRole("combobox", { name: "Status" }))
-    await user.click(await screen.findByRole("option", { name: "done" }))
+    await user.click(await screen.findByRole("option", { name: "Done" }))
     await user.click(applyButton())
 
     expect(onApply).toHaveBeenCalledWith({ status: "done" })
@@ -111,9 +111,9 @@ describe("TasksBulkEditSheet", () => {
     const onApply = await renderSheet(vi.fn())
 
     await user.click(screen.getByRole("combobox", { name: "Status" }))
-    await user.click(await screen.findByRole("option", { name: "done" }))
+    await user.click(await screen.findByRole("option", { name: "Done" }))
     await user.click(screen.getByRole("combobox", { name: "Priority" }))
-    await user.click(await screen.findByRole("option", { name: "high" }))
+    await user.click(await screen.findByRole("option", { name: "High" }))
     await user.click(applyButton())
 
     expect(onApply).toHaveBeenCalledWith({ status: "done", priority: "high" })

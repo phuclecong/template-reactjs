@@ -71,7 +71,7 @@ describe("TasksFilterBar collapsing", () => {
     expect(
       screen.queryByRole("combobox", { name: "Status" })
     ).not.toBeInTheDocument()
-    expect(screen.getByText("Status: todo")).toBeVisible()
+    expect(screen.getByText("Status: Todo")).toBeVisible()
     expect(screen.getByRole("button", { name: "Clear all" })).toBeVisible()
 
     await user.click(toggle)
@@ -107,15 +107,15 @@ describe("TasksFilterBar status and priority filters", () => {
     render(<Harness onChange={onChange} />)
 
     await user.click(screen.getByRole("combobox", { name: "Status" }))
-    await user.click(await screen.findByRole("option", { name: "todo" }))
-    await user.click(screen.getByRole("option", { name: "in-progress" }))
+    await user.click(await screen.findByRole("option", { name: "Todo" }))
+    await user.click(screen.getByRole("option", { name: "In-progress" }))
 
     expect(onChange).toHaveBeenLastCalledWith(
       filtersFor({ status: "todo,in-progress" })
     )
-    expect(screen.getByRole("button", { name: "Remove todo" })).toBeVisible()
+    expect(screen.getByRole("button", { name: "Remove Todo" })).toBeVisible()
     expect(
-      screen.getByRole("button", { name: "Remove in-progress" })
+      screen.getByRole("button", { name: "Remove In-progress" })
     ).toBeVisible()
   })
 
@@ -129,7 +129,7 @@ describe("TasksFilterBar status and priority filters", () => {
       />
     )
 
-    await user.click(screen.getByRole("button", { name: "Remove todo" }))
+    await user.click(screen.getByRole("button", { name: "Remove Todo" }))
 
     expect(onChange).toHaveBeenLastCalledWith(filtersFor({ status: "done" }))
   })
@@ -140,8 +140,8 @@ describe("TasksFilterBar status and priority filters", () => {
     render(<Harness onChange={onChange} />)
 
     await user.click(screen.getByRole("combobox", { name: "Priority" }))
-    await user.click(await screen.findByRole("option", { name: "low" }))
-    await user.click(screen.getByRole("option", { name: "high" }))
+    await user.click(await screen.findByRole("option", { name: "Low" }))
+    await user.click(screen.getByRole("option", { name: "High" }))
 
     expect(onChange).toHaveBeenLastCalledWith(
       filtersFor({ priority: "low,high" })

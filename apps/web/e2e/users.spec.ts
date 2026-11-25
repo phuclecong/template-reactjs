@@ -84,9 +84,9 @@ test("filters users by Role identity and clears the filter", async ({
   await expect(page.getByRole("cell", { name: "Mia Member" })).toBeVisible()
   await expect(page.getByRole("cell", { name: "Ada Admin" })).toHaveCount(0)
 
-  // The clear control is internal to the combobox and icon-only, so target its
-  // data-slot contract rather than an accessible name.
-  await page.locator('[data-slot="combobox-clear"]').click()
+  // The single-select combobox does not render a clear control; filters clear
+  // through the filter bar's Clear action.
+  await page.getByRole("button", { name: "Clear", exact: true }).click()
 
   await expect(page).not.toHaveURL(/roleId=/)
   await expect(page.getByRole("cell", { name: "Ada Admin" })).toBeVisible()

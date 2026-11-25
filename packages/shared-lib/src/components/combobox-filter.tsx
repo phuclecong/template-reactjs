@@ -20,7 +20,7 @@ import { joinFilterValues, parseFilterValues } from "../utils"
 /** A filter choice: the URL value plus its translated display label. */
 export type FilterOption = { value: string; label: string }
 
-type ComboboxFilterSharedProps = {
+type ComboboxFilterProps = {
   /** Translated options; callers memoize the array for stable item identity. */
   options: readonly FilterOption[]
   /** Comma-joined for multi-select, scalar for single-select. */
@@ -41,11 +41,8 @@ type ComboboxFilterSharedProps = {
    * empty can mean "all"; a required form field does not.
    */
   showClear?: boolean
+  multiple?: boolean
 }
-
-export type ComboboxFilterProps =
-  | (ComboboxFilterSharedProps & { multiple: true })
-  | (ComboboxFilterSharedProps & { multiple: false })
 
 const optionValueEquals = (option: FilterOption, selected: FilterOption) =>
   option.value === selected.value
@@ -89,7 +86,7 @@ function MultiSelectComboboxFilter({
   id,
   disabled,
   ariaInvalid,
-}: ComboboxFilterSharedProps) {
+}: ComboboxFilterProps) {
   const { t } = useTranslation()
   const selectedValues = useMemo(() => parseFilterValues(value), [value])
   const optionByValue = useMemo(
@@ -190,8 +187,8 @@ function SingleSelectComboboxFilter({
   id,
   disabled,
   ariaInvalid,
-  showClear = true,
-}: ComboboxFilterSharedProps) {
+  showClear,
+}: ComboboxFilterProps) {
   const selectedOption = useMemo(
     () => options.find((option) => option.value === value) ?? null,
     [options, value]
@@ -214,7 +211,7 @@ function SingleSelectComboboxFilter({
         placeholder={placeholder}
         className={className}
         showTrigger={true}
-        showClear={showClear}
+        showClear={!!selectedOption?.value && showClear}
         disabled={disabled}
       />
       <ComboboxFilterContent />

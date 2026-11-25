@@ -102,9 +102,9 @@ test("bulk edit applies several dirty fields in one update", async ({
   ).toBeVisible()
 
   await sheet.getByLabel("Status", { exact: true }).click()
-  await page.getByRole("option", { name: "done", exact: true }).click()
+  await page.getByRole("option", { name: "Done", exact: true }).click()
   await sheet.getByLabel("Priority", { exact: true }).click()
-  await page.getByRole("option", { name: "high", exact: true }).click()
+  await page.getByRole("option", { name: "High", exact: true }).click()
   await sheet.getByRole("button", { name: "Apply changes" }).click()
 
   await expect(page.getByText("Updated 2 tasks", { exact: true })).toBeVisible()
@@ -118,10 +118,10 @@ test("bulk edit applies several dirty fields in one update", async ({
     page,
     rowByText(page, "Audit the access-control matrix #17")
   )
-  await expect(first.getByText("done", { exact: true })).toBeVisible()
-  await expect(first.getByText("high", { exact: true })).toBeVisible()
-  await expect(second.getByText("done", { exact: true })).toBeVisible()
-  await expect(second.getByText("high", { exact: true })).toBeVisible()
+  await expect(first.getByText("Done", { exact: true })).toBeVisible()
+  await expect(first.getByText("High", { exact: true })).toBeVisible()
+  await expect(second.getByText("Done", { exact: true })).toBeVisible()
+  await expect(second.getByText("High", { exact: true })).toBeVisible()
 })
 
 test("bulk edit emits an update event naming the changed fields", async ({
@@ -137,7 +137,7 @@ test("bulk edit emits an update event naming the changed fields", async ({
   await bulkBar(page).getByRole("button", { name: "Edit", exact: true }).click()
   const sheet = page.getByRole("dialog")
   await sheet.getByLabel("Status", { exact: true }).click()
-  await page.getByRole("option", { name: "done", exact: true }).click()
+  await page.getByRole("option", { name: "Done", exact: true }).click()
   await sheet.getByRole("button", { name: "Apply changes" }).click()
 
   await expect(page.getByText("Updated 1 tasks", { exact: true })).toBeVisible()

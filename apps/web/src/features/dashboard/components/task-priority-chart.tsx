@@ -7,14 +7,17 @@ import {
 } from "@workspace/ui/components/card"
 import {
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
 } from "@workspace/ui/components/chart"
 import { useTranslation } from "react-i18next"
-import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts"
+import { Cell, Pie, PieChart } from "recharts"
 
 import { useReducedMotion } from "@/hooks/use-reduced-motion"
+import { PRIORITY_COLORS } from "../utils/chart-colors"
 import { ChartDataTable } from "./chart-data-table"
 
 const LABEL_KEYS = {
@@ -32,11 +35,12 @@ export function TaskPriorityChart({ summary }: { summary: DashboardSummary }) {
     priority,
     label: t(LABEL_KEYS[priority]),
     count,
+    fill: `var(--color-${priority})`,
   }))
   const config = Object.fromEntries(
     summary.byPriority.map(({ priority }) => [
       priority,
-      { label: t(LABEL_KEYS[priority]), color: "var(--chart-1)" },
+      { label: t(LABEL_KEYS[priority]), color: PRIORITY_COLORS[priority] },
     ])
   ) satisfies ChartConfig
 
@@ -60,43 +64,32 @@ export function TaskPriorityChart({ summary }: { summary: DashboardSummary }) {
               className="aspect-auto h-64 w-full"
               aria-hidden="true"
             >
-              <BarChart data={data} margin={{ top: 20, right: 8, left: -16 }}>
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="label"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                />
-                <YAxis
-                  allowDecimals={false}
-                  tickLine={false}
-                  axisLine={false}
-                />
+              <PieChart>
                 <ChartTooltip
                   cursor={false}
-                  content={
-                    <ChartTooltipContent
-                      hideLabel
-                      nameKey="priority"
-                      color="var(--chart-1)"
-                    />
-                  }
+                  content={<ChartTooltipContent hideLabel nameKey="priority" />}
                 />
-                <Bar
+                <Pie
+                  data={data}
                   dataKey="count"
-                  fill="var(--chart-1)"
-                  radius={[4, 4, 0, 0]}
+                  nameKey="priority"
+                  // innerRadius={48}
+                  // outerRadius={88}
+                  stroke="var(--card)"
+                  strokeWidth={0}
                   isAnimationActive={!reducedMotion}
                 >
-                  <LabelList
-                    dataKey="count"
-                    position="top"
-                    fill="var(--muted-foreground)"
-                    fontSize={11}
-                  />
-                </Bar>
-              </BarChart>
+                  {data.map((entry) => (
+                    <Cell key={entry.priority} fill={entry.fill} />
+                  ))}
+                </Pie>
+                {/* Recharts sorts legend items by value by default, which
+                    would scramble the low→medium→high ramp order. */}
+                <ChartLegend
+                  itemSorter={null}
+                  content={<ChartLegendContent nameKey="priority" />}
+                />
+              </PieChart>
             </ChartContainer>
             <ChartDataTable
               caption={title}
